@@ -5,6 +5,16 @@ All notable changes to this project are documented here. The format follows
 [Conventional Commits](.github/COMMIT_CONVENTION.md), so the commit subjects are the
 same information in a form `git log` can filter.
 
+## [1.0.0-rc.0] - 2026-10-03
+
+### Performance
+
+- perf(compat): frame the facade on the codec fast path and measure it (#66)
+
+### Added
+
+- feat(bench): compare ventiws with ws, uWebSockets.js, and Socket.IO (#65)
+
 ## [1.0.0-beta.5] - 2026-10-02
 
 ### Added
