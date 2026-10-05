@@ -64,8 +64,10 @@ export function queuedBytes(state: SocketState): number {
 
 /// A transport-owned socket has no staging ring, so it reads the transport's own queue.
 export function bufferedAmountOf(state: SocketState): number {
-  if (state.attachment === null) return queuedBytes(state);
-  return socketBufferedAmount(state.attachment.server, state.attachment.connection);
+  if (state.attachment === null) return queuedBytes(state) + state.bufferedExtra;
+  return (
+    socketBufferedAmount(state.attachment.server, state.attachment.connection) + state.bufferedExtra
+  );
 }
 
 /// `nextTick` keeps send and close callbacks off the caller's stack, matching the native
