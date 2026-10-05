@@ -65,47 +65,76 @@ describe("a client reading a server answer", () => {
     expect(outcome).toHaveProperty("accepted");
   });
 
-  test("an answer that negotiates nothing is still an answer", () => {
-    // A server is free to answer with the bare name, and the client connects
-    // uncompressed. Reading that as a refusal would break against a perfectly correct
-    // server that simply declined the parameters.
-    expect(acceptAsClient(one("permessage-deflate"), DEFAULTS)).toHaveProperty("accepted");
+  test("server_no_context_takeover alone is enough to accept", () => {
+    // The inflater is one-shot, so this is the one parameter that has to be present; the
+    // rest of the answer can be whatever the server needs.
+    expect(
+      acceptAsClient(one("permessage-deflate; server_no_context_takeover"), DEFAULTS),
+    ).toHaveProperty("accepted");
+  });
+
+  test("an answer without server_no_context_takeover is refused", () => {
+    // A bare answer lets the server reuse its compression window between messages, and a
+    // one-shot inflater cannot decode the second message. The offer always asks for the
+    // parameter, so its absence is not something to accept.
+    const outcome = acceptAsClient(one("permessage-deflate"), DEFAULTS);
+    expect(outcome).toHaveProperty("refusal");
+    if (outcome !== null && "refusal" in outcome) {
+      expect(outcome.refusal).toBe('Missing parameter "server_no_context_takeover"');
+    }
   });
 
   test("a context takeover this side did not ask for is refused", () => {
     // `ws` raises exactly this against a server that assumes it, and honouring it would
     // mean a compressor that cannot carry a window between messages.
     const client = normalizePerMessageDeflate({ clientNoContextTakeover: false }, true);
-    const outcome = acceptAsClient(one("permessage-deflate; client_no_context_takeover"), client);
+    const outcome = acceptAsClient(
+      one("permessage-deflate; server_no_context_takeover; client_no_context_takeover"),
+      client,
+    );
     expect(outcome).toHaveProperty("refusal");
   });
 
   test("a window this compressor cannot use is refused", () => {
-    const outcome = acceptAsClient(one("permessage-deflate; client_max_window_bits=10"), DEFAULTS);
+    const outcome = acceptAsClient(
+      one("permessage-deflate; server_no_context_takeover; client_max_window_bits=10"),
+      DEFAULTS,
+    );
     expect(outcome).toHaveProperty("refusal");
   });
 
   test("a valueless client window in a response is refused", () => {
     // RFC 7692 section 7.1.2.1 requires a server to name the window it chose, so the
     // valueless form is legal in an offer and not in a response.
-    const outcome = acceptAsClient(one("permessage-deflate; client_max_window_bits"), DEFAULTS);
+    const outcome = acceptAsClient(
+      one("permessage-deflate; server_no_context_takeover; client_max_window_bits"),
+      DEFAULTS,
+    );
     expect(outcome).toHaveProperty("refusal");
   });
 
   test("a window wider than the client offered is refused", () => {
     const client = normalizePerMessageDeflate({ clientMaxWindowBits: 10 }, true);
-    const outcome = acceptAsClient(one("permessage-deflate; client_max_window_bits=15"), client);
+    const outcome = acceptAsClient(
+      one("permessage-deflate; server_no_context_takeover; client_max_window_bits=15"),
+      client,
+    );
     expect(outcome).toHaveProperty("refusal");
   });
 
   test("an unknown parameter is refused", () => {
-    const outcome = acceptAsClient(one("permessage-deflate; unknown=1"), DEFAULTS);
+    const outcome = acceptAsClient(
+      one("permessage-deflate; server_no_context_takeover; unknown=1"),
+      DEFAULTS,
+    );
     expect(outcome).toHaveProperty("refusal");
   });
 
   test("a duplicated parameter is refused", () => {
     const outcome = acceptAsClient(
-      one("permessage-deflate; client_no_context_takeover; client_no_context_takeover"),
+      one(
+        "permessage-deflate; server_no_context_takeover; client_no_context_takeover; client_no_context_takeover",
+      ),
       DEFAULTS,
     );
     expect(outcome).toHaveProperty("refusal");

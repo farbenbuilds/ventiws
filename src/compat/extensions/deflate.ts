@@ -53,6 +53,10 @@ export function acceptAsClient(
   if (normalized === null) {
     return { refusal: "Invalid Sec-WebSocket-Extensions header" };
   }
+  // The inflater is one-shot: a server reusing its window makes the second message undecodable.
+  if (normalized.server_no_context_takeover !== true) {
+    return { refusal: 'Missing parameter "server_no_context_takeover"' };
+  }
   if (normalized.client_no_context_takeover && options.clientNoContextTakeover === false) {
     return { refusal: 'Unexpected parameter "client_no_context_takeover"' };
   }
