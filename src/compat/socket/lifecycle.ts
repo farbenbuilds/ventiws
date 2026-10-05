@@ -30,8 +30,9 @@ export function finishConnection(state: SocketState, code: number, reason: Buffe
   state.readyState = CLOSED;
   state.closeCode = code;
   state.closeReason = reason;
-  // Released on the terminal transition: the parse can never resume.
+  // Released on the terminal transition: the parse can never resume and no request is left to cancel.
   state.pendingInput = [];
+  state.cancelHandshake = null;
   logSocketClose(state, code, reason);
   emitEvent(state, "close", code, reason);
 }
@@ -73,6 +74,9 @@ export function reportWithoutClosing(state: SocketState, error: Error): void {
 export function closeConnection(state: SocketState, code?: unknown, reason?: unknown): void {
   if (state.readyState === CLOSED) return;
   if (state.readyState === CONNECTING) {
+    // The in-flight request is the only connection a CONNECTING socket has, so it is
+    // cancelled first: a late 101 must not answer a socket that is already CLOSED.
+    state.cancelHandshake?.();
     failConnection(
       state,
       createError(
