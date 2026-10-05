@@ -100,6 +100,12 @@ pub fn receive() type {
             try rx.parts.note(rx.message.length, rx.max_fragments_per_message);
         }
 
+        /// The final frame is the last piece, which `ws` counts against `maxFragments`
+        /// too; the non-final bound alone accepted a message of `max_fragments + 1` pieces.
+        pub fn note_final(rx: *Self) error{TooManyFragments}!void {
+            try rx.parts.note_final(rx.max_fragments_per_message);
+        }
+
         /// The arithmetic and the refusals are in `accumulate.zig`.
         pub fn consume(rx: *Self, input: []const u8, offset: *usize) !void {
             return accumulate.consume(Self, rx, input, offset);

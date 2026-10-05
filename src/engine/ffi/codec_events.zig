@@ -101,9 +101,10 @@ fn materialize(env: napi.Env, peer: anytype, want_ends: abi.Arg, out: []const u8
     return result;
 }
 
-/// Null without an interior boundary, matching `codec_fragments`.
+/// Null without an interior boundary, matching `codec_fragments`. One interior boundary
+/// means two pieces, so only an empty list is "arrived whole".
 fn fragment_array(env: napi.Env, ends: []const u32) !napi.Val {
-    if (ends.len < 2) return env.createNull();
+    if (ends.len == 0) return env.createNull();
     const array = try env.createArrayWithLength(@intCast(ends.len));
     for (ends, 0..) |end, index| {
         try array.setElement(env, @intCast(index), try env.createUint32(end));

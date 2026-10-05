@@ -25,6 +25,9 @@ function atRuntime(options: Record<string, unknown>): ServerOptions {
 /// A whole text message whose bytes are not valid UTF-8: a lone continuation byte.
 const INVALID_TEXT = Buffer.from([0x41, 0x80, 0x42]);
 
+/// A close payload for 1000 with a reason that is not UTF-8: 0x03 0xe8 then 0xff 0xfe.
+const INVALID_REASON_CLOSE = Buffer.from([0x03, 0xe8, 0xff, 0xfe]);
+
 async function withRawPeer(
   server: WebSocketServer,
   run: (socket: WebSocket, write: (bytes: Buffer) => void) => Promise<void>,
@@ -97,3 +100,40 @@ test("the option is per connection", { timeout: TEST_TIMEOUT_MS }, async () => {
     await harness.close();
   }
 });
+
+test(
+  "skipUTF8Validation accepts a close reason that is not UTF-8",
+  { timeout: TEST_TIMEOUT_MS },
+  async () => {
+    // `ws` guards the reason with `!this._skipUTF8Validation`, and the reason is then
+    // delivered exactly as the peer sent it: the option is what decides, not the bytes.
+    const server = new WebSocketServer(atRuntime({ noServer: true, skipUTF8Validation: true }));
+    await withRawPeer(server, async (socket, write) => {
+      const closed = new Promise<Buffer>((resolve) => {
+        socket.on("close", (code: number, reason: Buffer) => {
+          expect(code).toBe(1000);
+          resolve(reason);
+        });
+      });
+      write(clientFrames([{ opcode: 0x8, payload: INVALID_REASON_CLOSE }]));
+      expect([...(await closed)]).toEqual([0xff, 0xfe]);
+    });
+  },
+);
+
+test(
+  "a close reason that is not UTF-8 is 1007 by default",
+  { timeout: TEST_TIMEOUT_MS },
+  async () => {
+    const server = new WebSocketServer({ noServer: true });
+    await withRawPeer(server, async (socket, write) => {
+      const closed = new Promise<number>((resolve) => {
+        socket.on("close", (code: number) => resolve(code));
+      });
+      write(clientFrames([{ opcode: 0x8, payload: INVALID_REASON_CLOSE }]));
+      // RFC 6455 section 7.4.1: a close reason that is not valid UTF-8 is 1007, the same
+      // code a text message with the same bytes gets.
+      expect(await closed).toBe(1007);
+    });
+  },
+);

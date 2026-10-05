@@ -35,6 +35,8 @@ pub fn finish(comptime State: type, peer: *State) anyerror!Finished {
         peer.conn.complete_frame();
         return .fragment;
     }
+    // The final frame is a piece too, which `ws` counts; the check above only saw interiors.
+    peer.note_final() catch return error.TooManyFragments;
 
     if (peer.inflate.is_compressed()) try decompress(State, peer);
     const message_opcode = peer.message_opcode orelse return error.ProtocolError;
@@ -72,7 +74,7 @@ fn decompress(comptime State: type, peer: *State) !void {
 /// A control frame is never fragmented and never exceeds 125 bytes, so one buffer serves all three opcodes.
 fn finish_control(comptime State: type, peer: *State, opcode: zslay.Opcode, payload_len: u64) !receive.Decoded {
     const payload = peer.control[0..@intCast(payload_len)];
-    if (opcode == .close) try validate_close(payload);
+    if (opcode == .close) try validate_close(payload, peer.validate_utf8);
     const kind: Kind = if (opcode == .ping) .ping else if (opcode == .pong) .pong else .close;
     peer.conn.complete_frame();
     return .{
@@ -85,10 +87,12 @@ fn finish_control(comptime State: type, peer: *State, opcode: zslay.Opcode, payl
 
 /// The three close-payload faults. `zslay` validates all three but reports two of them
 /// as one `ProtocolError`, so both the length and the code are checked here first; the
-/// order is the one `ws` uses at `node_modules/ws/lib/receiver.js`.
-fn validate_close(payload: []const u8) !void {
+/// order is the one `ws` uses at `node_modules/ws/lib/receiver.js`. `validate_utf8` is
+/// `ws`'s `skipUTF8Validation`, which skips only the reason's UTF-8 pass.
+fn validate_close(payload: []const u8, validate_utf8: bool) !void {
     if (payload.len == 1) return error.InvalidControlPayloadLength;
     if (!close_payload.has_valid_code(payload)) return error.InvalidCloseCode;
+    if (!validate_utf8) return;
     zslay.frame.validate_close_payload(payload) catch |err| {
         return if (err == error.InvalidUtf8) error.InvalidUtf8 else error.ProtocolError;
     };

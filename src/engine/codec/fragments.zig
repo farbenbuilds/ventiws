@@ -29,6 +29,11 @@ pub const Fragments = struct {
         boundaries.count += 1;
     }
 
+    /// The frame that ends the message is piece `count + 1`; `ws` counts it against the bound.
+    pub fn note_final(boundaries: *const Fragments, bound: usize) error{TooManyFragments}!void {
+        if (boundaries.count >= bound) return error.TooManyFragments;
+    }
+
     pub fn ends(boundaries: *const Fragments) []const u32 {
         return boundaries.ends_.window(boundaries.count);
     }
