@@ -9,7 +9,7 @@ import type { SocketState } from "../../types/socket";
 import { OPEN } from "../ready-state";
 import { createError } from "../errors";
 import { defer, notOpenError } from "./payload";
-import { framePayload } from "./send";
+import { framePayload } from "./send-frame";
 
 /// The minimum shape of a `Blob` this accepts, checked structurally because a global
 /// `Blob` is absent on a Node build without it and a cross-realm one is not `instanceof`.
@@ -37,6 +37,7 @@ export function sendBlob(
   callback: unknown,
 ): void {
   if (state.readyState !== OPEN) {
+    state.bufferedExtra += blob.size;
     defer(callback, notOpenError(state.readyState));
     return;
   }
@@ -44,6 +45,7 @@ export function sendBlob(
     .arrayBuffer()
     .then((buffer) => {
       if (state.readyState !== OPEN) {
+        state.bufferedExtra += buffer.byteLength;
         defer(callback, notOpenError(state.readyState));
         return;
       }

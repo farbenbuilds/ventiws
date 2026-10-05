@@ -1,0 +1,133 @@
+/// Framing and staging one message whose payload is already resolved.
+///
+/// Split from `send.ts`, which owns the queue a blob read creates: this half never waits,
+/// so the synchronous throw a bad payload still owes the caller belongs there.
+
+import { sendSocket } from "../../binding/socket";
+import type { SocketState } from "../../types/socket";
+import type { EngineStatus } from "../../types/status";
+import { createError } from "../errors";
+import { OPEN } from "../ready-state";
+import { sendFramed } from "./codec-send";
+import { reportWithoutClosing } from "./lifecycle";
+import { notAttachedError, reportFailure } from "./send-failure";
+import { defer, notOpenError, statusError, toPayload, type SocketPayload } from "./payload";
+import { isBlob, sendBlob } from "./send-blob";
+
+/// Frames and stages one message. Exported, and not reached through `sendData` by the blob
+/// path: `sendData` queues behind the very read that is asking it to run, so a blob would
+/// wait on itself for ever. See `send-blob.ts`.
+export function framePayload(
+  state: SocketState,
+  data: unknown,
+  options: unknown,
+  callback: unknown,
+): void {
+  const failure = resolveCallback(options, callback);
+  // A blob is read before it is framed, so it leaves through its own path; the callback is
+  // the only report, which is what `ws` does with one too.
+  if (isBlob(data)) {
+    sendBlob(state, data, options, failure);
+    return;
+  }
+  frameResolved(state, toPayload(data), options, failure);
+}
+
+/// Frames a payload that is already bytes; the queued non-blob path converts before it
+/// queues, so this is only reached once `send`'s synchronous validation has happened.
+export function frameResolved(
+  state: SocketState,
+  payload: SocketPayload,
+  options: unknown,
+  failure: unknown,
+): void {
+  if (state.readyState !== OPEN) {
+    // `sendAfterClose`: the bytes are accounted and the callback is told, nothing
+    // else. Routing this through `reportFailure` would close a merely mid-close socket.
+    state.bufferedExtra += payload.bytes.length;
+    defer(failure, notOpenError(state.readyState));
+    return;
+  }
+  if (state.codec !== null) {
+    // The codec frames for a socket that has a transport, so a message goes out as a
+    // frame rather than as bytes the engine would have to frame.
+    sendFramed(state, payload, options, failure);
+    return;
+  }
+  if (state.attachment === null) {
+    // Not `reportFailure`: the failure is this build's missing transport, not the
+    // socket's, so only the observation differs from `ws`.
+    if (typeof failure === "function") defer(failure, notAttachedError());
+    else reportWithoutClosing(state, notAttachedError());
+    return;
+  }
+  const binary = sendBinary(options, payload.binary);
+  const status = sendSocket(
+    state.attachment.server,
+    state.attachment.connection,
+    payload.bytes,
+    binary,
+  );
+  applySendStatus(state, status, payload.bytes.length, failure);
+}
+
+/// `ws` treats a function in the options position as the callback.
+export function resolveCallback(options: unknown, callback: unknown): unknown {
+  if (typeof options === "function") return options;
+  return callback;
+}
+
+function sendBinary(options: unknown, fallback: boolean): boolean {
+  if (typeof options !== "object" || options === null) return fallback;
+  const binary = (options as { binary?: unknown }).binary;
+  return typeof binary === "boolean" ? binary : fallback;
+}
+
+function applySendStatus(
+  state: SocketState,
+  status: EngineStatus,
+  length: number,
+  callback: unknown,
+): void {
+  switch (status) {
+    case "ok":
+      defer(callback);
+      return;
+    case "backpressure":
+      reportFailure(
+        state,
+        callback,
+        createError("ERR_BACKPRESSURE", "ventiws: the outbound staging ring is full"),
+      );
+      return;
+    case "closing":
+    case "closed":
+      // The engine says the connection is gone, so this is `sendAfterClose`.
+      defer(callback, notOpenError(state.readyState));
+      return;
+    case "invalid-handle":
+      reportFailure(
+        state,
+        callback,
+        createError("ERR_INVALID_HANDLE", "ventiws: the connection handle is stale"),
+      );
+      return;
+    case "payload-too-large":
+    case "invalid-close-code":
+    case "invalid-close-reason":
+    case "protocol-error":
+    case "policy-violation":
+      reportFailure(state, callback, statusError(status));
+      return;
+  }
+  // `unhandledStatus` takes `never`: a new `EngineStatus` member turns this into a type
+  // error rather than a silent no-op on a status the send path has never seen.
+  throw unhandledStatus(status);
+}
+
+function unhandledStatus(status: never): Error {
+  return createError(
+    "ERR_INVALID_STATE",
+    `ventiws: the engine reported an unknown socket status "${String(status)}"`,
+  );
+}

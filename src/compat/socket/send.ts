@@ -1,13 +1,16 @@
-import { sendSocket } from "../../binding/socket";
+/// The `send` entry, and the queue a blob read in flight creates.
+///
+/// The queue is why this is separate from `send-frame.ts`: `ws` still refuses a bad
+/// payload synchronously while another send is pending, and a synchronous throw raised
+/// inside the queued work must be routed rather than left as an unhandled rejection.
+
 import type { SocketState } from "../../types/socket";
-import type { EngineStatus } from "../../types/status";
 import { createError } from "../errors";
-import { CONNECTING, OPEN } from "../ready-state";
-import { sendFramed } from "./codec-send";
+import { CONNECTING } from "../ready-state";
 import { reportWithoutClosing } from "./lifecycle";
-import { notAttachedError, reportFailure } from "./send-failure";
-import { defer, notOpenError, statusError, toPayload } from "./payload";
-import { isBlob, sendBlob } from "./send-blob";
+import { defer, notOpenError, toPayload } from "./payload";
+import { framePayload, frameResolved, resolveCallback } from "./send-frame";
+import { isBlob } from "./send-blob";
 
 export function sendData(
   state: SocketState,
@@ -23,113 +26,44 @@ export function sendData(
   }
   // A blob read in flight has to finish first: `ws` puts the read on its own sender queue,
   // so a send issued after a blob waits behind it and the two arrive in the order called.
-  const work = (): void => framePayload(state, data, options, callback);
-  pending.then(work, work);
+  queueSend(state, pending, data, options, callback);
 }
 
-/// Frames and stages one message. Exported, and not reached through `sendData` by the blob
-/// path: `sendData` queues behind the very read that is asking it to run, so a blob would
-/// wait on itself for ever. See `send-blob.ts`.
-export function framePayload(
+function queueSend(
   state: SocketState,
+  pending: Promise<void>,
   data: unknown,
   options: unknown,
   callback: unknown,
 ): void {
   const failure = resolveCallback(options, callback);
-  // A blob is read before it is framed, so it leaves through its own path; the callback is
-  // the only report, which is what `ws` does with one too.
   if (isBlob(data)) {
-    sendBlob(state, data, options, failure);
+    settle(state, pending, failure, () => framePayload(state, data, options, callback));
     return;
   }
+  // Converted before the queue, not inside it: `ws` throws from `send` for a payload
+  // `Buffer.from` refuses even while an earlier read is in flight.
   const payload = toPayload(data);
-  if (state.readyState !== OPEN) {
-    // `sendAfterClose`: the bytes are accounted and the callback is told, nothing
-    // else. Routing this through `reportFailure` would close a merely mid-close socket.
-    defer(failure, notOpenError(state.readyState));
-    return;
-  }
-  if (state.codec !== null) {
-    // The codec frames for a socket that has a transport, so a message goes out as a
-    // frame rather than as bytes the engine would have to frame.
-    sendFramed(state, payload, options, failure);
-    return;
-  }
-  if (state.attachment === null) {
-    // Not `reportFailure`: the failure is this build's missing transport, not the
-    // socket's, so only the observation differs from `ws`.
-    if (typeof failure === "function") defer(failure, notAttachedError());
-    else reportWithoutClosing(state, notAttachedError());
-    return;
-  }
-  const binary = sendBinary(options, payload.binary);
-  const status = sendSocket(
-    state.attachment.server,
-    state.attachment.connection,
-    payload.bytes,
-    binary,
-  );
-  applySendStatus(state, status, payload.bytes.length, failure);
+  settle(state, pending, failure, () => frameResolved(state, payload, options, failure));
 }
 
-/// `ws` treats a function in the options position as the callback.
-function resolveCallback(options: unknown, callback: unknown): unknown {
-  if (typeof options === "function") return options;
-  return callback;
-}
-
-function sendBinary(options: unknown, fallback: boolean): boolean {
-  if (typeof options !== "object" || options === null) return fallback;
-  const binary = (options as { binary?: unknown }).binary;
-  return typeof binary === "boolean" ? binary : fallback;
-}
-
-function applySendStatus(
+/// Runs one queued send when the read settles. A synchronous throw here would otherwise
+/// be an unobserved rejection, so it reaches the callback, or the socket when there is none.
+function settle(
   state: SocketState,
-  status: EngineStatus,
-  length: number,
-  callback: unknown,
+  pending: Promise<void>,
+  failure: unknown,
+  work: () => void,
 ): void {
-  switch (status) {
-    case "ok":
-      defer(callback);
-      return;
-    case "backpressure":
-      reportFailure(
-        state,
-        callback,
-        createError("ERR_BACKPRESSURE", "ventiws: the outbound staging ring is full"),
-      );
-      return;
-    case "closing":
-    case "closed":
-      // The engine says the connection is gone, so this is `sendAfterClose`.
-      defer(callback, notOpenError(state.readyState));
-      return;
-    case "invalid-handle":
-      reportFailure(
-        state,
-        callback,
-        createError("ERR_INVALID_HANDLE", "ventiws: the connection handle is stale"),
-      );
-      return;
-    case "payload-too-large":
-    case "invalid-close-code":
-    case "invalid-close-reason":
-    case "protocol-error":
-    case "policy-violation":
-      reportFailure(state, callback, statusError(status));
-      return;
-  }
-  // `unhandledStatus` takes `never`: a new `EngineStatus` member turns this into a type
-  // error rather than a silent no-op on a status the send path has never seen.
-  throw unhandledStatus(status);
-}
-
-function unhandledStatus(status: never): Error {
-  return createError(
-    "ERR_INVALID_STATE",
-    `ventiws: the engine reported an unknown socket status "${String(status)}"`,
-  );
+  const run = (): void => {
+    try {
+      work();
+    } catch (error) {
+      const reported =
+        error instanceof Error ? error : createError("ERR_INVALID_STATE", String(error));
+      if (typeof failure === "function") defer(failure, reported);
+      else reportWithoutClosing(state, reported);
+    }
+  };
+  pending.then(run, run);
 }
