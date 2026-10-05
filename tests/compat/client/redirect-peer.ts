@@ -1,16 +1,13 @@
 // A peer that answers an opening request with something other than a handshake.
 //
-// A `node:http` server is the wrong fixture here, and the reason is worth stating: a
-// WebSocket handshake arrives on its `upgrade` event, not its `request` event, so an
-// HTTP server never sees the request this is about. This is a raw listener answering
-// one request per connection, which is what a redirect actually looks like on the wire
-// and what a load balancer or a CDN in front of a socket endpoint produces.
+// A `node:http` server never sees this request: the handshake arrives on its `upgrade`
+// event. This is a raw listener answering one request per connection, which is what a
+// redirect looks like on the wire (a load balancer or CDN in front of a socket endpoint).
 
 import { createServer, type Server, type Socket } from "node:net";
 import { acceptValue } from "../../binding/codec-net";
 
-/// The token a script uses to mean "this peer's own authority", which a self-redirect
-/// needs because the port is not known until the peer is listening.
+/// The token for "this peer's own authority": a self-redirect needs it before the port exists.
 const SELF = "self";
 
 export type RedirectPeer = {
@@ -18,13 +15,13 @@ export type RedirectPeer = {
   /// The `Authorization` header of each request the peer received, in order, so a test
   /// can say whether credentials survived a hop.
   readonly authorizations: Array<string | undefined>;
+  /// The `Cookie` header of each request: a credential, and the stripping rule covers it.
+  readonly cookies: Array<string | undefined>;
   /// The request target of each request, in order. Two hops are otherwise
   /// indistinguishable here, and "did the second request actually go out, and where" is
   /// what a redirect listener is for.
   readonly paths: string[];
-  /// The `x-ventiws-hop` header of each request, in order, for the same reason: a caller
-  /// that sets a header on a redirected request can only prove it took effect by having
-  /// the peer report what arrived.
+  /// The `x-ventiws-hop` header of each request: how a redirected request's header is observed.
   readonly markers: Array<string | undefined>;
   close(): Promise<void>;
 };
@@ -45,6 +42,7 @@ export type PeerScript = {
 /// A peer that answers according to `script`, one request per connection.
 export function scriptedPeer(script: PeerScript): Promise<RedirectPeer> {
   const authorizations: Array<string | undefined> = [];
+  const cookies: Array<string | undefined> = [];
   const paths: string[] = [];
   const markers: Array<string | undefined> = [];
   const sockets: Socket[] = [];
@@ -62,6 +60,7 @@ export function scriptedPeer(script: PeerScript): Promise<RedirectPeer> {
       // The head stops before the blank line, so the last header has no trailing CRLF
       // and a pattern that requires one would miss exactly the header that is last.
       authorizations.push(/^authorization: (.*)$/im.exec(head)?.[1]?.trim());
+      cookies.push(/^cookie: (.*)$/im.exec(head)?.[1]?.trim());
       markers.push(/^x-ventiws-hop: (.*)$/im.exec(head)?.[1]?.trim());
       paths.push(/^\S+ (\S+) HTTP\/1\.1$/im.exec(head)?.[1] ?? "");
       served += 1;
@@ -115,6 +114,7 @@ export function scriptedPeer(script: PeerScript): Promise<RedirectPeer> {
       resolve({
         url: `ws://127.0.0.1:${(server.address() as { port: number }).port}`,
         authorizations,
+        cookies,
         paths,
         markers,
         close: () => {

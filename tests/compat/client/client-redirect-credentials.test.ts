@@ -69,3 +69,61 @@ test("credentials survive a redirect to the same host", { timeout: TEST_TIMEOUT_
     await peer.close();
   }
 });
+
+test(
+  "caller headers do not survive a redirect to another authority",
+  { timeout: TEST_TIMEOUT_MS },
+  async () => {
+    // Caller headers reach every hop through `options.headers`, which `buildRequest`
+    // merges into a fresh object each time, so stripping only the current hop's copy
+    // puts `authorization` and `cookie` back on the wire at the next authority.
+    const final = await handshakePeer();
+    const first = await redirectingPeer(final.url);
+    const socket = new WebSocket(
+      first.url,
+      undefined,
+      undeclared({
+        followRedirects: true,
+        headers: { authorization: "Bearer first-hop", cookie: "session=1" },
+      }),
+    );
+    try {
+      await opened(socket);
+      // The first hop carried them and the second did not.
+      expect(first.authorizations[0]).toBe("Bearer first-hop");
+      expect(first.cookies[0]).toBe("session=1");
+      expect(final.authorizations[0]).toBeUndefined();
+      expect(final.cookies[0]).toBeUndefined();
+    } finally {
+      socket.terminate();
+      await first.close();
+      await final.close();
+    }
+  },
+);
+
+test(
+  "caller headers survive a redirect within the same authority",
+  { timeout: TEST_TIMEOUT_MS },
+  async () => {
+    // The complement: another path on the same authority is the same server, and a caller
+    // that sent credentials expects the next hop to arrive with them.
+    const peer = await selfRedirectPeer("/caller-headers");
+    const socket = new WebSocket(
+      peer.url,
+      undefined,
+      undeclared({
+        followRedirects: true,
+        headers: { authorization: "Bearer first-hop", cookie: "session=1" },
+      }),
+    );
+    try {
+      await opened(socket);
+      expect(peer.authorizations).toEqual(["Bearer first-hop", "Bearer first-hop"]);
+      expect(peer.cookies).toEqual(["session=1", "session=1"]);
+    } finally {
+      socket.terminate();
+      await peer.close();
+    }
+  },
+);
