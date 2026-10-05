@@ -53,8 +53,9 @@ pub fn socket_slab(
             return ops.send(slot, &slab.ring, index, generation, kind, data);
         }
 
-        /// Validates a close code and reason, stages the close frame, and
-        /// enters `closing`. A second close observes `closing`.
+        /// Validates a close code and reason, then refuses with `policy_violation` until the
+        /// engine-thread drain exists: nothing is staged and the record stays open. A second
+        /// close gets the same refusal.
         pub fn close(slab: *Self, index: u32, generation: u32, code: u16, reason: []const u8) Status {
             const slot = slab.slot_at(index) orelse return .invalid_handle;
             slot.lock();
