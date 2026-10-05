@@ -127,7 +127,7 @@ promotes the train, and `release:major|minor|patch` bump the base. A version the
 tree states with no tag yet is the release as written, so an authored
 `1.0.0-beta` publishes as `1.0.0-beta` rather than being advanced to
 `1.0.0-beta.1`. `scripts/next-version.mjs` is the table and
-`tests/tooling/version.test.ts` holds it.
+`tests/tooling/next-version.test.ts` holds it.
 
 Every release is then promoted to the `latest` dist-tag, prerelease or not, so
 an install resolves the newest merge. The promotion is an OIDC `npm dist-tag

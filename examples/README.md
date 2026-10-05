@@ -16,13 +16,15 @@ is a standalone project, not part of the repository's pnpm workspace.
 
 The Node.js projects carry their own `pnpm-workspace.yaml` so they are their own
 workspace roots: without it, a `pnpm install` run inside the example resolves
-the repository workspace above. Their excludes admit the newest published
-dependencies through pnpm's 24-hour supply-chain window, because tracking the
-latest release is the example's job. Bun and Deno look no further than the
-example's own `package.json`.
+the repository workspace above. Their excludes admit the pinned `ventiws`
+release, its binding, and the caret-ranged teaching dependencies through pnpm's
+24-hour supply-chain window, so an install in the hours after a release is not
+refused. Bun and Deno look no further than the example's own `package.json`.
 
-Every manifest asks for the `latest` dist-tag, so the examples exercise the
-newest published release and never state a version a release leaves behind.
+Every manifest pins the exact `ventiws` version the repository states, and
+`scripts/bump-version.mjs` advances those pins with the release, so a checkout
+installs what the release shipped rather than whatever `latest` points at
+later.
 
 Each project runs TypeScript directly: Node.js strips types since 22.18, and
 Bun and Deno execute it natively. Only the Node.js projects need `@types/node`;
@@ -56,8 +58,9 @@ and because importing ventiws reads `VENTIWS_LOG`, and `--allow-ffi` for the
 native addon.
 `--allow-read` covers the addon loader's filesystem fallbacks; an installed
 `@ventiws/binding-*` resolves without it. `deno.json` carries all four, and
-exempts ventiws from Deno's own 24-hour minimum dependency age so the example
-can track the newest release.
+exempts the pinned ventiws release and its binding from Deno's own 24-hour
+minimum dependency age, so the example installs cleanly in the hours after a
+release.
 
 `pnpm typecheck`, `bun run typecheck`, and `deno task typecheck` check each
 example without running it.

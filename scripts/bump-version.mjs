@@ -1,16 +1,16 @@
 #!/usr/bin/env node
-// Advances the version in the three files that state it, by a release directive.
+// Advances the version in every surface that states it, by a release directive.
 //
 // The directive is `release:<kind>` labels on the merge's pull request, or the `bump.yml`
 // dispatch inputs; with none, a prerelease advances its counter and a stable version starts
 // the next patch's train on `alpha.0`. An untagged tree version is the release as written
 // (`scripts/next-version.mjs` owns the table; `tests/tooling/version.test.ts` holds it).
 //
-// The three files cannot import each other -- a manifest, a Zig build manifest, and a
-// document -- so each is rewritten from the version already in `package.json`, and a
-// disagreement is reported rather than overwritten. Writing the truth over a drifted file
-// hides the drift instead of failing on it, which is the shape of every bug this pipeline
-// has already had: the same fact stated in two places, one of them stale.
+// The surfaces cannot import each other -- a manifest, a Zig build manifest, a document,
+// and the example manifests -- so each is rewritten from the version already in
+// `package.json`, and a disagreement is reported rather than overwritten. Writing the truth
+// over a drifted file hides the drift instead of failing on it, which is the shape of every
+// bug this pipeline has already had: the same fact stated in two places, one of them stale.
 
 import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync } from "node:fs";
@@ -18,6 +18,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { releaseVersion } from "./next-version.mjs";
+import { SOURCES } from "./version-sources.mjs";
 
 const PACKAGE = "package.json";
 const CHANGELOG = "CHANGELOG.md";
@@ -37,14 +38,6 @@ const REACHING = [
   { pattern: /^fix(\(|!)/, heading: "Fixed" },
   { pattern: /^perf(\(|!)/, heading: "Performance" },
   { pattern: /^(build|ci|refactor|style)(\(|!)/, heading: "Changed" },
-];
-
-/// The version sits between a prefix and a suffix in each source, captured so a rewrite
-/// touches the digits alone. Matched as text because two of the three are not JSON.
-const SOURCES = [
-  { path: PACKAGE, pattern: /("version":\s*")([^"]+)(")/ },
-  { path: "build.zig.zon", pattern: /(\.version\s*=\s*")([^"]+)(")/ },
-  { path: "README.md", pattern: /(is at\s*`)([^`]+)(`)/ },
 ];
 
 const read = (path) => readFileSync(join(ROOT, path), "utf8");

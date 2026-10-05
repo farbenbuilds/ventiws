@@ -142,10 +142,10 @@ jobs:
           fi
           # No CI skip marker here, deliberately: GitHub reads one anywhere in a tagged
           # commit's message, and this commit is what a release tag will point at.
-          git add package.json build.zig.zon README.md CHANGELOG.md
+          git add package.json build.zig.zon README.md CHANGELOG.md examples/*/package.json
           git commit -m "chore(release): v$VERSION"
           # A merge landing during this job makes the push a non-fast-forward. Rebasing
-          # onto it is a rebase of four lines onto a tree that did not touch them.
+          # onto it is a rebase of version lines onto a tree that did not touch them.
           git pull --rebase origin main
           # The default token authenticates this push, which is what keeps it silent: only
           # the tag push below should start a run.

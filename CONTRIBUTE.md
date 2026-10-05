@@ -137,9 +137,10 @@ pnpm lockfile.
 ## Releasing
 
 1. Merge the work. `bump.yml` does the rest: it advances the version, writing
-   `package.json`, `build.zig.zon`, `README.md`, and the `CHANGELOG.md` section
-   for that merge's commits; commits it; and pushes the `v<version>` tag. A
-   merge labeled `release:skip` stops at the merge and writes none of it.
+   `package.json`, `build.zig.zon`, `README.md`, the example manifests, and the
+   `CHANGELOG.md` section for that merge's commits; commits it; and pushes the
+   `v<version>` tag. A merge labeled `release:skip` stops at the merge and writes
+   none of it.
    `.github/workflows/publish.yml` then builds the six platform packages across
    five runners, checks the tag against `package.json`, assembles `npm/`,
    publishes, and writes the GitHub Release.
@@ -197,8 +198,9 @@ gh workflow run bump.yml -f base=minor -f preid=stable
 ```
 
 `node scripts/next-version.mjs <version> <kind...>` prints any transition, and
-`tests/tooling/version.test.ts` holds the table and the three versioned surfaces
-together.
+`tests/tooling/next-version.test.ts` exercises its table while
+`tests/tooling/version.test.ts` and `tests/tooling/examples.test.ts` hold the
+versioned surfaces together.
 
 The publish job holds no npm secret. `id-token: write` is the whole credential,
 because each of the six packages has a trusted publisher on npm naming

@@ -222,8 +222,9 @@ declarations through the package `exports` map; it needs `tsdown` output.
   with `GITHUB_TOKEN` starts no workflow run. That commit carries no CI skip
   marker, because a release tag points at it and GitHub reads a marker anywhere
   in a tagged commit's message.
-  `tests/tooling/version.test.ts` holds the three version sources, the
-  changelog's shape, the bump loop guard, and that marker rule together.
+  `tests/tooling/version.test.ts` holds the version sources, the changelog's
+  shape, the bump loop guard, and that marker rule together, and
+  `tests/tooling/examples.test.ts` holds the example pins to them.
 - `perf.yml` reports echo throughput for the public facade, `ws`, the native
   engine route, `uWebSockets.js`, and Socket.IO through one shared harness;
   `bench/contracts/echo_throughput_v2.env` is the frozen benchmark definition,

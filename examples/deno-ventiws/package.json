@@ -5,6 +5,6 @@
   "description": "ventiws quickstart for Deno in TypeScript",
   "type": "module",
   "dependencies": {
-    "ventiws": "latest"
+    "ventiws": "1.0.0-rc.0"
   }
 }

@@ -1,4 +1,4 @@
-// The version is stated in three files that cannot import each other, and the transition
+// The version is stated in files that cannot import each other, and the transition
 // table that decides the next one lives in `scripts/next-version.mjs`, exercised by
 // `next-version.test.ts`. Every bug this repository has shipped in this area is the same
 // shape: one fact stated twice, one of them stale.
@@ -37,7 +37,7 @@ function descending(values: readonly string[]): [string, string][] {
   return values.slice(1).map((value, index) => [values[index] ?? "", value]);
 }
 
-test("the three sources of the version agree with the manifest", () => {
+test("the version sources agree with the manifest", () => {
   expect(/\.version\s*=\s*"([^"]+)"/.exec(ZON)?.[1]).toBe(MANIFEST.version);
   expect(/is at\s*`([^`]+)`/.exec(README)?.[1]).toBe(MANIFEST.version);
 });
