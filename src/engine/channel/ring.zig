@@ -60,6 +60,16 @@ pub fn event_ring(
             return ring.claim(capacity);
         }
 
+        /// Whether `reserve` can claim without advancing anything. A caller that must stage
+        /// a record the following event claims reads this first: the regular producer is one
+        /// thread and `completed` only grows, so a true answer cannot become false before
+        /// that `reserve`.
+        pub fn has_room(ring: *const Self) bool {
+            const reserved = ring.reserved.load(.acquire);
+            const completed = ring.completed.load(.acquire);
+            return reserved -% completed < capacity - terminal_reserve;
+        }
+
         fn claim(ring: *Self, comptime limit: usize) ?u64 {
             while (true) {
                 const reserved = ring.reserved.load(.acquire);

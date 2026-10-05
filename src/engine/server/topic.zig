@@ -7,7 +7,9 @@ const instance = @import("instance.zig");
 
 /// Topic prefix for one connection's outbound channel; the engine caps a name at 127 bytes.
 pub const TOPIC_PREFIX = "ventiws:conn:";
-pub const topic_capacity = TOPIC_PREFIX.len + 20;
+
+/// `index:generation` with both fields at their widest, ten decimal digits each plus the colon.
+pub const topic_capacity = TOPIC_PREFIX.len + 21;
 
 pub fn write_topic(buffer: *[topic_capacity]u8, index: u32, generation: u32) []const u8 {
     const written = std.fmt.bufPrint(buffer, TOPIC_PREFIX ++ "{d}:{d}", .{ index, generation }) catch unreachable;
@@ -17,8 +19,7 @@ pub fn write_topic(buffer: *[topic_capacity]u8, index: u32, generation: u32) []c
 /// Outcome of one subscription attempt; a refusal means the payload is published to nobody.
 pub const Subscribed = enum(u8) { ok, capacity_reached, no_worker };
 
-/// Engine thread only: the topic publisher reads the table on this thread, and a refusal
-/// terminates one connection rather than a server that can no longer write at all.
+/// Engine thread only: a refused subscription ends one connection, not the server's outbound path.
 pub fn subscribe(server: *instance.Instance, ws: *uwz.WebSocket, index: u32, generation: u32) Subscribed {
     const app = server.cluster.worker(0) orelse return .no_worker;
     var buffer: [topic_capacity]u8 = undefined;

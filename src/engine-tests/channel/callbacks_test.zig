@@ -28,3 +28,10 @@ test "a fresh channel has dropped nothing" {
     var channel = callbacks.Channel{};
     try std.testing.expectEqual(@as(u64, 0), channel.dropped());
 }
+
+test "a channel with no threadsafe function cannot accept an event" {
+    // The probe a caller reads before staging the record its event would claim; the
+    // live-`tsfn` case is Node-API state and stays with the binding tests.
+    var channel = callbacks.Channel{};
+    try std.testing.expect(!channel.can_emit());
+}

@@ -8,6 +8,7 @@ test {
     _ = @import("ffi/codec_abi_test.zig");
     _ = @import("socket/handles_test.zig");
     _ = @import("server/options_test.zig");
+    _ = @import("server/topic_test.zig");
     _ = @import("server/registry_test.zig");
     _ = @import("channel/events_test.zig");
     _ = @import("channel/ring_test.zig");

@@ -114,8 +114,11 @@ pub fn payload_ring(comptime slots: usize, comptime slot_bytes: usize) type {
             };
         }
 
-        /// Consumes a view returned by `peek` and frees its slot.
+        /// Consumes a view returned by `peek` and frees its slot. Only the head can be
+        /// consumed: a release out of order would strand every record before it and leave
+        /// `peek` reading a freed slot, so a double release traps here instead.
         pub fn release(ring: *Self, view: View) void {
+            std.debug.assert(view.sequence == ring.dequeue_pos.load(.monotonic));
             ring.sequences[view.sequence % slots].store(view.sequence +% slots, .release);
             ring.dequeue_pos.store(view.sequence +% 1, .release);
         }

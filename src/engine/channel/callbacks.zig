@@ -94,6 +94,16 @@ pub const Channel = struct {
         return channel.publish(event, .regular);
     }
 
+    /// Whether one regular event will be accepted now. A caller with state that must be
+    /// staged before its announcement reads this first, so a refused ring leaves nothing
+    /// behind; the engine thread is the only regular producer, so a true answer cannot be
+    /// overturned by another event between this and `emit`.
+    pub fn can_emit(channel: *Channel) bool {
+        if (channel.closing.load(.acquire)) return false;
+        if (channel.tsfn == null) return false;
+        return channel.ring.has_room();
+    }
+
     /// Queues one connection-close event, which may use the close tail but
     /// never the shutdown pair.
     pub fn emit_terminal(channel: *Channel, event: Event) bool {

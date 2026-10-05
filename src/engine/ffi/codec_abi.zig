@@ -1,10 +1,18 @@
 //! The codec boundary's vocabulary and numeric widths, defined once because a boundary that
 //! defines an ordinal twice defines it wrong once. napi-zig maps a `u64` to a `bigint`.
 
+const std = @import("std");
 const capacities = @import("../codec/capacities.zig");
 const state = @import("../codec/state.zig");
 
 pub const Count = i32;
+
+/// A byte count as the signed 32-bit `Count` the boundary returns, or null when it cannot
+/// cross: a truncated count would name a resume point the caller never reached.
+pub fn count_of(value: usize) ?Count {
+    if (value > std.math.maxInt(Count)) return null;
+    return @intCast(value);
+}
 
 /// A width, not a policy: `Arg` is 32 bits, so a larger value arrives already truncated.
 pub const ceiling_arg_max: Arg = @intCast(capacities.max_message_bytes);
