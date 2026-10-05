@@ -107,11 +107,13 @@ pub fn transmit() type {
             }
             // One buffer for the whole frame, because the boundary hands JavaScript a single
             // `Buffer` and a caller stitching a header to a payload across the boundary could
-            // get the header size wrong.
+            // get the header size wrong. The ceiling caps the message, not its compressed
+            // representation: a stored block plus the RFC 7692 compatibility byte can make
+            // the wire bytes longer than the payload, and that is still a frame `ws` sends.
             const framed = std.math.add(usize, wire.bytes.len, header_capacity) catch {
                 return .{ .failed = .unsupported_message_length };
             };
-            tx.buffer.reserve(framed, tx.max_message_bytes + header_capacity) catch {
+            tx.buffer.reserve(framed, framed) catch {
                 return .{ .failed = .unsupported_message_length };
             };
             const written = zslay.frame.encode_header(
