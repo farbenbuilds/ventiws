@@ -223,7 +223,7 @@ copyFarm name
       name = "uWebZockets-1.8.0-SD3SPCtoJgB2t5E5ldRsnhw2iSXJXaEU03GScHvbL_8s";
       path = fetchZigArtifact {
         name = "uWebZockets";
-        url = "git+https://github.com/farbenbuilds/uWebZockets?ref=main#d94b4e546000455f2ca680d07cb61d032034d5ec";
+        url = "git+https://github.com/farbenbuilds/uWebZockets?ref=v1.8.0#d94b4e546000455f2ca680d07cb61d032034d5ec";
         hash = "sha256-npIlMFsknfluxXW81uX9DUJnD600NiwLMQpn92rB1/4=";
         unpack = true;
       };
