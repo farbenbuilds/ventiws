@@ -28,7 +28,7 @@ pre-commit:
 
     - name: oxfmt
       glob: "**/*.{js,jsx,mjs,cjs,ts,tsx,mts,cts,json,jsonc,md,mdx,yaml,yml}"
-      run: pnpm exec oxfmt --write {staged_files}
+      run: pnpm exec oxfmt --write --no-error-on-unmatched-pattern {staged_files}
       stage_fixed: true
 
     - name: zig-fmt

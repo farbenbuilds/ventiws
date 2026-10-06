@@ -1,7 +1,6 @@
 //! The receive half of the frame codec: bytes in, decoded events out, no queue, and no
 //! knowledge of the caller. The frame state machine is `zslay.Conn`, the engine's own.
 
-const std = @import("std");
 const zslay = @import("zslay");
 const events = @import("events.zig");
 const complete = @import("complete.zig");

@@ -92,9 +92,9 @@ export function closeConnection(state: SocketState, code?: unknown, reason?: unk
   const closeCode = closeCodeOf(code);
   const closeReason = toCloseReason(reason);
   state.readyState = CLOSING;
-  // An absent code stays absent to the wire. `ws` writes an empty close payload and its
-  // peer reports 1005, "no status received"; substituting 1000 asserted a shutdown the
-  // caller never asked for. `closeCode` stays 1006 until a frame supplies one.
+  // An absent code stays absent to the wire: `ws` writes an empty close payload, which its
+  // peer reports as 1005, "no status received", and `closeCode` stays 1006 until a frame
+  // supplies one.
   if (state.codec !== null) {
     closeFramed(state, closeCode, closeReason);
     armCloseTimeout(state, state.closeTimeout);

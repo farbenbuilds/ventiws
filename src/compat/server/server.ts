@@ -6,6 +6,12 @@ import type { ServerEventMap, ServerSocketConstructor, ServerState } from "../..
 import type { ServerOptions, WebSocket, WebSocketServer } from "../../types/ws";
 import { createEmitter } from "../events/emitter";
 import { createRegistry } from "../events/registry";
+import {
+  DEFAULT_CLOSE_TIMEOUT,
+  DEFAULT_MAX_BUFFERED_CHUNKS,
+  DEFAULT_MAX_FRAGMENTS,
+  DEFAULT_MAX_PAYLOAD,
+} from "../options/shared";
 import { addressOf, closeWebSocketServer } from "./close";
 import { wireServer } from "./listeners";
 import { normalizeServerOptions } from "../options/server";
@@ -44,10 +50,10 @@ export function createWebSocketServer(
     // `ws` defaults these three and they are observable on `server.options`, but
     // `@types/ws` declares none, so matching `ws` means inheriting the same type gap
     // rather than shipping a record that is a strict subset of the contract.
-    maxBufferedChunks: 262144,
-    maxFragments: 16384,
-    closeTimeout: 30000,
-    maxPayload: 100 * 1024 * 1024,
+    maxBufferedChunks: DEFAULT_MAX_BUFFERED_CHUNKS,
+    maxFragments: DEFAULT_MAX_FRAGMENTS,
+    closeTimeout: DEFAULT_CLOSE_TIMEOUT,
+    maxPayload: DEFAULT_MAX_PAYLOAD,
     skipUTF8Validation: false,
     perMessageDeflate: false,
     handleProtocols: null,

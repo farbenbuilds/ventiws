@@ -117,12 +117,15 @@ fn run_engine(target: *instance.Instance) void {
 }
 
 /// Best-effort local port of the bound listener, read back from the socket so
-/// `port: 0` reports the ephemeral port. The engine's listener is an `xev.TCP`,
-/// which carries a descriptor on every platform including Windows, so this is one
-/// path rather than a per-OS branch: a Windows server handed port 0 used to report
-/// 0, and a caller reading the listening port then had nothing to connect to.
+/// `port: 0` reports the ephemeral port. Since µWebZockets 1.8.0 the listener
+/// is a runtime-selectable wrapper on Linux: an `xev.TCP` on single-backend
+/// targets carries `fd` as a field, while the dynamic wrapper carries it behind
+/// `fd()`. The shape is a compile-time property of the target, so this is still
+/// one path rather than a per-OS branch.
 fn bound_port(target: *instance.Instance) u16 {
     const app = target.cluster.worker(0) orelse return target.config.listen.port;
     const server = app.server orelse return target.config.listen.port;
-    return ports.bound_port(server.listener.fd) orelse target.config.listen.port;
+    const Listener = @TypeOf(server.listener);
+    const fd = if (@hasDecl(Listener, "fd")) server.listener.fd() else server.listener.fd;
+    return ports.bound_port(fd) orelse target.config.listen.port;
 }

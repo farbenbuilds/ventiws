@@ -19,6 +19,8 @@ const header = (report: BenchmarkReport): readonly string[] => {
     `host      ${p.cpuModel} x${p.cpuCount}  ${p.platform}/${p.arch}  ${humanBytes(p.totalMemoryBytes)} RAM`,
     `workload  ${a.messages} round trips per sample, lock-step echo, perMessageDeflate off`,
     `samples   ${a.repeats} measured repeats per configuration, ${a.warmupRepeatsDiscarded} warm-up repeats discarded`,
+    `resources cpu and peak rss come from the worker process, which runs both echo ends; all legs but`,
+    `          Socket.IO pair the server with the same ws client, so the server is the only variable`,
     `gate      ${a.gateCandidate} must reach ${a.gateMinimumRatio} of ${a.gateBaseline} per payload`,
     `ceiling   ventiws is capped at ${humanBytes(a.payloadCeilingBytes)} per message by its pinned engine;`,
     `          ws accepts far more, so a row above the ceiling would compare a missing capability, not a speed.`,

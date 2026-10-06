@@ -6,7 +6,7 @@ import { encodeFailure, type FrameStatus } from "./frame-status";
 
 /// What framing one frame did, in the vocabulary the send path already switches on.
 export type { FrameStatus, FailureStatus } from "./frame-status";
-export { frameError, isTransient } from "./frame-status";
+export { frameError } from "./frame-status";
 
 function ordinalOf(kind: CodecKindName): number {
   return CODEC_KINDS.indexOf(kind);
@@ -15,9 +15,8 @@ function ordinalOf(kind: CodecKindName): number {
 /// The caller's own masking key, or empty for the engine to draw one. Reused rather than
 /// allocated per frame, because `generateMask` runs before every masked frame.
 ///
-/// A server never masks, so `isServer` answers before the callback is asked, as in `ws`; that
-/// refusal is deliberate and documented. Honouring `mask: false` on a client is not, because a
-/// caller who asked for an unmasked frame was given a masked one and nothing said so.
+/// A server never masks, so `isServer` answers before the callback is asked, as in `ws`;
+/// a client's own `generateMask` is what decides its frames.
 function maskFor(state: SocketState, mask: boolean): Uint8Array {
   if (state.isServer || !mask || state.generateMask === null) return NO_MASK;
   state.generateMask(state.maskScratch);
@@ -120,8 +119,7 @@ export function writePong(state: SocketState, payload: Buffer): void {
 }
 
 /// An absent `code` writes the *empty* close payload, which is what a peer reads as "no
-/// status". Substituting 1000 claimed a shutdown the caller never stated and made 1005
-/// unobservable from a ventiws peer.
+/// status"; substituting 1000 would claim a shutdown the caller never stated.
 export function writeCloseFrame(
   state: SocketState,
   code: number | undefined,

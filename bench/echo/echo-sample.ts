@@ -1,9 +1,13 @@
-import type { EchoConfig, EchoSample } from "./echo-types.ts";
+import type { EchoConfig, EchoSample, SampleResources } from "./echo-types.ts";
 
 export const configurationOf = (config: EchoConfig): string =>
   `${config.implementation}@${config.payloadBytes}B`;
 
-export const measured = (config: EchoConfig, seconds: number): EchoSample => ({
+export const measured = (
+  config: EchoConfig,
+  seconds: number,
+  resources: SampleResources,
+): EchoSample => ({
   configuration: configurationOf(config),
   implementation: config.implementation,
   payloadBytes: config.payloadBytes,
@@ -14,6 +18,8 @@ export const measured = (config: EchoConfig, seconds: number): EchoSample => ({
   // Every payload byte crosses the socket twice, once each way. The upstream
   // `ws` speed harness counts both directions, so the columns stay comparable.
   wireBytesPerSecond: (config.payloadBytes * 2 * config.messages) / seconds,
+  cpuSeconds: resources.cpuSeconds,
+  peakRssBytes: resources.peakRssBytes,
   reason: null,
 });
 
@@ -28,5 +34,7 @@ export const unavailable = (config: EchoConfig, reason: string): EchoSample => (
   seconds: null,
   roundTripsPerSecond: null,
   wireBytesPerSecond: null,
+  cpuSeconds: null,
+  peakRssBytes: null,
   reason,
 });

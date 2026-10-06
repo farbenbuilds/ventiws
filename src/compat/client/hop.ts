@@ -103,11 +103,6 @@ export function abort(attempt: Attempt, error: Error): void {
   failConnection(state, error);
 }
 
-/// A `CONNECTING` socket holds no connection, so `bufferedAmount` has nothing to account.
-export type PendingTransport = Socket | null;
-
-export type { ClientRequest, IncomingMessage };
-
 /// A read in flight still reports its error on the next tick, so the listener goes on
 /// first or it reaches the caller's process uncaught.
 export function discard(socket: Socket): void {

@@ -2,7 +2,7 @@ import type { SocketState } from "../../types/socket";
 import { logSocketError } from "../../logging/lifecycle";
 import { emitEvent } from "../events/emitter";
 import { createError } from "../errors";
-import { CLOSED, CLOSING, OPEN } from "../ready-state";
+import { CLOSED, CLOSING } from "../ready-state";
 import { closeCodec } from "./codec-handle";
 import { writeCloseFrame } from "./codec-outbound";
 import type { Refusal } from "./refusal-table";
@@ -62,9 +62,4 @@ export function clearCloseTimeout(state: SocketState): void {
   if (state.closeTimer === null) return;
   clearTimeout(state.closeTimer);
   state.closeTimer = null;
-}
-
-/// Open enough to be closed by a frame, which is where a close deadline means anything.
-export function isClosing(state: SocketState): boolean {
-  return state.readyState === CLOSING || state.readyState === OPEN;
 }

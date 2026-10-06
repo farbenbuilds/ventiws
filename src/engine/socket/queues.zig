@@ -73,11 +73,11 @@ pub fn release_inbound(slab: anytype, view: payload.View) void {
     slab.inbound.release(view);
 }
 
-/// Drops a closed connection's staged inbound records, counting them. A dead generation
-/// no longer deafens anyone -- `take_inbound` skips it -- but it would sit in the ring
-/// until some later take walked past it, and the close event is the one moment the
-/// records are known unreachable; releasing the leading run there frees the slots at
-/// once. Only a leading run is removed.
+/// Drops a closed connection's staged inbound records, counting them. `take_inbound` can
+/// skip a dead generation, but such a record would sit in the ring until some later take
+/// walked past it; the close event is the one moment the records are known unreachable,
+/// so releasing the leading run there frees the slots at once. Only a leading run is
+/// removed.
 pub fn discard_inbound(slab: anytype, index: u32, generation: u32) u32 {
     var dropped: u32 = 0;
     while (slab.inbound.peek()) |view| {
