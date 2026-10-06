@@ -1,9 +1,9 @@
 import { isValidStatusCode } from "../../protocol/close-codes";
 import { createError } from "../errors";
 
-/// `undefined` is a real answer, not a missing one. `ws` writes an *empty* close payload
+/// `undefined` is a real answer, not a missing one: `ws` writes an *empty* close payload
 /// when `close()` takes no code (`sender.js`), which a peer reads as 1005, "no status
-/// received" (RFC 6455 section 7.1.5); substituting 1000 claimed a shutdown nobody stated.
+/// received" (RFC 6455 section 7.1.5).
 
 /// A code is truncated toward zero, then validated, which is `ws`'s order: a fractional
 /// reserved code such as `1005.5` passes both validators and truncates to 1005 on the wire,

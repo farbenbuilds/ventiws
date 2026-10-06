@@ -83,9 +83,6 @@ export const REFUSALS: Record<CodecFailureName, Refusal> = {
     message: "Max payload size exceeded",
     ctor: RangeError,
   },
-  // The one fault with no `ws` equivalent: a compressed payload that is not a DEFLATE
-  // stream, which `ws` reports as a 1007 with no code. It keeps the protocol error it
-  // always was, because none of the twelve describes it.
   // A `generateMask` callback left a buffer that is not four bytes. A caller's own
   // mistake on the send path, so it is a local error rather than a close frame.
   invalidMask: {

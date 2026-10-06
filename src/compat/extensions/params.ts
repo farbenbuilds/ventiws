@@ -12,8 +12,7 @@ export const MAX_WINDOW_BITS = 15;
 /// A number naming the window a peer will use, `true` for RFC 7692's valueless form (it
 /// can take a window the server chooses), and `undefined` for absent. Three things, not
 /// two: `true` and `undefined` both mean "no number here" and the two callers act on
-/// them differently, and collapsing them into one `boolean` is what made a bare
-/// `client_max_window_bits` in a `ws` offer a refusal instead of an acceptance.
+/// them differently.
 export type WindowAsk = true | number | undefined;
 
 export type Normalized = {

@@ -1,8 +1,7 @@
 /// A response that was neither a 101 nor an upgrade. The refusal is the caller's to
 /// make: `ws` only aborts when nothing is listening, and a listener that wants to read a
 /// 401's `www-authenticate` before deciding has been given the response and the request
-/// for exactly that. Aborting unconditionally made `unexpected-response` observable only
-/// as a notification of a teardown.
+/// for exactly that.
 
 import type { ClientRequest, IncomingMessage } from "node:http";
 import { listenerCount as listenerCountOf } from "../events/registry";
@@ -99,9 +98,8 @@ function follow(
   attempt.state.url = next.url;
   attempt.address = next;
   attempt.redirects += 1;
-  // Rebuilt, not reused: a fresh key is a fresh handshake, and the target is the
-  // redirect's. Reusing the first hop's request sent the second to the first hop's path,
-  // a redirect that loops back on itself until `maxRedirects`.
+  // Rebuilt, not reused: a fresh key and an empty request target per hop, so a redirect
+  // cannot replay the path of the hop it left.
   attempt.handshake = buildRequest(
     next,
     attempt.options,
