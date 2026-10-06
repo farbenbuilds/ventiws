@@ -58,15 +58,13 @@ function prepare(shard: Shard): void {
   writeShardSpec(shardSpecPath(shard.id), shardSpec(shard));
 }
 
-/// Runs every shard's fuzzing client concurrently and collects what each wrote.
+/// Runs one batch of shards concurrently and collects what each wrote.
 ///
+/// Settled, not raced: a shard whose report will not parse must not discard the other
+/// shards' evidence, so a rejected read becomes a failed shard the failure message names.
 /// All containers are force-removed before this returns, on every path, so a cancelled or
-/// failed run cannot leave one holding a report directory. The streams are inherited rather
-/// than prefixed, which is what sharding gives up: N Python tracebacks interleave in one log.
-export async function runShards(shards: readonly Shard[]): Promise<readonly ShardResult[]> {
-  for (const shard of shards) prepare(shard);
-  // Settled, not raced: a shard whose report will not parse must not discard the other
-  // shards' evidence, so a rejected read becomes a failed shard the failure message names.
+/// failed run cannot leave one holding a report directory.
+async function runBatch(shards: readonly Shard[]): Promise<readonly ShardResult[]> {
   const settled = await Promise.allSettled(
     shards.map(async (shard) => {
       const name = shardContainerName(shard.id);
@@ -90,4 +88,26 @@ export async function runShards(shards: readonly Shard[]): Promise<readonly Shar
     );
     return { shard, code: 127, cases: [] };
   });
+}
+
+/// Runs every shard's fuzzing client and collects what each wrote.
+///
+/// A shard that wrote no report and printed nothing is a container killed before Python
+/// flushed its buffered stdout, so the exit code is the only evidence left. The other
+/// shards have finished by then, so one retry runs the silence alone, where contention
+/// cannot repeat; a second silence is returned with its code and fails the gate, which
+/// is what a shard that cannot run at all deserves.
+export async function runShards(shards: readonly Shard[]): Promise<readonly ShardResult[]> {
+  for (const shard of shards) prepare(shard);
+  const first = await runBatch(shards);
+  const silent = first.filter((result) => result.cases.length === 0);
+  if (silent.length === 0) return first;
+  for (const result of silent) {
+    process.stderr.write(
+      `autobahn: shard ${result.shard.id} wrote no report (exit ${result.code}); retrying once\n`,
+    );
+  }
+  const retried = await runBatch(silent.map((result) => result.shard));
+  const replacements = new Map(retried.map((result) => [result.shard.id, result]));
+  return first.map((result) => replacements.get(result.shard.id) ?? result);
 }
