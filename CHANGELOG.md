@@ -5,6 +5,12 @@ All notable changes to this project are documented here. The format follows
 [Conventional Commits](.github/COMMIT_CONVENTION.md), so the commit subjects are the
 same information in a form `git log` can filter.
 
+## [1.0.0-rc.2] - 2026-10-06
+
+### Added
+
+- feat(compat): support ws 8.22.0 protocols option and close ordering (#69)
+
 ## [1.0.0-rc.0] - 2026-10-03
 
 ### Performance
