@@ -3,7 +3,7 @@
 // Vendored as the ws compatibility contract; oxlint and oxfmt skip this file.
 // The footer converts `export =` to ESM type exports so tsdown can bundle it.
 
-// Type definitions for ws 8.18 (@types/ws 8.18.1)
+// Type definitions for ws 8.18 (@types/ws 8.18.2)
 // Project: https://github.com/websockets/ws
 // Definitions by: Paul Loyd <https://github.com/loyd>
 //                 Margus Lamp <https://github.com/mlamp>
@@ -374,6 +374,8 @@ declare namespace WebSocket {
     allowSynchronousEvents?: boolean | undefined;
     autoPong?: boolean | undefined;
     maxPayload?: number | undefined;
+    maxBufferedChunks?: number | undefined;
+    maxFragments?: number | undefined;
     skipUTF8Validation?: boolean | undefined;
     createConnection?: typeof createConnection | undefined;
     finishRequest?: FinishRequestCallback | undefined;
@@ -462,6 +464,8 @@ declare namespace WebSocket {
     clientTracking?: boolean | undefined;
     perMessageDeflate?: boolean | PerMessageDeflateOptions | undefined;
     maxPayload?: number | undefined;
+    maxBufferedChunks?: number | undefined;
+    maxFragments?: number | undefined;
     skipUTF8Validation?: boolean | undefined;
     WebSocket?: U | undefined;
   }

@@ -51,7 +51,7 @@ incorporated.
 
 | Component                             | Version or revision | License |
 | ------------------------------------- | ------------------- | ------- |
-| [`ws` API reference](docs/ventiws.md) | `ws` 8.21.3         | MIT     |
+| [`ws` API reference](docs/ventiws.md) | `ws` 8.22.0         | MIT     |
 
 `docs/ventiws.md` is a copy of the upstream `ws` API reference document,
 `doc/ws.md`, credited to the `ws` authors and the
@@ -108,7 +108,7 @@ built from.
 
 ## Benchmark provenance
 
-The benchmark harness in `bench/` runs `ws` 8.21.3, `uWebSockets.js` 20.71.0,
+The benchmark harness in `bench/` runs `ws` 8.22.0, `uWebSockets.js` 20.71.0,
 `socket.io` 4.8.4, and `socket.io-client` 4.8.4, all devDependencies, alongside
 the candidate build and writes a JSON report. It vendors no third-party code.
 `uWebSockets.js` is fetched from its GitHub tag because it is not published to

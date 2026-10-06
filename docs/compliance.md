@@ -4,7 +4,7 @@ The upstream `ws` API reference is vendored at [ventiws.md](ventiws.md). This
 directory maps each item in that reference to the ventiws module that implements it
 and to its status.
 
-The pinned contract is `ws` 8.21.3 with `@types/ws` 8.18.1. Both are
+The pinned contract is `ws` 8.22.0 with `@types/ws` 8.18.2. Both are
 devDependencies, so the conformance suite can run the two implementations side
 by side. The public type surface is the vendored declaration file
 `src/types/ws.d.ts`.

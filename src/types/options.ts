@@ -37,7 +37,7 @@ export type NormalizedServerOptions = {
   readonly allowSynchronousEvents: boolean;
   readonly autoPong: boolean;
   readonly maxPayload: number;
-  /// `ws` documents and defaults this, but `@types/ws` declares it on neither record.
+  /// `ws` documents and defaults this; `@types/ws` 8.18.2 declares it on both records.
   readonly maxFragments: number;
   /// Reads queued behind a paused parse, as in `ws`. Zero is no limit, and the default is
   /// `ws`'s 262144.
@@ -65,15 +65,16 @@ export type NormalizedClientOptions = {
   readonly skipUTF8Validation: boolean;
   readonly allowSynchronousEvents: boolean;
   readonly autoPong: boolean;
+  /// The `protocols` option `ws` 8.22.0 reads when the constructor carries no list; undeclared by `@types/ws`.
+  readonly protocols: string | string[] | undefined;
   readonly perMessageDeflate: false | NormalizedPerMessageDeflate;
   /// Milliseconds a close handshake may stay unfinished. Zero is a caller's choice, not
   /// the default.
   readonly closeTimeout: number;
   readonly origin: string | undefined;
   readonly headers: Readonly<Record<string, string>> | undefined;
-  /// The caller's own options, forwarded to `http.request` as `ws` forwards them: a copy of
-  /// the source, because `@types/ws` types `ClientOptions` as extending
-  /// `SecureContextOptions` and the request options. See `client/transport-options.ts`.
+  /// The caller's own options, forwarded to `http.request` as `ws` forwards them; a copy
+  /// of the source, because `@types/ws` types them as the request and TLS options.
   readonly requestOptions: Readonly<Record<string, unknown>>;
   /// `ws`'s `finishRequest`: the caller owns the `end()`. Declared by `@types/ws`, so
   /// unlike `maxFragments` a typed caller reaches it without a cast.

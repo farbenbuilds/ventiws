@@ -6,8 +6,7 @@ import type { Shard } from "./shard-plan.ts";
 import type { TargetProcess } from "./target-process.ts";
 import type { ShardResult } from "./shard-reports.ts";
 import { runFuzzingClient, reportExists, readReportCases } from "./suite.ts";
-import { runShards } from "./shard-reports.ts";
-import { silentShards, unionCases } from "./shard-reports.ts";
+import { runShards, unionCases } from "./shard-reports.ts";
 
 /// What one run measured.
 export type Execution = {
@@ -40,15 +39,22 @@ async function runSingle(mode: SuiteMode, target: TargetProcess): Promise<Execut
   };
 }
 
-function describeShardFailure(results: readonly ShardResult[]): string | null {
-  const silent = silentShards(results);
+export function describeShardFailure(results: readonly ShardResult[]): string | null {
   if (results.every((result) => result.cases.length === 0)) return "no shard wrote a report";
+  const silent = results.filter((result) => result.cases.length === 0);
   if (silent.length > 0) {
-    return `shards ${silent.join(", ")} wrote no report; the suite covers fewer cases than its mode selects`;
+    return `shards ${namedWithCodes(silent)} wrote no report; the suite covers fewer cases than its mode selects`;
   }
-  const failed = results.filter((result) => result.code !== 0).map((result) => result.shard.id);
-  if (failed.length > 0) return `wstest exited non-zero for shards ${failed.join(", ")}`;
+  const failed = results.filter((result) => result.code !== 0);
+  if (failed.length > 0) return `wstest exited non-zero for shards ${namedWithCodes(failed)}`;
   return null;
+}
+
+/// Names the exit code with the shard: a container killed before Python flushed its
+/// buffered stdout leaves no other evidence, and the code (137 is SIGKILL) tells an OOM
+/// kill from a launch failure that a bare shard number hides.
+function namedWithCodes(results: readonly ShardResult[]): string {
+  return results.map((result) => `${result.shard.id} (exit ${result.code})`).join(", ");
 }
 
 /// The sharded path.

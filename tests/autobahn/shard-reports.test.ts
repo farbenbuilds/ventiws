@@ -5,6 +5,7 @@ import { planShards } from "../autobahn/shard-plan.ts";
 import { duplicateCaseIds, silentShards, unionCases } from "../autobahn/shard-reports.ts";
 import type { ShardResult } from "../autobahn/shard-reports.ts";
 import type { CaseReport } from "../autobahn/report-index.ts";
+import { describeShardFailure } from "../autobahn/suite-execution.ts";
 import { measuredSeconds } from "../autobahn/summary.ts";
 
 function caseReport(
@@ -69,6 +70,27 @@ describe("shard union", () => {
     expect(duplicateCaseIds(results)).toEqual([]);
     expect(silentShards(results)).toEqual([]);
     expect(unionCases(results)).toHaveLength(MODE_COUNTS.framing.groups.length * 2);
+  });
+});
+
+describe("shard failure reporting", () => {
+  it("names the exit code a silent shard was killed with", () => {
+    // The code is the whole diagnosis: 137 is SIGKILL (an OOM kill), while a launch
+    // failure leaves a different one, and Python's buffered stdout is lost either way.
+    const results = [shardResult(0, [caseReport("1.1.1")]), shardResult(1, [], 137)];
+    expect(describeShardFailure(results)).toBe(
+      "shards 1 (exit 137) wrote no report; the suite covers fewer cases than its mode selects",
+    );
+  });
+
+  it("names the exit code of a shard that ran and failed", () => {
+    const results = [shardResult(0, [caseReport("1.1.1")], 1)];
+    expect(describeShardFailure(results)).toBe("wstest exited non-zero for shards 0 (exit 1)");
+  });
+
+  it("reports a clean partition as no failure", () => {
+    const results = [shardResult(0, [caseReport("1.1.1")], 0)];
+    expect(describeShardFailure(results)).toBeNull();
   });
 });
 

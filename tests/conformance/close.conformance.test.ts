@@ -26,9 +26,11 @@ const REASONS: ReadonlyArray<readonly [string, unknown]> = [
 /// `ws` is the compatibility contract, so every close reason maps to the same frame or throws the
 /// same error and leaves the same state. The typed-array case pins GHSA-58qx-3vcg-4xpx: a
 /// `Float32Array` reports fewer elements than its `byteLength`, which `ws` has refused since
-/// 8.20.1, and `ws` latches `CLOSING` before it validates, so a refused close still closes.
-/// Rows past the cap compare name and message only: Node's `ERR_INVALID_ARG_TYPE` text out of
-/// `Buffer.byteLength` is V8's, not a contract ventiws can pin.
+/// 8.20.1. Since 8.22.0 the refusal precedes the `CLOSING` latch (#2337), so an invalid
+/// argument leaves the socket `OPEN`; `tests/compat/client/client-close-validation.test.ts`
+/// pins that a following valid close still runs. Rows past the cap compare name and message
+/// only: Node's `ERR_INVALID_ARG_TYPE` text out of `Buffer.byteLength` is V8's, not a contract
+/// ventiws can pin.
 test.each(REASONS)(
   "close reason parity for %s",
   { timeout: TEST_TIMEOUT_MS },

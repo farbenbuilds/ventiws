@@ -4,7 +4,7 @@ form a reader actually sees.
 
 Source: the `ws` project API reference (upstream `doc/ws.md`), copyright Einar
 Otto Stangvik, Arnout Kazemier, and contributors, MIT-licensed. Vendored as the
-compatibility contract for `ws` 8.21.3 and `@types/ws` 8.18.1, the versions
+compatibility contract for `ws` 8.22.0 and `@types/ws` 8.18.2, the versions
 ventiws targets. Recording: THIRD_PARTY_NOTICES.md.
 
 Two local edits exist: the title, retitled from `ws` to `ventiws` because this is
@@ -19,7 +19,7 @@ body survives that replacement. ventiws is not affiliated with the `ws` project.
 > **This is the `ws` API reference. It is not a ventiws feature list.**
 >
 > Everything below is vendored from the [`ws`][ws-md] project's `doc/ws.md`: the
-> API reference for `ws` 8.21.3, copyright Einar Otto Stangvik, Arnout
+> API reference for `ws` 8.22.0, copyright Einar Otto Stangvik, Arnout
 > Kazemier, and contributors, MIT-licensed. It records what `ws` does, so that
 > ventiws has one authority to hold itself against, and it says nothing about
 > what ventiws implements.
@@ -337,7 +337,8 @@ This class represents a WebSocket. It extends the `EventEmitter`.
 ### new WebSocket(address[, protocols][, options])
 
 - `address` {String|url.URL} The URL to which to connect.
-- `protocols` {String|Array} The list of subprotocols.
+- `protocols` {String|Array} The list of subprotocols. If specified, this
+  overrides the `protocols` option.
 - `options` {Object}
   - `allowSynchronousEvents` {Boolean} Specifies whether any of the `'message'`,
     `'ping'`, and `'pong'` events can be emitted multiple times in the same
@@ -372,6 +373,7 @@ This class represents a WebSocket. It extends the `EventEmitter`.
   - `origin` {String} Value of the `Origin` or `Sec-WebSocket-Origin` header
     depending on the `protocolVersion`.
   - `perMessageDeflate` {Boolean|Object} Enable/disable permessage-deflate.
+  - `protocols` {String|Array} The list of subprotocols.
   - `protocolVersion` {Number} Value of the `Sec-WebSocket-Version` header.
   - `skipUTF8Validation` {Boolean} Specifies whether or not to skip UTF-8
     validation for text and close messages. Defaults to `false`. Set to `true`
