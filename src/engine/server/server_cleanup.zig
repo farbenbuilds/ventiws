@@ -36,7 +36,6 @@ fn on_env_cleanup(raw: ?*anyopaque) callconv(.c) void {
 /// Every teardown path funnels through here, so a new resource cannot be missed in one of
 /// them. The slot is retired first, not last: a comptime trampoline resolves its instance
 /// through the table, and `retire` is the release store that makes the join safe.
-/// nothing enforces it, and `retire` is the release store that makes it safe.
 pub fn destroy(target: *instance.Instance) void {
     instance.servers.retire(target.handle);
     target.channel.close();

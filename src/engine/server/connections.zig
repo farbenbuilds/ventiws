@@ -8,7 +8,6 @@
 const uwz = @import("uWebZockets");
 const inbound = @import("inbound.zig");
 const instance = @import("instance.zig");
-const queues = @import("../socket/queues.zig");
 const topic = @import("topic.zig");
 
 /// Registers the WebSocket route on the worker with the trusted limits.

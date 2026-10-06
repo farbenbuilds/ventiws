@@ -3,7 +3,6 @@
 //! rather than a stale dereference. JavaScript memory is never retained.
 
 const napi = @import("napi-zig");
-const handles = @import("../socket/handles.zig");
 const instance = @import("../server/instance.zig");
 const payload = @import("../socket/payload.zig");
 const status = @import("../socket/status.zig");
@@ -22,7 +21,7 @@ pub fn send_socket(
     binary: bool,
 ) !Status {
     const target = instance.lookup(env, server) orelse return error.UnknownServer;
-    const handle = resolve_connection(target, connection) orelse {
+    const handle = instance.resolve_connection(target, connection) orelse {
         return @intFromEnum(status.Status.invalid_handle);
     };
     if (data.len > target.config.limits.max_frame_bytes) {
@@ -41,7 +40,7 @@ pub fn close_socket(
     reason: []const u8,
 ) !Status {
     const target = instance.lookup(env, server) orelse return error.UnknownServer;
-    const handle = resolve_connection(target, connection) orelse {
+    const handle = instance.resolve_connection(target, connection) orelse {
         return @intFromEnum(status.Status.invalid_handle);
     };
     return @intFromEnum(target.sockets.close(handle.index, handle.generation, code, reason));
@@ -49,7 +48,7 @@ pub fn close_socket(
 
 pub fn pause_socket(env: napi.Env, server: u40, connection: u64) !Status {
     const target = instance.lookup(env, server) orelse return error.UnknownServer;
-    const handle = resolve_connection(target, connection) orelse {
+    const handle = instance.resolve_connection(target, connection) orelse {
         return @intFromEnum(status.Status.invalid_handle);
     };
     return @intFromEnum(target.sockets.pause_dispatch(handle.index, handle.generation));
@@ -57,7 +56,7 @@ pub fn pause_socket(env: napi.Env, server: u40, connection: u64) !Status {
 
 pub fn resume_socket(env: napi.Env, server: u40, connection: u64) !Status {
     const target = instance.lookup(env, server) orelse return error.UnknownServer;
-    const handle = resolve_connection(target, connection) orelse {
+    const handle = instance.resolve_connection(target, connection) orelse {
         return @intFromEnum(status.Status.invalid_handle);
     };
     return @intFromEnum(target.sockets.resume_dispatch(handle.index, handle.generation));
@@ -67,11 +66,6 @@ pub fn resume_socket(env: napi.Env, server: u40, connection: u64) !Status {
 /// a closed socket reports no buffered amount.
 pub fn socket_buffered_amount(env: napi.Env, server: u40, connection: u64) !u32 {
     const target = instance.lookup(env, server) orelse return error.UnknownServer;
-    const handle = resolve_connection(target, connection) orelse return 0;
+    const handle = instance.resolve_connection(target, connection) orelse return 0;
     return target.sockets.buffered(handle.index, handle.generation);
-}
-
-/// A packed handle, returned only when the slab still holds that exact generation.
-fn resolve_connection(target: *instance.Instance, raw: u64) ?handles.Handle {
-    return instance.resolve_connection(target, raw);
 }

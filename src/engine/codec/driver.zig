@@ -8,7 +8,6 @@ const zslay = @import("zslay");
 const events = @import("events.zig");
 const header = @import("header.zig");
 const result = @import("feed_result.zig");
-const inbound = @import("receive.zig");
 
 /// `Comptime Codec` is the instantiated codec type, passed rather than imported so this
 /// module does not depend on the codec and the codec does not depend on this.

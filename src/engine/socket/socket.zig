@@ -2,7 +2,6 @@
 //! pool slot, indexed by the slot index the handle names; a per-slot lock serializes the
 //! engine thread's open/finish against the Node main thread's operations.
 
-const std = @import("std");
 const payload = @import("payload.zig");
 const status = @import("status.zig");
 const ops = @import("socket_ops.zig");
