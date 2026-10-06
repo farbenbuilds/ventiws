@@ -60,7 +60,7 @@ a private one, so going private silently loses a published platform.
 `node:24-alpine` is a musl host that already carries a Node the JavaScript
 actions can run, which a bare `alpine` image does not.
 
-There is no `win32-x64` row. `napi_zig` 0.2.8 asks for `x86_64-windows-none`, an
+There is no `win32-x64` row. `napi_zig` 0.3.1 asks for `x86_64-windows-none`, an
 ABI-less target with no `ws2_32` to link, so no Windows addon can be built on any
 runner. It returns either with an in-repo compile step that asks for
 `x86_64-windows-gnu` or with a fixed upstream release, and
@@ -177,7 +177,7 @@ typecheck:dist` to check the built declarations through the `exports` map, then
 
 There is no workflow for this. The suite is `tests/conformance/`, it runs as
 part of `zig-test.yml`'s whole-suite pass, and `pnpm test:compat` runs it alone.
-Each scenario executes twice, once against the pinned `ws` 8.21.3 devDependency
+Each scenario executes twice, once against the pinned `ws` 8.22.0 devDependency
 and once against ventiws, and the two normalized event transcripts are compared.
 It covers server construction options and defaults, the upgrade path with
 accepted and rejected handshakes, text, binary, and fragmented messages
@@ -328,7 +328,7 @@ tree.
   platform packages and the loader names those five, so a host outside them
   installs cleanly and is told what exists rather than reaching a missing file.
   Windows is a deliberate gap, not an oversight: see the release matrix above.
-- Any `ws` conformance scenario that the vendored `ws` 8.21.3 devDependency
+- Any `ws` conformance scenario that the vendored `ws` 8.22.0 devDependency
   cannot itself satisfy; the two implementations are compared, so a `ws` defect
   is a shared blind spot.
 - Fuzzing of the header parser, the mask/unmask path, or the fragment

@@ -24,7 +24,7 @@ or a status ordinal TypeScript maps to a named union.
 | ABI declaration      | `src/binding/native.ts`                        | `src/lib.zig`                                                     |
 
 `src/types/ws.d.ts` is a vendored copy of the DefinitelyTyped `ws` declarations
-(`@types/ws` 8.18.1, MIT), with only the `export =` footer adapted to ESM type
+(`@types/ws` 8.18.2, MIT), with only the `export =` footer adapted to ESM type
 exports. It is the single declaration site for the public type surface,
 `src/index.ts` re-exports it, and every stage of the pipeline after it is
 generated from it.

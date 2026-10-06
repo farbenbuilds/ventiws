@@ -6,7 +6,7 @@
 
 A WebSocket implementation for Node.js with the API of
 [`ws`](https://github.com/websockets/ws), delivered as a native addon whose framing
-engine is written in Zig. It targets `ws` 8.21.3 and reproduces that release's
+engine is written in Zig. It targets `ws` 8.22.0 and reproduces that release's
 observable behaviour rather than its source. ventiws is not affiliated with the
 `ws` project and vendors none of its code; the upstream API reference is vendored
 as the pinned contract, credited in

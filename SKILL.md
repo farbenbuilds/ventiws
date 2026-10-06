@@ -79,7 +79,7 @@ Answer architecture questions from the graph when one exists. `graphify query`,
 `/graphify --update` refreshes a stale one. `graphify-out/` is generated
 output: never commit it or edit it by hand.
 
-Read `ws` before changing the surface. `ws` 8.21.3 and `@types/ws` 8.18.1 are
+Read `ws` before changing the surface. `ws` 8.22.0 and `@types/ws` 8.18.2 are
 pinned devDependencies, the declarations are vendored at
 `src/types/ws.d.ts`, and the upstream API reference is vendored at
 [docs/ventiws.md](docs/ventiws.md). Where `ws` is ambiguous, write the decision

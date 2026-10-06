@@ -157,11 +157,11 @@ in
 copyFarm name
   [
     {
-      name = "N-V-__8AAOwHdQ5FYM2zAEn_gDBFEdKKYEl0JirYRSR7y_Sk";
+      name = "N-V-__8AAI8Hdw49zvJpQMT6mP3lUI2BU88KafEc3BkYlcu6";
       path = fetchZigArtifact {
         name = "boringssl";
-        url = "git+https://github.com/google/boringssl#5fbad2285b096858fc9afa3e4c949fde39452070";
-        hash = "sha256-4vt/yjZwgtEVpgZ9CUGjJqKz0HcbOvuozPtmBeKcjlM=";
+        url = "git+https://github.com/google/boringssl#dd73e69a4e86fa178a4d19033c691e9b42cc1088";
+        hash = "sha256-cSwDjwSPP13GB4as9Nwm8iQTN/K2ZP5T9wVHWTzYQA4=";
         unpack = true;
       };
     }
@@ -211,20 +211,20 @@ copyFarm name
       };
     }
     {
-      name = "napi_zig-0.2.0-XRkY0Y8XAgBr17lGjp5nFI-CYpmjGManq9S4TkaY-D5g";
+      name = "napi_zig-0.2.0-XRkY0XcYAgDV-EwyPZo287cfJkKZaES9crzUCRoqcQ09";
       path = fetchZigArtifact {
         name = "napi_zig";
-        url = "git+https://github.com/yuku-toolchain/napi-zig?ref=v0.2.8#253f5a92b1c0c70ad13a6583993a9befb88d1116";
-        hash = "sha256-lf+lWjEjPDGepJeIxFilHSvxnfmsJODHC4q20s79G2U=";
+        url = "git+https://github.com/yuku-toolchain/napi-zig?ref=v0.3.1#1032d3e9da30bd0e8ab895886cb862d45fb56230";
+        hash = "sha256-4P9gn24mcGLlWw5vl8Vfi0HrgJr9H5iIpkfRkv3bf/c=";
         unpack = true;
       };
     }
     {
-      name = "uWebZockets-1.7.0-SD3SPApsJACN_oGYGQFTBKhH8J-00JwJ-RQsfE5Pid2q";
+      name = "uWebZockets-1.7.1-SD3SPK3VJQBGou-zt2uMUrZGXA8xLT3lUTyWDtG0vP7-";
       path = fetchZigArtifact {
         name = "uWebZockets";
-        url = "git+https://github.com/farbenbuilds/uWebZockets?ref=v1.7.0#2eb3cd724a2b3e0167ae9fd2e2b50d7a5b072978";
-        hash = "sha256-sBxZ1rJ0D6lCTm2ZW4Zb0GmSpcnpGNWhtiLYK7L41Ws=";
+        url = "git+https://github.com/farbenbuilds/uWebZockets?ref=v1.7.1#8c4463d8283e45d8c1b3aada806a173cb55324fe";
+        hash = "sha256-7A7JmKWQ6jx2I2NwQpnLcu/iD8bTTjhdcih6rAxzVhU=";
         unpack = true;
       };
     }

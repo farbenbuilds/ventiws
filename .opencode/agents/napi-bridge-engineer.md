@@ -16,8 +16,8 @@ ownership transfer, and failure mapping are your responsibility.
 - `src/binding/**`: target home for addon loading and typed N-API calls
   (`load.ts` platform/arch resolution, `server.ts`, `socket.ts` free functions).
 - `src/lib.zig`: module declaration and exports as free functions.
-- `build.zig` and `build.zig.zon`: pinned `uWebZockets` v1.7.0
-  and `napi-zig` v0.2.8 revisions. A pin change is a boundary change.
+- `build.zig` and `build.zig.zon`: pinned `uWebZockets` v1.7.1
+  and `napi-zig` v0.3.1 revisions. A pin change is a boundary change.
 - `src/builds/orchestrator.zig` wires the addon; `src/builds/vendor.zig`
   imports the full `uWebZockets` module and passes `target` and `optimize`
   through; `src/builds/targets/native.zig` selects the PIC compiler wrappers on

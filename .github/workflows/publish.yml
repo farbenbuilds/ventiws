@@ -43,7 +43,7 @@ jobs:
           - name: darwin-arm64
             os: macos-15
             platform: darwin-arm64
-          # No win32-x64 shard: napi-zig 0.2.8 asks for an ABI-less x86_64-windows-none
+          # No win32-x64 shard: napi-zig 0.3.1 asks for an ABI-less x86_64-windows-none
           # target that cannot link ws2_32. src/builds/platforms.zig records the reason.
     environment:
       name: Release
