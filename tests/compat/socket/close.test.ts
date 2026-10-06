@@ -40,10 +40,8 @@ test(
 /// than its `byteLength`, so accepting it as a close reason would size a frame
 /// from bytes that are never written. `ws` refuses the argument since 8.20.1.
 ///
-/// The socket is left `CLOSING`, not `OPEN`: `ws` latches the state before it
-/// validates, so a close it refuses still closes. Leaving it `OPEN` meant a
-/// refused close could be retried indefinitely, which a caller cannot tell apart
-/// from a close that was never attempted.
+/// The socket is left `OPEN`: since `ws` 8.22.0 the refusal precedes the `CLOSING` latch
+/// (#2337), so a refused close changes nothing and a following valid close still runs.
 test(
   "a typed array that is not a Uint8Array is refused as a close reason",
   { timeout: TEST_TIMEOUT_MS },
@@ -53,7 +51,7 @@ test(
       expect(() => socket.close(1000, new Float32Array(20) as never)).toThrow(
         "Second argument must be a string or a Uint8Array",
       );
-      expect(socket.readyState).toBe(socket.CLOSING);
+      expect(socket.readyState).toBe(socket.OPEN);
     } finally {
       terminateClient(client);
       await server.dispose();
@@ -87,13 +85,13 @@ test.each([
 );
 
 /// A 124-byte reason exceeds the 123-byte control-frame budget, so it must be
-/// refused before any frame is staged. The state still latches to `CLOSING`,
-/// because `ws` latches before it validates.
+/// refused before any frame is staged, and the socket stays `OPEN` because the
+/// refusal precedes the latch.
 test("an oversize close reason is refused", { timeout: TEST_TIMEOUT_MS }, async () => {
   const { server, client, socket } = await attached();
   try {
     expect(() => socket.close(1000, "a".repeat(124))).toThrow(RangeError);
-    expect(socket.readyState).toBe(socket.CLOSING);
+    expect(socket.readyState).toBe(socket.OPEN);
   } finally {
     terminateClient(client);
     await server.dispose();

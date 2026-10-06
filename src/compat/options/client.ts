@@ -31,6 +31,9 @@ export function normalizeClientOptions(options?: ClientOptions): NormalizedClien
     skipUTF8Validation: source.skipUTF8Validation ?? false,
     allowSynchronousEvents: source.allowSynchronousEvents ?? true,
     autoPong: source.autoPong ?? true,
+    // Not declared by `@types/ws` yet, so it is read off the copied source as a runtime
+    // field. `ws` 8.22.0 wraps a scalar and lets the subprotocol parser refuse the rest.
+    protocols: (source as { readonly protocols?: string | string[] }).protocols,
     // `closeTimeout` is read rather than declared: `@types/ws` does not declare it
     // either, so accepting it here keeps the runtime behaviour identical, which is the
     // only part a difference would be observable in.

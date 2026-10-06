@@ -44,7 +44,9 @@ export function connectSocket(
 ): WebSocket {
   const normalized = normalizeClientOptions(options);
   const parsed = parseAddress(address);
-  const requested = normalizeProtocols(protocols);
+  // The constructor argument wins over the option, as in `ws` 8.22.0, and `undefined` is
+  // the only value that falls through: `null` is an invalid list and must still throw.
+  const requested = normalizeProtocols(protocols === undefined ? normalized.protocols : protocols);
   const state = createSocketState();
   state.isServer = false;
   state.url = parsed.url;

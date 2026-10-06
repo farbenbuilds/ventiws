@@ -1,7 +1,7 @@
 # ws Compatibility Matrix
 
 ventiws targets 1:1 observable behavior and types with `ws` plus `@types/ws`
-8.18.1, which is the compatibility contract vendored at
+8.18.2, which is the compatibility contract vendored at
 [`src/types/ws.d.ts`](src/types/ws.d.ts); the pinned packages are
 devDependencies so the conformance suite can run both implementations side by
 side. This file is the parity tracker: every public surface item, the module
@@ -240,11 +240,11 @@ source dies in the first case file on `str` versus `bytes` payload semantics.
 
 ## Stream and client
 
-| Surface                 | Contract                                                                                                                                                 | Owner                                                                                        | Status | Evidence                                                                                                                                                                                                                                                              |
-| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `createWebSocketStream` | Duplex stream over an open socket; object mode converts a text message and `_final` settles on the close frame rather than the peer's answer             | `src/compat/stream.ts`                                                                       | done   | `tests/conformance/stream.conformance.test.ts`, `tests/compat/stream.test.ts`                                                                                                                                                                                         |
-| Client construction     | `new WebSocket(address, protocols?, options?)`, redirects, `unexpected-response`                                                                         | `src/compat/client/**`                                                                       | done   | `tests/compat/client/**`, every case against a real `ws` server                                                                                                                                                                                                       |
-| Client options          | `followRedirects`, `maxRedirects`, `origin`, `headers`, `handshakeTimeout`, `closeTimeout`, and the `http.request` and TLS keys `ClientOptions` inherits | `src/compat/options/client.ts`, `src/compat/client/{handshake-headers,transport-options}.ts` | done   | `tests/compat/client/client-{options,redirect}.test.ts`, `tests/compat/client/client-request-headers.test.ts`, `tests/compat/client/client-handshake-timeout.test.ts`, `tests/compat/client/client-tls-options.test.ts`, `tests/compat/options/normalization.test.ts` |
+| Surface                 | Contract                                                                                                                                                              | Owner                                                                                        | Status | Evidence                                                                                                                                                                                                                                                                                                                        |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `createWebSocketStream` | Duplex stream over an open socket; object mode converts a text message and `_final` settles on the close frame rather than the peer's answer                          | `src/compat/stream.ts`                                                                       | done   | `tests/conformance/stream.conformance.test.ts`, `tests/compat/stream.test.ts`                                                                                                                                                                                                                                                   |
+| Client construction     | `new WebSocket(address, protocols?, options?)`, redirects, `unexpected-response`                                                                                      | `src/compat/client/**`                                                                       | done   | `tests/compat/client/**`, every case against a real `ws` server                                                                                                                                                                                                                                                                 |
+| Client options          | `followRedirects`, `maxRedirects`, `origin`, `headers`, `handshakeTimeout`, `closeTimeout`, `protocols`, and the `http.request` and TLS keys `ClientOptions` inherits | `src/compat/options/client.ts`, `src/compat/client/{handshake-headers,transport-options}.ts` | done   | `tests/compat/client/client-{options,redirect}.test.ts`, `tests/compat/client/client-request-headers.test.ts`, `tests/compat/client/client-handshake-timeout.test.ts`, `tests/compat/client/client-tls-options.test.ts`, `tests/conformance/client-protocols.conformance.test.ts`, `tests/compat/options/normalization.test.ts` |
 
 ## Boundary and lifetime invariants
 
@@ -302,8 +302,8 @@ differ and both are deliberate:
 `src/compat/socket/close-reason.ts` refuses a reason that is neither a string nor a
 `Uint8Array` once it carries data: a differently typed array reports a smaller
 element count than its `byteLength`, so accepting one would size a close frame from
-bytes that are never written (GHSA-58qx-3vcg-4xpx). `ws` 8.21.3 refuses the
-argument at `sender.js:207`, so this describes the pre-8.20.1 code path.
+bytes that are never written (GHSA-58qx-3vcg-4xpx). `ws` 8.22.0 refuses the
+argument at `sender.js:206`, so this describes the pre-8.20.1 code path.
 `tests/conformance/close.conformance.test.ts` pins the argument handling and
 `tests/protocol/close-codes.test.ts` the predicates.
 

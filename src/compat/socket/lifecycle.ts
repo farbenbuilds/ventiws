@@ -87,14 +87,14 @@ export function closeConnection(state: SocketState, code?: unknown, reason?: unk
     return;
   }
   if (state.readyState === CLOSING) return;
-  // The latch precedes validation because `ws` latches `CLOSING` first: a refused close
-  // still leaves the socket closing, so a second close is a no-op, not a second attempt.
+  // Validation precedes the latch: `ws` 8.22.0 refuses an invalid argument before it sets
+  // `CLOSING` (#2337), so the socket stays `OPEN` and a following valid close still runs.
+  const closeCode = closeCodeOf(code);
+  const closeReason = toCloseReason(reason);
   state.readyState = CLOSING;
   // An absent code stays absent to the wire. `ws` writes an empty close payload and its
   // peer reports 1005, "no status received"; substituting 1000 asserted a shutdown the
   // caller never asked for. `closeCode` stays 1006 until a frame supplies one.
-  const closeCode = closeCodeOf(code);
-  const closeReason = toCloseReason(reason);
   if (state.codec !== null) {
     closeFramed(state, closeCode, closeReason);
     armCloseTimeout(state, state.closeTimeout);
