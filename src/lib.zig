@@ -15,7 +15,7 @@ comptime {
     napi.module(@This());
 }
 
-/// Version of the linked uWebZockets engine, for example "1.7.0".
+/// Version of the linked uWebZockets engine, for example "1.8.0".
 pub fn engine_version() []const u8 {
     return build_options.engine_version;
 }

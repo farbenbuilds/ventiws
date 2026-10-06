@@ -6,8 +6,8 @@
     .dependencies = .{
         // farbenbuilds/uWebZockets
         .uWebZockets = .{
-            .url = "git+https://github.com/farbenbuilds/uWebZockets?ref=v1.7.1#8c4463d8283e45d8c1b3aada806a173cb55324fe",
-            .hash = "uWebZockets-1.7.1-SD3SPK3VJQBGou-zt2uMUrZGXA8xLT3lUTyWDtG0vP7-",
+            .url = "git+https://github.com/farbenbuilds/uWebZockets?ref=main#d94b4e546000455f2ca680d07cb61d032034d5ec",
+            .hash = "uWebZockets-1.8.0-SD3SPCtoJgB2t5E5ldRsnhw2iSXJXaEU03GScHvbL_8s",
         },
 
         // farbenbuilds/zslay

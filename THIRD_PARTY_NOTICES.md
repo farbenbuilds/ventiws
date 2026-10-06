@@ -22,7 +22,7 @@ Each entry is the version or revision the engine's pinned manifest records.
 | --------------------------- | ---------------------------------------- | ---------------------------------- |
 | zslay                       | 0.2.1                                    | MIT                                |
 | libxev                      | 9ce8e8e6ff89e583258a7f8e7adeeeaeae8611bf | MIT                                |
-| BoringSSL                   | 5fbad2285b096858fc9afa3e4c949fde39452070 | ISC-style and component licenses   |
+| BoringSSL                   | dd73e69a4e86fa178a4d19033c691e9b42cc1088 | ISC-style and component licenses   |
 | Fiat Crypto (via BoringSSL) | BoringSSL revision above                 | Apache-2.0                         |
 | lsquic                      | 4.10.0                                   | MIT and bundled component licenses |
 | ls-qpack                    | 2.7.0                                    | MIT                                |
