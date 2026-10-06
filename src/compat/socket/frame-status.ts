@@ -15,7 +15,13 @@ export type FrameStatus =
   | "payload-too-large"
   | "protocol-error";
 
-export type FailureStatus = Exclude<FrameStatus, "ok">;
+export type FailureStatus =
+  | "backpressure"
+  | "closing"
+  | "closed"
+  | "invalid-handle"
+  | "payload-too-large"
+  | "protocol-error";
 
 /// The encode-failure ordinals mirror `CODEC_ENCODE_FAILURES` in `codec-status.ts`.
 export function encodeFailure(ordinal: number): FrameStatus {
@@ -31,10 +37,6 @@ export function encodeFailure(ordinal: number): FrameStatus {
     default:
       return "protocol-error";
   }
-}
-
-export function isTransient(status: FrameStatus): boolean {
-  return status === "backpressure";
 }
 
 /// Typed to the failures rather than to `FrameStatus`, so a caller cannot ask for the

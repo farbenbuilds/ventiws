@@ -30,7 +30,12 @@ export function codecRole(handle: bigint): number {
 
 /// Read back rather than echoed from the option, because the only way to know the limit in
 /// force is to ask the thing enforcing it: a `maxPayload` of 0 is `ws`'s "no limit".
-export function codecCeilings(handle: bigint): { maxPayload: number; maxFragments: number } | null {
+export type CodecCeilings = {
+  readonly maxPayload: number;
+  readonly maxFragments: number;
+};
+
+export function codecCeilings(handle: bigint): CodecCeilings | null {
   const addon = loadAddon();
   const ceilings: [number, number] | null = callNative(() => addon.codecCeilings(handle));
   if (ceilings === null) return null;

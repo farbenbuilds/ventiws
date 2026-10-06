@@ -9,6 +9,7 @@ import type {
 import { createWebSocketServer, isServer } from "./server/server";
 import { createSocket, isSocket } from "./socket/socket";
 import { createWebSocketStream } from "./stream";
+import type { ServerSocketConstructor } from "../types/server";
 
 type SocketConstructor = typeof ws.WebSocket;
 type ServerConstructor = typeof ws.WebSocket.WebSocketServer;
@@ -29,7 +30,7 @@ function buildServer(options?: unknown, callback?: unknown): WebSocketServerInst
     throw new TypeError("Class constructor WebSocketServer cannot be invoked without 'new'");
   }
   return createWebSocketServer(
-    WebSocket as unknown as NonNullable<ServerOptions["WebSocket"]>,
+    WebSocket as unknown as ServerSocketConstructor,
     options as ServerOptions | undefined,
     callback as (() => void) | undefined,
   );

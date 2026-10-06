@@ -4,11 +4,12 @@ import type { NormalizedClientOptions } from "../../types/options";
 import type { SocketState } from "../../types/socket";
 import type { ClientOptions, WebSocket } from "../../types/ws";
 import { normalizeClientOptions } from "../options/client";
+import { normalizeProtocols } from "../options/shared";
 import { buildSocketRecord } from "../socket/record";
 import { createSocketState } from "../socket/state";
 import { thresholdOf } from "../extensions/threshold";
 import { parseAddress, type ClientAddress } from "./address";
-import { normalizeProtocols, protocolSet, type ProtocolSet } from "./protocols";
+import { protocolSet, type ProtocolSet } from "./protocols";
 import { buildRequest, newKey, type Handshake } from "./request";
 import { dial } from "./dial";
 
@@ -21,8 +22,8 @@ export type Attempt = {
   /// hop's `response` arrives after the next hop's request is set, and answering it
   /// would abort the hop the client is now on.
   request: ClientRequest | null;
-  /// Null for the whole handshake, where it used to be a `net.Socket` from the first dial:
-  /// holding one made `close()` destroy a socket rather than cancel a request.
+  /// Null for the whole handshake, so `close()` cancels a request rather than destroying
+  /// a socket that has not been upgraded yet.
   transport: Socket | null;
   handshake: Handshake;
   /// The address of the hop in flight, which is also the one the next hop is refused against:

@@ -16,7 +16,7 @@ export type ServerEventMap = {
 export type ServerLifecycle = "running" | "closing" | "closed";
 
 /// Resolved once by the factory so a custom `WebSocket` option is honored.
-export type ServerSocketConstructor = NonNullable<ServerOptions["WebSocket"]>;
+export type ServerSocketConstructor = typeof WebSocket;
 
 export type ServerRouting = {
   shouldHandle?: (request: IncomingMessage) => boolean;
@@ -32,9 +32,8 @@ export type ServerState = EmitterState<ServerEventMap> & {
   /// built with tracking off reports `undefined` rather than an empty set.
   readonly clients: Set<WebSocket> | undefined;
   /// `ws` calls `this.shouldHandle(request)`, so an override is an assignment to the
-  /// record's own property and the decision has to resolve that property when the
-  /// request arrives. A predicate captured at construction made the documented override
-  /// a no-op that still looked correct when invoked directly.
+  /// record's own property and the decision resolves that property when the request
+  /// arrives.
   record: ServerRouting | null;
   readonly webSocket: ServerSocketConstructor;
   server: NonNullable<ServerOptions["server"]> | null;
