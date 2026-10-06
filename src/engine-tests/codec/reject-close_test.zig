@@ -7,9 +7,16 @@ const std = @import("std");
 const testing = std.testing;
 const zslay = @import("zslay");
 const codec = @import("../../engine/codec/state.zig");
+const limits = @import("../../engine/codec/limits.zig");
 const support = @import("frame_support.zig");
 
 const raw_frame = support.raw_frame;
+
+/// A server codec with `skipUTF8Validation` on, which is `validate_utf8 = false`.
+fn skipping() support.codec_type {
+    const trusted = limits.Limits.trust(4096, 64, false, false) catch unreachable;
+    return support.codec_type.init(.server, trusted) catch unreachable;
+}
 
 test "a reserved opcode is an invalid opcode" {
     var peer = support.server();
@@ -61,6 +68,31 @@ test "a close reason that is not UTF-8 is 1007" {
     _ = peer.feed(raw_frame(&buffer, true, @intFromEnum(zslay.Opcode.close), payload.len, true, .{ 1, 2, 3, 4 }, &payload));
     try testing.expectEqual(codec.Failure.invalid_utf8, peer.pending_failure().?);
     try testing.expectEqual(@as(u16, 1007), peer.failure_code());
+}
+
+test "skipUTF8Validation accepts a close reason that is not UTF-8" {
+    // `ws` guards the reason with `!this._skipUTF8Validation`; the length and the code are
+    // still checked, and the reason is delivered exactly as the peer sent it.
+    var peer = skipping();
+    defer peer.deinit();
+    var buffer: [16]u8 = undefined;
+    const payload = [_]u8{ 0x03, 0xe8, 0xff, 0xfe };
+    const frame = raw_frame(&buffer, true, @intFromEnum(zslay.Opcode.close), payload.len, true, .{ 1, 2, 3, 4 }, &payload);
+    try testing.expectEqual(codec.Outcome.ok, peer.feed(frame).outcome);
+    try testing.expectEqual(@as(?codec.Failure, null), peer.pending_failure());
+    const event = try support.take_only(&peer);
+    try testing.expectEqual(codec.Kind.close, event.kind);
+    try testing.expectEqual(@as(u16, 1000), event.code);
+    try testing.expectEqualSlices(u8, payload[2..], event.payload);
+}
+
+test "skipUTF8Validation still refuses a one-byte close payload" {
+    var peer = skipping();
+    defer peer.deinit();
+    var buffer: [16]u8 = undefined;
+    _ = peer.feed(raw_frame(&buffer, true, @intFromEnum(zslay.Opcode.close), 1, true, .{ 1, 2, 3, 4 }, "\x03"));
+    try testing.expectEqual(codec.Failure.invalid_control_payload_length, peer.pending_failure().?);
+    try testing.expectEqual(@as(u16, 1002), peer.failure_code());
 }
 
 test "a base header split across two reads is refused the same way" {

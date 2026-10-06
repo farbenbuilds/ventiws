@@ -7,6 +7,7 @@ import {
 import type { SocketState } from "../../types/socket";
 import type { WebSocket } from "../../types/ws";
 import { emitEvent } from "../events/emitter";
+import { OPEN } from "../ready-state";
 import { closeFromPeer } from "./codec-peer-close";
 import { failureByCode, refuseByCodec } from "./codec-refusal";
 import { writePong } from "./codec-outbound";
@@ -32,8 +33,8 @@ export function dispatch(
       return;
     case "ping":
       // RFC 6455 section 5.5.2 wants the pong promptly, so it goes out before the
-      // application hears the ping: a blocking listener would push it past its deadline.
-      if (state.autoPong) writePong(state, payload);
+      // application hears the ping; `ws` writes none once the socket is closing or closed.
+      if (state.autoPong && state.readyState === OPEN) writePong(state, payload);
       emitEvent(state, "ping", payload);
       return;
     case "pong":

@@ -27,6 +27,9 @@ export function failTransport(state: SocketState, error: Error): void {
 export function terminateConnection(state: SocketState): void {
   if (state.readyState === CLOSED) return;
   if (state.readyState === CONNECTING) {
+    // The same in-flight request `close()` cancels: with no transport yet, it is the only
+    // connection there is to abort.
+    state.cancelHandshake?.();
     failConnection(
       state,
       createError(

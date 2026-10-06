@@ -53,9 +53,10 @@ pub const Limits = struct {
     max_frame_bytes: u32,
     /// Whether the route negotiates RFC 7692 `permessage-deflate`.
     ///
-    /// Per route rather than a build option because `ws` makes it a per-server boolean, and
-    /// it needs no startup-slab reservation: the engine carves the paired deflate scratch
-    /// unconditionally, so enabling this turns dead slab into function at no extra cost.
+    /// Per route rather than a build option because `ws` makes it a per-server boolean.
+    /// The compiled engine config leaves the slab's compression region off, so enabling
+    /// this page-allocates the paired deflate scratch for the whole connection pool when
+    /// the route is registered, and a server that does not enable it pays nothing.
     permessage_deflate: bool,
 };
 

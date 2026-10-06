@@ -26,9 +26,10 @@ export function shapeBinary(
   }
 }
 
-/// `Buffer.buffer` is the whole underlying allocation, up to 64 KiB of whatever else the kernel
-/// delivered in the same read, so the copy is what makes `byteLength` the message's own.
+/// `Buffer.buffer` may be a shared allocation; an exact view goes back whole as `ws` does,
+/// otherwise the copy is what makes `byteLength` the message's own.
 function slicedArrayBuffer(payload: Buffer): ArrayBuffer {
+  if (payload.length === payload.buffer.byteLength) return payload.buffer as ArrayBuffer;
   return payload.buffer.slice(
     payload.byteOffset,
     payload.byteOffset + payload.byteLength,
@@ -41,7 +42,8 @@ function sliceFragments(payload: Buffer, ends: readonly number[] | null): Buffer
   const pieces: Buffer[] = [];
   let start = 0;
   for (const end of ends) {
-    const at = Math.min(end, payload.length);
+    // Clamped against `start`: a descending boundary list must not move the cursor backwards.
+    const at = Math.max(start, Math.min(end, payload.length));
     if (at > start) pieces.push(payload.subarray(start, at));
     start = at;
   }

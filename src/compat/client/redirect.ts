@@ -90,6 +90,9 @@ function follow(
     // because the event exists so a caller can strip headers per hop and it cannot do
     // that from a set it cannot see.
     stripCredentials(attempt.handshake.request.headers);
+    // The next hop's headers are rebuilt from the normalized options, so the persistent
+    // copy has to lose them too or `buildHeaders` puts them back on the wire.
+    stripCredentials(attempt.options.headers);
     attempt.auth = undefined;
   }
   request.abort();

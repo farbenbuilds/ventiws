@@ -1,7 +1,9 @@
 import { expect, test } from "vitest";
 import { sendData } from "../../../src/compat/socket/send";
+import { bufferedAmountOf } from "../../../src/compat/socket/payload";
 import { CLOSED, CLOSING, OPEN } from "../../../src/compat/ready-state";
 import type { ReadyState } from "../../../src/types/close";
+import type { SocketState } from "../../../src/types/socket";
 import { createSocketState } from "../../../src/compat/socket/state";
 import type { CodedError } from "../../../src/types/errors";
 import { attached, terminateClient } from "./socket-support";
@@ -12,6 +14,7 @@ import { TEST_TIMEOUT_MS } from "../../binding/support";
 /// wired through the real registry so the dispatch path is the one under test.
 function detached(readyState: ReadyState): {
   readonly errors: CodedError[];
+  readonly state: SocketState;
   readonly send: (data: unknown, options?: unknown, callback?: unknown) => void;
 } {
   const state = createSocketState();
@@ -24,6 +27,7 @@ function detached(readyState: ReadyState): {
   ];
   return {
     errors,
+    state,
     send: (data, options, callback) => sendData(state, data, options, callback),
   };
 }
@@ -81,6 +85,9 @@ test.each([
   await new Promise((resolve) => setImmediate(resolve));
   expect(reported?.message).toMatch(new RegExp(`readyState ${String(state)}`));
   expect(socket.errors).toHaveLength(0);
+  // `ws`'s `sendAfterClose` adds the payload to the sender's buffered bytes, so a caller
+  // polling the number sees the write it was refused rather than a stalled queue.
+  expect(bufferedAmountOf(socket.state)).toBe(5);
 });
 
 /// A failed send reports and leaves the socket alone.

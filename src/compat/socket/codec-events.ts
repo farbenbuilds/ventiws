@@ -86,8 +86,9 @@ function drainDeferred(
     }
     honoured = false;
     // Read inside the select/take window: the only one where the reassembly buffer is
-    // still this message, so fragments are readable here or not at all.
-    const ends = codecFragmentEnds(handle);
+    // still this message, so fragments are readable here or not at all. Only a socket
+    // that asked for `fragments` pays for the read, as on the synchronous path.
+    const ends = state.binaryType === "fragments" ? codecFragmentEnds(handle) : null;
     takeCodecEvent(handle);
     if (event === null) continue;
     dispatch(state, handle, event.kind, event.code, event.payload, ends);

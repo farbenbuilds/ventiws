@@ -73,6 +73,18 @@ test "a dropped reservation still holds its slot against reuse" {
     try std.testing.expectEqual(@as(?u64, null), ring.reserve());
 }
 
+test "has_room stops exactly where reserve does" {
+    var ring = Ring{};
+    var reserved: u32 = 0;
+    while (ring.has_room()) : (reserved += 1) {
+        try std.testing.expect(ring.reserve() != null);
+    }
+    try std.testing.expectEqual(@as(u32, capacity - terminal_reserve), reserved);
+    // A completion frees a slot without moving the producer, so room returns.
+    ring.complete(0);
+    try std.testing.expect(ring.has_room());
+}
+
 test "completion is monotonic" {
     var ring = Ring{};
     for (0..4) |_| {

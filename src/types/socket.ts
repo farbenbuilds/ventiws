@@ -67,6 +67,8 @@ export type SocketState = EmitterState<SocketEventMap> & {
   cancelHandshake: (() => void) | null;
   /// A blob read in flight, which stops a later `send` from overtaking it.
   pendingSend: Promise<void> | null;
+  /// `ws`'s `_bufferedAmount`: payload bytes a `send` after close accounted but never wrote.
+  bufferedExtra: number;
   /// The read count `ws` bounds `pendingInput` at. Zero is no limit.
   maxBufferedChunks: number;
   /// Whether RFC 7692 was negotiated; only it may set RSV1.
@@ -74,8 +76,7 @@ export type SocketState = EmitterState<SocketEventMap> & {
   /// `ws` defaults it to 1024 and spells "no threshold" as 0.
   threshold: number;
   autoPong: boolean;
-  /// `ws`'s `generateMask`, client-side only: a server never masks. `maskScratch` is its key
-  /// buffer, so the per-frame call allocates nothing.
+  /// `ws`'s `generateMask`, client-side only: a server never masks; `maskScratch` is its key buffer.
   generateMask: ((mask: Buffer) => void) | null;
   maskScratch: Buffer;
 };

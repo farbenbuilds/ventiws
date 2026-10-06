@@ -123,15 +123,15 @@ test("a transport failure still destroys the transport when error is unhandled",
   expect(socket.readyState).toBe(CLOSING);
 });
 
-/// `bufferedAmount` used to rise by the payload size on every send to a socket
-/// that was not `OPEN`, and nothing ever decremented it on the upgrade route,
-/// where there is no staging ring to drain. A caller polling it in a close
-/// handler watched a number climb without limit.
-test("bufferedAmount does not grow without bound on the upgrade route", () => {
+/// `ws`'s `sendAfterClose` accounts a refused payload on the sender's buffered bytes even
+/// though it writes nothing: a caller polling `bufferedAmount` in a close handler sees the
+/// bytes it was refused. The number must be exactly the refused payloads, not a per-attempt
+/// increment and not unbounded growth beyond what was sent.
+test("send after close accounts exactly the refused payload bytes", () => {
   const { socket } = upgradedSocket();
   socket.close(1000);
 
   for (let index = 0; index < 50; index += 1) socket.send("x".repeat(1024));
 
-  expect(socket.bufferedAmount).toBe(0);
+  expect(socket.bufferedAmount).toBe(50 * 1024);
 });

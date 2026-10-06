@@ -19,6 +19,15 @@ test "an encode refusal is the negated ordinal" {
     try testing.expectEqual(@as(abi.Count, -4), abi.encode_refusal(.stale_handle));
 }
 
+test "a count that cannot cross as a signed 32-bit value is refused" {
+    // A 2 GiB read is representable as a N-API Buffer, and a `@intCast` of its length
+    // would trap in ReleaseSafe and truncate in ReleaseFast; null makes the cast explicit.
+    try testing.expectEqual(@as(?abi.Count, 0), abi.count_of(0));
+    try testing.expectEqual(@as(?abi.Count, std.math.maxInt(abi.Count)), abi.count_of(std.math.maxInt(abi.Count)));
+    try testing.expect(abi.count_of(@as(usize, std.math.maxInt(abi.Count)) + 1) == null);
+    try testing.expect(abi.count_of(std.math.maxInt(usize)) == null);
+}
+
 test "no ordinal is zero, so a refusal is never a count" {
     // A zero ordinal would make "refused" and "consumed nothing" the same value.
     inline for (@typeInfo(abi.Outcome).@"enum".fields) |field| {

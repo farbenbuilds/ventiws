@@ -76,3 +76,25 @@ test "compressed text that inflates to invalid UTF-8 is a 1007" {
     try testing.expectEqual(codec.Failure.invalid_utf8, peer.pending_failure().?);
     try testing.expectEqual(@as(u16, 1007), peer.failure_code());
 }
+
+test "an incompressible message at the cap is framed, not refused" {
+    // A compressed frame can be larger than the message it carries: a stored block adds
+    // its header and RFC 7692 section 7.2.2 appends the compatibility byte, so a frame
+    // buffer reserved to the message cap refused a frame `ws` sends.
+    const cap = 64;
+    const trusted = limits.Limits.trust(cap, 8, true, true) catch unreachable;
+    var encoder = Peer.init(.client, trusted) catch unreachable;
+    defer encoder.deinit();
+
+    var payload: [cap]u8 = undefined;
+    for (&payload, 0..) |*byte, index| byte.* = @truncate(index * 7 + 3);
+    const length = encoder.tx.encode(.binary, true, &payload, true, &.{}, true).ok;
+    try testing.expect(length > cap);
+
+    var decoder = negotiated();
+    defer decoder.deinit();
+    try testing.expectEqual(codec.Outcome.ok, decoder.feed(encoder.tx.bytes()).outcome);
+    const event = try support.take_only(&decoder);
+    try testing.expectEqual(codec.Kind.binary, event.kind);
+    try testing.expectEqualSlices(u8, &payload, event.payload);
+}

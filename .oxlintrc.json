@@ -56,6 +56,12 @@
       "rules": {
         "import/default": "off"
       }
+    },
+    {
+      "files": [".opencode/plugins/**/*.js"],
+      "rules": {
+        "import/no-default-export": "off"
+      }
     }
   ],
   "ignorePatterns": [
