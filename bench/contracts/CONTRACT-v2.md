@@ -37,6 +37,13 @@ websocket transport, so its row is an application-stack measurement that
 includes Engine.IO and Socket.IO framing. The `wire` column counts payload
 bytes in both directions on every leg and therefore excludes that framing.
 
+Each sample also records the worker process's CPU time and peak resident set
+size for the timed window, and the report derives the mean round-trip latency
+from the median seconds. These are context columns: they never decide the
+guarantee, and they cover both echo ends because one worker process runs both.
+Every leg except Socket.IO pairs its server with the same `ws` client, so the
+server is the only variable when those columns are compared.
+
 ## Reading the 64 B row
 
 This shape measures round-trip latency: one message is in flight at a time. The

@@ -20,24 +20,35 @@ export const ratioAgainstBaseline = (result: ConfigurationResult, id: Implementa
   return (leg / baseline).toFixed(3);
 };
 
+const latencyCell = (result: ConfigurationResult, id: ImplementationId): string => {
+  const seconds = result.legs[id].medianSeconds;
+  if (seconds === null) return MISSING;
+  return `${fixed((seconds / result.messages) * 1e6, 2)} µs`;
+};
+
 const rowOf = (result: ConfigurationResult, id: ImplementationId): string =>
   [
     humanBytes(result.payloadBytes),
     id,
     legCell(result.legs[id].medianSeconds, (value) => fixed(value, 4)),
     integer(result.legs[id].medianRoundTripsPerSecond),
+    latencyCell(result, id),
     legCell(result.legs[id].medianWireBytesPerSecond, (value) => `${humanBytes(value)}/s`),
+    legCell(result.legs[id].medianCpuSeconds, (value) => `${fixed(value, 3)} s`),
+    legCell(result.legs[id].medianPeakRssBytes, humanBytes),
     ratioAgainstBaseline(result, id),
   ].join(" | ");
 
 /// One row per payload and implementation: the long form stays readable at five
-/// legs, where a column per implementation would triple the table's width.
+/// legs, where a column per implementation would triple the table's width. CPU
+/// and peak RSS belong to the worker process, which runs the echo server and
+/// client together; only the Socket.IO leg uses a different client.
 export const table = (
   results: readonly ConfigurationResult[],
   implementations: readonly ImplementationId[],
 ): readonly string[] => [
   "",
-  "| payload | implementation | median s | round trips/s | wire | vs ws |",
-  "| --- | --- | --- | --- | --- | --- |",
+  "| payload | implementation | median s | round trips/s | mean rt | wire | cpu | peak rss | vs ws |",
+  "| --- | --- | --- | --- | --- | --- | --- | --- | --- |",
   ...results.flatMap((result) => implementations.map((id) => `| ${rowOf(result, id)} |`)),
 ];

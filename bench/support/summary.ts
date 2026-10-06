@@ -9,6 +9,8 @@ export type Leg = {
   readonly medianSeconds: number | null;
   readonly medianRoundTripsPerSecond: number | null;
   readonly medianWireBytesPerSecond: number | null;
+  readonly medianCpuSeconds: number | null;
+  readonly medianPeakRssBytes: number | null;
   readonly spread: number | null;
   readonly reason: string | null;
 };
@@ -30,6 +32,8 @@ const emptyLeg = (reason: string): Leg => ({
   medianSeconds: null,
   medianRoundTripsPerSecond: null,
   medianWireBytesPerSecond: null,
+  medianCpuSeconds: null,
+  medianPeakRssBytes: null,
   spread: null,
   reason,
 });
@@ -44,6 +48,10 @@ const legOf = (
   const seconds = gathered.flatMap((sample) => (sample.seconds === null ? [] : [sample.seconds]));
   if (seconds.length === 0) return emptyLeg(reason ?? "no sample produced a timing");
   const center = median(seconds);
+  const cpu = gathered.flatMap((sample) => (sample.cpuSeconds === null ? [] : [sample.cpuSeconds]));
+  const rss = gathered.flatMap((sample) =>
+    sample.peakRssBytes === null ? [] : [sample.peakRssBytes],
+  );
   // Reciprocating the median seconds gives the median of the per-sample rates,
   // because every sample sends the same payload the same number of times.
   return {
@@ -53,6 +61,8 @@ const legOf = (
     // them; the raw seconds above stay exact so every rate can be recomputed.
     medianRoundTripsPerSecond: Math.round(shape.messages / center),
     medianWireBytesPerSecond: Math.round((shape.payloadBytes * 2 * shape.messages) / center),
+    medianCpuSeconds: cpu.length === 0 ? null : median(cpu),
+    medianPeakRssBytes: rss.length === 0 ? null : median(rss),
     spread: spread(seconds),
     reason: null,
   };

@@ -97,6 +97,7 @@ export const runEcho = async (
   const failure = failureOf();
   let client: EchoClient | null = null;
   let timer: ReturnType<typeof setTimeout> | undefined;
+  let rssTimer: ReturnType<typeof setInterval> | undefined;
   try {
     server.onError(failure.reject);
     server.onConnection((connection) => echoBack(connection, failure));
@@ -115,11 +116,29 @@ export const runEcho = async (
     client = implementation.connect(`ws://127.0.0.1:${port}/`);
     await guard(waitForOpen(client));
     const payload = Buffer.alloc(config.payloadBytes, 0x61);
-    return measured(config, await guard(pumpRoundTrips(client, payload, config.messages)));
+    // Peak RSS is sampled because `process.resourceUsage().maxRSS` does not
+    // track growth on Linux. The sampler starts before the clock and stops
+    // after it, so the window it covers is the one the sample reports.
+    let peakRssBytes = process.memoryUsage().rss;
+    rssTimer = setInterval(() => {
+      const rss = process.memoryUsage().rss;
+      if (rss > peakRssBytes) peakRssBytes = rss;
+    }, 20);
+    const cpuBefore = process.cpuUsage();
+    const seconds = await guard(pumpRoundTrips(client, payload, config.messages));
+    const cpu = process.cpuUsage(cpuBefore);
+    clearInterval(rssTimer);
+    rssTimer = undefined;
+    const finalRss = process.memoryUsage().rss;
+    return measured(config, seconds, {
+      cpuSeconds: (cpu.user + cpu.system) / 1e6,
+      peakRssBytes: Math.max(peakRssBytes, finalRss),
+    });
   } catch (error) {
     return unavailable(config, describeError(error));
   } finally {
     if (timer !== undefined) clearTimeout(timer);
+    if (rssTimer !== undefined) clearInterval(rssTimer);
     teardown(client, server);
   }
 };

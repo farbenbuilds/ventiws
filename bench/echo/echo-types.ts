@@ -77,6 +77,15 @@ export type EchoConfig = {
 
 export type SampleStatus = "measured" | "unavailable";
 
+/// Resources charged to a sample's round-trip window. CPU is user plus system
+/// time of the worker process, which runs both ends of the echo, so it covers
+/// the server and the client together; peak RSS is sampled from that same
+/// process for the same reason.
+export type SampleResources = {
+  readonly cpuSeconds: number;
+  readonly peakRssBytes: number;
+};
+
 export type EchoSample = {
   readonly configuration: string;
   readonly implementation: ImplementationId;
@@ -86,5 +95,7 @@ export type EchoSample = {
   readonly seconds: number | null;
   readonly roundTripsPerSecond: number | null;
   readonly wireBytesPerSecond: number | null;
+  readonly cpuSeconds: number | null;
+  readonly peakRssBytes: number | null;
   readonly reason: string | null;
 };

@@ -91,7 +91,15 @@ with the reason in the notes; nothing is extrapolated.
   connect sit outside the clock; only the round trips are timed.
 - `round trips/s` is the median rate. `vs ws` is that rate divided by the `ws`
   rate at the same payload.
+- `mean rt` is `median s` divided by the round-trip count: the mean round-trip
+  latency inside a sample, which is the number a lock-step echo can state
+  without instrumenting every message.
 - `wire` is `payload bytes x 2 x messages / seconds`, so both directions count.
+- `cpu` is the worker process CPU time (user + system) charged to the timed
+  window, and `peak rss` is the highest resident set size sampled from that
+  process during it. Both cover the server and the client together, because a
+  worker runs both ends; every leg except Socket.IO pairs with the same `ws`
+  client, so the server is the only variable when those columns are compared.
 - A sample spread above 10 percent is called out in the notes: the host was not
   quiet and the median should not be cited as evidence.
 
