@@ -5,6 +5,12 @@ All notable changes to this project are documented here. The format follows
 [Conventional Commits](.github/COMMIT_CONVENTION.md), so the commit subjects are the
 same information in a form `git log` can filter.
 
+## [1.0.0-rc.3] - 2026-10-06
+
+### Added
+
+- feat(engine): adopt uWebZockets v1.8.0 and measure CPU/RSS in the benchmark (#70)
+
 ## [1.0.0-rc.2] - 2026-10-06
 
 ### Added
