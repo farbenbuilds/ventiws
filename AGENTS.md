@@ -178,10 +178,12 @@ declarations through the package `exports` map; it needs `tsdown` output.
   as graph queries first: `graphify query "<question>"`, `graphify path A B`,
   `graphify explain X`; refresh with `/graphify --update`. `graphify-out/` is
   generated output, gitignored, and never edited or committed by hand.
-- `.opencode/agents/**` is the sub-agent roster: compatibility conformance,
-  data-oriented performance, native bridge, read-only refactor auditor,
-  TypeScript API, and Zig protocol. Each agent inherits the rules here and
-  loads the skills relevant to its ownership area.
+- `.opencode/agents/**` holds the canonical role prompts for compatibility
+  conformance, data-oriented performance, native bridge, read-only refactor
+  audit, TypeScript API, and Zig protocol. `.codex/agents/*.toml` exposes those
+  same roles as Codex custom agents; each reads its matching OpenCode prompt
+  and inherits the rules here. Keep the two rosters aligned and load the skills
+  relevant to each agent's ownership area.
 
 ## Workflow notes
 
