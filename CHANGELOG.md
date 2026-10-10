@@ -5,6 +5,12 @@ All notable changes to this project are documented here. The format follows
 [Conventional Commits](.github/COMMIT_CONVENTION.md), so the commit subjects are the
 same information in a form `git log` can filter.
 
+## [1.0.0-rc.4] - 2026-10-10
+
+### Fixed
+
+- fix(ci): preserve immutable benchmark contract docs
+
 ## [1.0.0-rc.3] - 2026-10-06
 
 ### Added

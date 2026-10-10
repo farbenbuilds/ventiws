@@ -178,10 +178,43 @@ declarations through the package `exports` map; it needs `tsdown` output.
   as graph queries first: `graphify query "<question>"`, `graphify path A B`,
   `graphify explain X`; refresh with `/graphify --update`. `graphify-out/` is
   generated output, gitignored, and never edited or committed by hand.
-- `.opencode/agents/**` is the sub-agent roster: compatibility conformance,
-  data-oriented performance, native bridge, read-only refactor auditor,
-  TypeScript API, and Zig protocol. Each agent inherits the rules here and
-  loads the skills relevant to its ownership area.
+- `.opencode/agents/**` holds the canonical prompts for the Architect,
+  Developer, Reviewer, and Integrator workflow roles and the six domain
+  specialists: compatibility conformance, data-oriented performance, native
+  bridge, read-only refactor audit, TypeScript API, and Zig protocol.
+  `.codex/agents/*.toml` exposes the same ten roles; each Codex profile reads
+  its matching OpenCode prompt and inherits the rules here. Keep both rosters
+  aligned and load skills relevant to each agent's ownership area.
+
+## Agent Team Workflow
+
+- The Integrator is the orchestrator. It owns scope, delegates work, tracks
+  handoffs, resolves conflicts, and reports the final result. For each
+  non-trivial change, run the phases in order: Architect, Developer, Reviewer,
+  then Integrator verification. Do not start implementation before the
+  Architect handoff exists.
+- The Architect is read-only. It reads the task and applicable subsystem
+  documents, defines acceptance criteria, names affected files and their single
+  owners, selects existing specialists, and lists verification commands. Its
+  brief must flag assumptions and dependencies. Parallelize only independent
+  slices with non-overlapping file ownership.
+- The Developer implements only the assigned slice and acceptance criteria.
+  The Integrator assigns the matching existing domain specialist when expertise
+  is useful; use one writer per file. Developers report files changed,
+  behavior covered, checks run, and unresolved risks to the Integrator. They do
+  not approve their own changes.
+- The Reviewer is read-only and independent of implementation. It checks the
+  diff against the Architect brief, repository rules, edge cases, and tests;
+  findings include severity and file/line locations. Findings return to the
+  Developer for correction, followed by another review of the changed areas.
+- The Integrator verifies the final diff, required checks, ownership boundaries,
+  and review findings before reporting completion. Do not delegate the same
+  slice to multiple writers or recursively spawn agents for work already
+  covered by a roster role. Small documentation-only changes may combine the
+  Architect and Developer phases, while retaining Integrator review.
+- Keep handoffs concise: Architect sends scope/owners/acceptance/checks;
+  Developer sends changes/checks/risks; Reviewer sends findings or an explicit
+  clean verdict; Integrator sends the final summary and validation status.
 
 ## Workflow notes
 

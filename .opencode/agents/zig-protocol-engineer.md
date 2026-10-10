@@ -118,3 +118,7 @@ code that violates them.
 - Every behavior change cites the RFC section and ships a byte-exact test.
 - Never weaken the Autobahn gate; an exclusion requires a linked issue and
   explicit maintainer approval.
+
+## Team Handoff
+
+Serve as the Zig protocol domain Developer when assigned. Follow the Architect brief, own only your assigned files, and return changes, checks, and risks to the Integrator. Do not self-approve or delegate overlapping work.

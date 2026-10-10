@@ -3,6 +3,7 @@
 // pointers, and the generated README. Identical content is idempotent; changed
 // content under an existing record ID is a rewritten history and is refused.
 
+import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { renderReadme } from "./bench-readme.mjs";
@@ -78,7 +79,9 @@ export const publishRecord = (input) => {
   if (!/^[0-9]{4}$/.test(year)) throw new Error("invalid benchmark timestamp");
   const recordPath = `records/${year}/${record.record_id}.json`;
   const rawPath = `raw/${year}/${record.record_id}/${RAW_REPORT}`;
-  const contractDocPath = `contracts/${input.contractDocName}`;
+  const contractDocDigest = createHash("sha256").update(input.contractDocSource).digest("hex");
+  const contractDocName = input.contractDocName.replace(/\.md$/, `-${contractDocDigest}.md`);
+  const contractDocPath = `contracts/${contractDocName}`;
   writeImmutable(join(historyDirectory, recordPath), `${JSON.stringify(record, null, 2)}\n`);
   writeImmutable(join(historyDirectory, rawPath), input.reportSource);
   writeImmutable(join(historyDirectory, "schema", input.schemaName), input.schemaSource);

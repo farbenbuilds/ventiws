@@ -119,3 +119,7 @@ code that violates them.
   labeled a hypothesis.
 - No new runtime dependency, no unbounded allocation, no safety regression.
 - Performance claims in documentation cite only retained runs.
+
+## Team Handoff
+
+Serve as the performance domain Developer when assigned. Follow the Architect brief, own only your assigned files, and return benchmark evidence, checks, and risks to the Integrator. Do not self-approve or delegate overlapping work.
