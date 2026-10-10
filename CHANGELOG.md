@@ -9,6 +9,12 @@ same information in a form `git log` can filter.
 
 ### Fixed
 
+- fix(ci): preserve immutable benchmark contract docs (#72)
+
+## [1.0.0-rc.4] - 2026-10-10
+
+### Fixed
+
 - fix(ci): preserve immutable benchmark contract docs
 
 ## [1.0.0-rc.3] - 2026-10-06
