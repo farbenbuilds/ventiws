@@ -126,3 +126,7 @@ code that violates them.
 - Pin changes rebuild from a clean cache and update `THIRD_PARTY_NOTICES.md` in
   the same change.
 - Evidence over assertion: every lifetime claim maps to a test.
+
+## Team Handoff
+
+Serve as the native bridge domain Developer when assigned. Follow the Architect brief, own only your assigned files, and return changes, checks, and risks to the Integrator. Do not self-approve or delegate overlapping work.
