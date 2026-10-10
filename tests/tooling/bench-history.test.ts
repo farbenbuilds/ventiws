@@ -3,7 +3,7 @@
 // writes an immutable record beside its raw evidence, and is idempotent for a
 // re-run of the same record.
 
-import { existsSync, mkdtempSync, readFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, readdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { expect, test } from "vitest";
@@ -31,7 +31,9 @@ test("publishing writes the record, its raw report, and the branch scaffolding",
   expect(id).toBe(record.record_id);
   expect(existsSync(join(history, "records", "2026", `${id}.json`))).toBe(true);
   expect(existsSync(join(history, "raw", "2026", id, "report.json"))).toBe(true);
-  expect(existsSync(join(history, "contracts", "CONTRACT-v2.md"))).toBe(true);
+  expect(
+    readdirSync(join(history, "contracts")).some((name) => name.startsWith("CONTRACT-v2-")),
+  ).toBe(true);
   expect(existsSync(join(history, "schema", "echo_throughput_v2.schema.json"))).toBe(true);
   expect(existsSync(join(history, ".nojekyll"))).toBe(true);
   const index = JSON.parse(readFileSync(join(history, "index.json"), "utf8")) as {
@@ -41,8 +43,28 @@ test("publishing writes the record, its raw report, and the branch scaffolding",
   expect(index.records[0].record_id).toBe(id);
   const readme = readFileSync(join(history, "README.md"), "utf8");
   expect(readme).toContain("Latest results");
-  expect(readme).toContain("contracts/CONTRACT-v2.md");
+  expect(readme).toContain("contracts/CONTRACT-v2-");
   expect(readme).toContain("aaaaaaaaaaaa");
+});
+
+test("different contract documents get separate immutable snapshots", () => {
+  const history = historyOf();
+  const input = publishInput(build(reportOf()), history);
+  publishRecord(input);
+  const nextRecord = {
+    ...input.record,
+    record_id: `124-1-${"b".repeat(12)}`,
+    recorded_at: "2026-10-04T00:00:00.000Z",
+  };
+  publishRecord({
+    ...input,
+    record: nextRecord,
+    contractDocSource: `${input.contractDocSource}\nUpdated measurement notes.\n`,
+  });
+  expect(
+    readdirSync(join(history, "contracts")).filter((name) => name.endsWith(".md")),
+  ).toHaveLength(2);
+  expect(readFileSync(join(history, "README.md"), "utf8")).toContain("CONTRACT-v2-");
 });
 
 test("republishing identical content is idempotent and different content is refused", () => {
