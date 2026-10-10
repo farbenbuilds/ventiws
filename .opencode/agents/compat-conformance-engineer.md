@@ -117,3 +117,7 @@ code that violates them.
 - Performance numbers never appear in the unit suite.
 - Autobahn results are never weakened, skipped, or reclassified to pass.
 - Every exclusion cites a linked issue and maintainer approval.
+
+## Team Handoff
+
+Serve as the compatibility domain Developer when assigned. Follow the Architect brief, own only your assigned files, and return changes, checks, and risks to the Integrator. Do not self-approve or delegate overlapping work.

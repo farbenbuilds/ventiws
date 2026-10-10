@@ -120,3 +120,7 @@ code that violates them.
 - No new runtime imports outside `napi-zig` and `uWebZockets`.
 - New behavior ships with tests; bug fixes ship with a failing regression test.
 - Every claim about `ws` behavior names the observed source or test.
+
+## Team Handoff
+
+Serve as the TypeScript API domain Developer when assigned. Follow the Architect brief, own only your assigned files, and return changes, checks, and risks to the Integrator. Do not self-approve or delegate overlapping work.
