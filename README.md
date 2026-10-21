@@ -12,15 +12,16 @@ Median round trips per second; the last column is the gate ratio.
 
 | payload | ws | ventiws | ventiws-engine | uWebSockets.js | socket.io | ventiws vs ws |
 | --- | --- | --- | --- | --- | --- | --- |
-| 64 B | 36,728 | 30,769 | 9,345 | 41,104 | 9,433 | 0.838 |
-| 1024 B | 31,486 | 27,157 | 9,009 | 37,330 | 9,068 | 0.863 |
-| 16384 B | 11,802 | 12,836 | 6,118 | 16,445 | 6,251 | 1.088 |
-| 32768 B | 7,135 | 8,728 | 4,839 | 10,013 | 4,583 | 1.223 |
+| 64 B | 38,544 | 32,654 | 9,336 | 42,541 | 9,877 | 0.847 |
+| 1024 B | 33,057 | 28,994 | 8,829 | 38,775 | 9,396 | 0.877 |
+| 16384 B | 12,142 | 13,283 | 6,334 | 16,923 | 6,541 | 1.094 |
+| 32768 B | 7,291 | 8,723 | 4,858 | 10,380 | 4,638 | 1.196 |
 
 ## Recorded runs
 
 | Recorded UTC | Commit | Median ratio vs ws | Worst row | Gate | Evidence |
 | --- | --- | --- | --- | --- | --- |
+| 2026-10-21T09:51:47.956Z | `8a7dfd271b2e` | 0.986 | 64 B | fail | [record](records/2026/39576851951-1-8a7dfd271b2e.json) |
 | 2026-10-20T09:56:45.510Z | `8a7dfd271b2e` | 0.975 | 64 B | fail | [record](records/2026/39401088026-1-8a7dfd271b2e.json) |
 | 2026-10-19T10:22:50.456Z | `8a7dfd271b2e` | 1.053 | 64 B | pass | [record](records/2026/39234429514-1-8a7dfd271b2e.json) |
 | 2026-10-18T09:21:05.111Z | `8a7dfd271b2e` | 0.979 | 64 B | fail | [record](records/2026/39113268241-1-8a7dfd271b2e.json) |
