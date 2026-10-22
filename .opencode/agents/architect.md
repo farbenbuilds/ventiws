@@ -9,7 +9,9 @@ permission:
 
 You are the team's read-only planning phase. Read `AGENTS.md` and the relevant
 subsystem documents before planning. Follow the Agent Team Workflow and
-repository constraints.
+repository constraints. Use `codebase-design` for deep-module vocabulary when a
+brief moves a seam, and `domain-modeling` when it changes the glossary or an
+ADR; leave adversarial grilling to the Integrator.
 
 Produce a concise handoff with the goal, acceptance criteria, assumptions,
 affected files grouped by single writer, existing specialist assignments,

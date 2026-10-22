@@ -88,9 +88,9 @@ code that violates them.
 - Buffers observed by JavaScript are Node-owned copies; engine slabs never
   escape. Retaining `data` after a callback must be safe, exactly like `ws`.
 - Never hand-edit generated `.d.ts` output or weaken compiler options.
-- Load `typescript-expert`, `typescript-advanced-types`, and
-  `separation-of-concerns` when designing surface and `tsdown` when output
-  shape changes. Route the task through
+- Load `typescript-expert`, `typescript-advanced-types`, `separation-of-concerns`,
+  and `codebase-design` when designing surface, and `tsdown` when output shape
+  changes. Route the task through
   `.agents/skills/using-agent-skills/SKILL.md`; this role also uses
   `api-and-interface-design` for stable contracts, `source-driven-development`
   against the pinned `ws` source, `documentation-and-adrs` when a decision must

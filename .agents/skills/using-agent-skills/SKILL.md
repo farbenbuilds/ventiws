@@ -16,11 +16,13 @@ When a task arrives, identify the development phase and apply the corresponding 
 ```
 Task arrives
     │
-    ├── Don't know what you want yet? ──────→ interview-me
+    ├── Don't know what you want yet? ──────→ interview-me, grill-me
     ├── Have a rough concept, need variants? → idea-refine
+    ├── Need to stress-test a plan? ────────→ grilling
     ├── New project/feature/change? ──→ spec-driven-development
     ├── No quality bar written down? ──→ constraint-driven-development
     ├── Have a spec, need tasks? ──────→ planning-and-task-breakdown
+    ├── Architecture/refactor question? ──→ improve-codebase-architecture, codebase-design
     ├── Implementing code? ────────────→ incremental-implementation
     │   ├── API work? ────────────────→ api-and-interface-design
     │   ├── Need better context? ─────→ context-engineering
@@ -30,12 +32,14 @@ Task arrives
     ├── Something broke? ──────────────→ debugging-and-error-recovery
     ├── Reviewing code? ───────────────→ code-review-and-quality
     │   ├── Too complex? ─────────────→ code-simplification
+    │   ├── Maintainability-heavy? ───→ thermo-nuclear-code-quality-review
     │   ├── Security concerns? ───────→ security-and-hardening
     │   └── Performance concerns? ────→ performance-optimization
     ├── Committing/branching? ─────────→ git-workflow-and-versioning
     ├── CI/CD pipeline work? ──────────→ ci-cd-and-automation
+    ├── Lint/tooling setup? ───────────→ install-anti-slop
     ├── Deprecating/migrating? ────────→ deprecation-and-migration
-    ├── Writing docs/ADRs? ───────────→ documentation-and-adrs
+    ├── Writing docs/ADRs? ───────────→ documentation-and-adrs, domain-modeling
     ├── Adding logs/metrics/alerts? ───→ observability-and-instrumentation
     └── Deploying/launching? ─────────→ shipping-and-launch
 ```
@@ -142,7 +146,7 @@ For a complete feature, the typical skill sequence is:
 
 ```
 1.  interview-me                → Extract what the user actually wants
-2.  idea-refine                 → Refine vague ideas
+2.  idea-refine / grilling      → Refine vague ideas, then stress-test the plan
 3.  spec-driven-development     → Define what we're building
 4.  planning-and-task-breakdown → Break into verifiable chunks
 5.  context-engineering         → Load the right context
@@ -151,7 +155,7 @@ For a complete feature, the typical skill sequence is:
 8.  observability-and-instrumentation → Instrument as you build (runs parallel with 7-9, not after)
 9.  doubt-driven-development    → Cross-examine non-trivial decisions in-flight
 10. test-driven-development     → Prove each slice works
-11. code-review-and-quality     → Review before merge
+11. code-review-and-quality     → Review before merge; thermo-nuclear for maintainability-heavy diffs
 12. code-simplification         → Reduce unnecessary complexity while preserving behavior
 13. git-workflow-and-versioning → Clean commit history
 14. documentation-and-adrs      → Document decisions

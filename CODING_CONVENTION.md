@@ -231,7 +231,19 @@ mutation, enums, and emoji; native rules cover `max-lines`, `no-else-return`,
 `typescript/consistent-type-definitions`, `typescript/consistent-type-imports`,
 `typescript/explicit-module-boundary-types`, `typescript/no-explicit-any`,
 `typescript/no-non-null-assertion`, `import/no-default-export`, and
-`unicorn/filename-case`. `lefthook.yml` runs the checks before every commit.
+`unicorn/filename-case`. `tools/oxlint/anti-slop/index.ts` is the vendored
+anti-slop plugin; its `UPSTREAM.md` records the source revision, and
+`@oxlint/plugins` stays pinned to the same exact version as `oxlint`.
+`lefthook.yml` runs the checks before every commit.
+
+The anti-slop rules are staged at `warn` while the repository-wide evidence
+cleanup lands. `anti-slop/require-readable-spacing` stays off until that
+cleanup, because its autofix inserts blank lines that push files past the
+150-line budget. Do not delete the plugin, weaken the staged severities, or
+silence a rule to make a change pass; fix the code or cite the follow-up work in
+the pull request. Both `.oxlintrc.json` and `.oxfmtrc.json` ignore installed
+agent trees and the vendored plugin, so review tooling stays out of the source
+gates.
 
 Run `pnpm lint`, `pnpm format:check`, and
 `pnpm exec lefthook run pre-commit --all-files` before every commit. Apply

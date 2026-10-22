@@ -35,7 +35,11 @@ was checked and confirms a specific result; it never hand-waves.
 - Skill routing: `.agents/skills/using-agent-skills/SKILL.md`. This role audits
   against `code-review-and-quality`'s five axes, uses `code-simplification` to
   scope splits, and checks `constraint-driven-development` for the written
-  quality bar; the audit itself stays read-only.
+  quality bar. Load `improve-codebase-architecture` and `codebase-design` to
+  scope deepening moves, `thermo-nuclear-code-quality-review` for the strict
+  maintainability pass, `domain-modeling` when terminology or an ADR drifts,
+  and `install-anti-slop` when auditing `tools/oxlint/anti-slop/`. The audit
+  itself stays read-only.
 
 ## Core Directives (Prime Directives)
 

@@ -56,9 +56,12 @@ will own parsing, buffers, and backpressure.
   rather than restated.
   `pnpm build:binding` builds the addon in ReleaseSafe, and
   `scripts/check-conventions.mjs` (run by `pnpm lint` and a `lefthook` job)
-  enforces the line budget, Zig naming, filename case, and the emoji ban. The
-  pinned `ws`/`@types/ws` devDependencies back the first conformance leg in
-  `tests/conformance/`.
+  enforces the line budget, Zig naming, filename case, and the emoji ban.
+  `pnpm lint` also loads the vendored anti-slop Oxlint plugin under
+  `tools/oxlint/anti-slop/`; its evidence rules are staged at `warn` until the
+  follow-up cleanup, and `anti-slop/require-readable-spacing` stays off because
+  its autofix conflicts with the 150-line budget. The pinned `ws`/`@types/ws`
+  devDependencies back the first conformance leg in `tests/conformance/`.
 - Root documents (`CODEBASE.md`, `CONTRIBUTE.md`, `CI_CD_PIPELINE.md`,
   `SKILL.md`) specify the intended architecture. When they disagree with
   `package.json`, `tsconfig.json`, `flake.nix`, or `src/`, trust the config
@@ -151,6 +154,8 @@ declarations through the package `exports` map; it needs `tsdown` output.
 - Target workflows and native matrix: `CI_CD_PIPELINE.md`
 - Threat model and private reporting: `SECURITY.md`
 - License obligations kept in sync with dependencies: `THIRD_PARTY_NOTICES.md`
+- Vendored Oxlint rules and their update procedure:
+  `tools/oxlint/anti-slop/UPSTREAM.md`, `install-anti-slop`
 
 ## Agent skills and plugins
 
@@ -173,7 +178,19 @@ declarations through the package `exports` map; it needs `tsdown` output.
   project. `using-agent-skills` and `test-driven-development` carry local edits
   that strip their browser routing; a `skills update` may restore it, so
   re-remove any UI guidance it brings back.
-- graphify is installed as a global opencode plugin. When
+- The architecture and review pack supplies `improve-codebase-architecture`,
+  `codebase-design`, `grilling`, `grill-me`, `domain-modeling`, and
+  `thermo-nuclear-code-quality-review`. `install-anti-slop` owns the vendored
+  Oxlint plugin under `tools/oxlint/anti-slop/`, including its `UPSTREAM.md`
+  provenance and update procedure. Load `codebase-design` for deep-module
+  vocabulary, `grilling` when a plan needs adversarial stress-testing, and
+  `thermo-nuclear-code-quality-review` for an unusually strict maintainability
+  review.
+- graphify is wired into both harnesses at project scope. OpenCode loads
+  `.opencode/skills/graphify` and the reminder in `.opencode/plugins/graphify.js`;
+  Codex loads `.codex/skills/graphify` and the `PreToolUse` hook in
+  `.codex/hooks.json`. Both reach the graph over MCP through
+  `.opencode/opencode.json` and `.codex/config.toml`. When
   `graphify-out/graph.json` exists, treat codebase and architecture questions
   as graph queries first: `graphify query "<question>"`, `graphify path A B`,
   `graphify explain X`; refresh with `/graphify --update`. `graphify-out/` is
@@ -275,8 +292,16 @@ When the user types `/graphify`, use the installed graphify skill or instruction
 
 Rules:
 
-- For codebase questions, first run `graphify query "<question>"` when graphify-out/graph.json exists. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
+- When graphify-out/graph.json exists, run `graphify query "<question>"` before your first grep, search or source-file read for a codebase question, and put this rule in every subagent prompt that explores code. Read raw files only for lines the graph or an earlier read already located. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
 - Dirty graphify-out/ files are expected after hooks or incremental updates; dirty graph files are not a reason to skip graphify. Only skip graphify if the task is about stale or incorrect graph output, or the user explicitly says not to use it.
 - If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
 - Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
 - After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
+
+OpenCode loads the skill from `.opencode/skills/graphify` and the reminder from
+`.opencode/plugins/graphify.js`; Codex loads the same skill from
+`.codex/skills/graphify` and the `PreToolUse` hook from `.codex/hooks.json`.
+Both harnesses reach the graph over MCP, configured in
+`.opencode/opencode.json` and `.codex/config.toml`. `graphify-out/` is
+generated and gitignored, so a missing graph means the MCP server has no default
+graph until `/graphify .` or `graphify update .` creates one.

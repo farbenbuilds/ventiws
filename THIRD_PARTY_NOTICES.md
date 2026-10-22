@@ -62,6 +62,15 @@ because it is the compatibility contract: it is what ventiws is compared
 against. It is not ventiws documentation, it is not kept in sync by hand, and it
 is replaced wholesale when the pinned `ws` version changes.
 
+## Vendored lint tooling
+
+`tools/oxlint/anti-slop/` vendors the MIT-licensed
+[anti-slop](https://github.com/dmmulroy/anti-slop) Oxlint rules at the revision
+recorded in its `UPSTREAM.md`. It is development tooling: it is not imported by
+`src/`, not shipped in the published package, and not compiled into the addon.
+The nested `vendor/eslint-stylistic/` padding rule keeps its own MIT license and
+provenance beside the source.
+
 ## Development-only tooling
 
 The following are development dependencies. They are not shipped in the
@@ -69,6 +78,7 @@ published package and require no runtime attribution.
 
 | Component        | License    |
 | ---------------- | ---------- |
+| @oxlint/plugins  | MIT        |
 | lefthook         | MIT        |
 | oxfmt            | MIT        |
 | oxlint           | MIT        |

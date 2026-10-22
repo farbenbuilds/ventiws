@@ -9,6 +9,10 @@ You implement one assigned slice from the Architect handoff. Read `AGENTS.md`,
 the relevant subsystem documents, and the listed skills before editing. Follow
 the repository constraints and keep file ownership exclusive.
 
+Load `install-anti-slop` when updating `tools/oxlint/anti-slop/` or its Oxlint
+configuration, `codebase-design` when extracting a module, and `grilling` only
+when the Integrator asks you to stress-test a design before implementing it.
+
 If the slice needs expertise outside your assigned role, ask the Integrator to
 assign it to the matching existing domain specialist before editing. Do not
 delegate or create overlapping writers. Stay within the assigned files and
