@@ -1,21 +1,15 @@
-// `binaryType: "fragments"` on a message that arrived as exactly two frames.
-//
-// The boundary list holds N-1 interior ends for N pieces, so a two-piece message has
-// one end: a consumer that treats fewer than two ends as "arrived whole" hands back a
-// single buffer where `ws` hands back two. The three-piece case cannot catch that, and
-// the peer has to be a raw socket because `send` starts a new message per call.
-//
-// Both implementations read the same bytes, so the expectation is `ws`'s own answer.
+// `binaryType: "fragments"` on a message that arrived as one, two, or three frames.
+// Both implementations read the same bytes, so `ws`'s answer is the expectation.
 
 import { expect, test } from "vitest";
 import { WebSocketServer as WsServer, type WebSocket as WsSocket } from "ws";
 import { TEST_TIMEOUT_MS } from "../binding/support";
-import { clientFrames, type ClientFrame } from "../binding/codec-frames";
-import { openRawClient } from "../binding/codec-net";
+import { clientFrames, type ClientFrame } from "../compat/socket/client-frames";
+import { openRawClient } from "../compat/handshake";
 import { nextSocket, upgradeHarness, waitFor } from "../compat/socket/codec-upgrade-support";
 import { boundPort } from "./bound-port";
 
-/// One binary message in `count` frames: the interior ends are the boundaries.
+/// One binary message in `count` frames; the interior ends are the boundaries.
 function piecesOf(count: number): ClientFrame[] {
   return Array.from({ length: count }, (_, index) => ({
     opcode: index === 0 ? 0x2 : 0x0,
@@ -24,14 +18,12 @@ function piecesOf(count: number): ClientFrame[] {
   }));
 }
 
-/// Runs the frames into a `ws` server and returns its `fragments` answer.
+/// The same frames read by a `ws` server, which is the reference.
 async function wsPieces(frames: readonly ClientFrame[]): Promise<string[]> {
   const server = new WsServer({ port: 0 });
   const accepted = new Promise<WsSocket>((resolve) => server.once("connection", resolve));
   await new Promise<void>((resolve) => server.once("listening", resolve));
-  const port = boundPort(server);
-  // Dial before awaiting the connection: a promise nobody has connected to never settles.
-  const raw = await openRawClient(port);
+  const raw = await openRawClient(boundPort(server));
   const socket = await accepted;
 
   try {
@@ -40,22 +32,18 @@ async function wsPieces(frames: readonly ClientFrame[]): Promise<string[]> {
       if (Array.isArray(data)) seen.push(data.map((piece) => piece.toString()));
     });
     socket.binaryType = "fragments";
+    raw.write(clientFrames(frames));
+    await waitFor(() => seen.length === 1);
 
-    try {
-      raw.write(clientFrames(frames));
-      await waitFor(() => seen.length === 1);
-
-      return seen[0] ?? [];
-    } finally {
-      raw.destroy();
-    }
+    return seen[0] ?? [];
   } finally {
+    raw.destroy();
     socket.terminate();
     await new Promise<void>((resolve) => server.close(() => resolve()));
   }
 }
 
-/// The same frames into a ventiws server, through the facade's own socket.
+/// The same frames read by a ventiws server through the facade's own socket.
 async function ventiwsPieces(frames: readonly ClientFrame[]): Promise<string[]> {
   const harness = await upgradeHarness();
   const accepted = nextSocket(harness.server);
@@ -78,35 +66,17 @@ async function ventiwsPieces(frames: readonly ClientFrame[]): Promise<string[]> 
   }
 }
 
-test(
-  "a two-piece message yields two fragments in both implementations",
+test.each([
+  ["one", 1, ["aa"]],
+  ["two", 2, ["aa", "b"]],
+  ["three", 3, ["aa", "b", "b"]],
+] as const)(
+  "a %s-frame message yields the same pieces as ws",
   { timeout: TEST_TIMEOUT_MS },
-  async () => {
-    const frames = piecesOf(2);
-    const [expected, actual] = await Promise.all([wsPieces(frames), ventiwsPieces(frames)]);
-    expect(actual).toEqual(["aa", "b"]);
+  async (_name, count, expected) => {
+    const frames = piecesOf(count);
+    const [reference, actual] = await Promise.all([wsPieces(frames), ventiwsPieces(frames)]);
     expect(actual).toEqual(expected);
-  },
-);
-
-test(
-  "a three-piece message still yields three fragments",
-  { timeout: TEST_TIMEOUT_MS },
-  async () => {
-    const frames = piecesOf(3);
-    const [expected, actual] = await Promise.all([wsPieces(frames), ventiwsPieces(frames)]);
-    expect(actual).toEqual(["aa", "b", "b"]);
-    expect(actual).toEqual(expected);
-  },
-);
-
-test(
-  "a whole message is still one fragment in both implementations",
-  { timeout: TEST_TIMEOUT_MS },
-  async () => {
-    const frames = piecesOf(1);
-    const [expected, actual] = await Promise.all([wsPieces(frames), ventiwsPieces(frames)]);
-    expect(actual).toEqual(["aa"]);
-    expect(actual).toEqual(expected);
+    expect(actual).toEqual(reference);
   },
 );

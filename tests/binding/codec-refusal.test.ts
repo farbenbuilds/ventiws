@@ -1,8 +1,5 @@
-// What a peer is refused for, and what the caller learns about it.
-//
-// A refusal is the half of the contract a hostile peer exercises, so each case here
-// is a frame RFC 6455 forbids, the close code it maps to, and the offset a caller
-// resumes from.
+// What a hostile peer is refused for. Each row is a frame RFC 6455 forbids, the
+// close code it maps to, and the event the caller must drain before resuming.
 
 import { expect, test } from "vitest";
 import {
@@ -13,54 +10,84 @@ import {
   destroyCodec,
   feedCodec,
 } from "../../src/binding/codec";
-import { clientFrames, drain } from "./codec-frames";
-import { DEFAULT_MAX_PAYLOAD, defaultCodecOptions } from "./codec-support";
+import {
+  clientCodec,
+  clientFrames,
+  DEFAULT_MAX_PAYLOAD,
+  defaultOptions,
+  drain,
+  serverCodec,
+} from "./codec-support";
 
 const REJECTED = CODEC_KINDS.indexOf("rejected");
 
-/// A codec for one role, at the compiled ceilings, so a message over the cap is
-/// what a refusal case has to build.
-function codecAt(role: number): bigint {
-  return createCodec(role, defaultCodecOptions());
-}
+type RefusalCase = {
+  readonly name: string;
+  readonly role: number;
+  readonly bytes: Buffer;
+  readonly code: number;
+};
 
-test("a server refuses an unmasked frame with 1002", () => {
-  const handle = codecAt(CODEC_ROLE.server);
+const REFUSALS: readonly RefusalCase[] = [
+  {
+    name: "an unmasked frame a server must refuse",
+    role: CODEC_ROLE.server,
+    bytes: Buffer.from([0x81, 0x02, 0x68, 0x69]),
+    code: 1002,
+  },
+  {
+    name: "a masked frame a client must refuse",
+    role: CODEC_ROLE.client,
+    bytes: clientFrames([{ opcode: 0x1, payload: Buffer.from("masked") }]),
+    code: 1002,
+  },
+  {
+    name: "an invalid UTF-8 text payload",
+    role: CODEC_ROLE.server,
+    bytes: clientFrames([{ opcode: 0x1, payload: Buffer.from([0xc3, 0x28]) }]),
+    code: 1007,
+  },
+  {
+    name: "a message over maxPayload",
+    role: CODEC_ROLE.server,
+    bytes: clientFrames([{ opcode: 0x1, payload: Buffer.alloc(DEFAULT_MAX_PAYLOAD + 1) }]),
+    code: 1009,
+  },
+];
+
+test.each(REFUSALS)("$name is refused with $code", ({ role, bytes, code }) => {
+  const handle = createCodec(role, defaultOptions());
 
   try {
-    // A `ws` client always masks, so this is the discipline a server exists to
-    // enforce, and the code is the RFC's "protocol error".
-    const unmasked = Buffer.from([0x81, 0x02, 0x68, 0x69]);
-    expect(feedCodec(handle, unmasked)).toEqual({ kind: "failed" });
-    // The event says a frame was refused; the code it maps to is latched on the
-    // codec, because one refusal ends the connection rather than one message.
+    expect(feedCodec(handle, bytes)).toEqual({ kind: "failed" });
     expect(drain(handle).map((event) => event.kind)).toEqual([CODEC_KINDS[REJECTED]]);
-    expect(codecFailureCode(handle)).toBe(1002);
+    // The code is latched on the codec, because one refusal ends the whole connection.
+    expect(codecFailureCode(handle)).toBe(code);
   } finally {
     destroyCodec(handle);
   }
 });
 
-test("a client refuses a masked frame with 1002", () => {
-  const handle = codecAt(CODEC_ROLE.client);
+test("maxPayload admits a payload exactly at the limit", () => {
+  const handle = serverCodec();
 
   try {
-    // The mirror of the case above: the same bytes a server accepts are the ones a
-    // client must reject, so the two roles are not interchangeable.
-    const masked = clientFrames([{ opcode: 0x1, payload: Buffer.from("masked") }]);
-    expect(feedCodec(handle, masked)).toEqual({ kind: "failed" });
-    expect(codecFailureCode(handle)).toBe(1002);
+    const frames = clientFrames([{ opcode: 0x1, payload: Buffer.alloc(DEFAULT_MAX_PAYLOAD) }]);
+
+    expect(feedCodec(handle, frames)).toEqual({ kind: "consumed", bytes: frames.length });
+    expect(drain(handle)[0]?.payload.length).toBe(DEFAULT_MAX_PAYLOAD);
   } finally {
     destroyCodec(handle);
   }
 });
 
-test("a client accepts an unmasked frame a server would refuse", () => {
-  const handle = codecAt(CODEC_ROLE.client);
+test("a client accepts the unmasked frame a server refuses", () => {
+  const handle = clientCodec();
 
   try {
     const unmasked = Buffer.from([0x81, 0x02, 0x68, 0x69]);
-    expect(feedCodec(handle, unmasked)).toEqual({ kind: "consumed", bytes: 4 });
+
+    expect(feedCodec(handle, unmasked)).toEqual({ kind: "consumed", bytes: unmasked.length });
     expect(drain(handle).map((event) => event.kind)).toEqual([CODEC_KINDS[0]]);
     expect(codecFailureCode(handle)).toBe(0);
   } finally {
@@ -68,48 +95,14 @@ test("a client accepts an unmasked frame a server would refuse", () => {
   }
 });
 
-test("an invalid text payload is refused with 1007", () => {
-  const handle = codecAt(CODEC_ROLE.server);
-
-  try {
-    // 0xc3 announces a two-byte sequence and 0x28 is not a continuation byte.
-    const frames = clientFrames([{ opcode: 0x1, payload: Buffer.from([0xc3, 0x28]) }]);
-    expect(feedCodec(handle, frames)).toEqual({ kind: "failed" });
-    expect(codecFailureCode(handle)).toBe(1007);
-  } finally {
-    destroyCodec(handle);
-  }
-});
-
-test("a message over the capacity is refused with 1009", () => {
-  // The codec's own ceiling rather than the engine's compiled one, because the two
-  // are different numbers now: the codec's is per-connection and set by the caller,
-  // the engine's is a startup slab this route does not use.
-  const capacity = DEFAULT_MAX_PAYLOAD;
-  const handle = codecAt(CODEC_ROLE.server);
-
-  try {
-    const at = clientFrames([{ opcode: 0x1, payload: Buffer.alloc(capacity) }]);
-    expect(feedCodec(handle, at)).toEqual({ kind: "consumed", bytes: at.length });
-    expect(drain(handle).map((event) => event.payload.length)).toEqual([capacity]);
-
-    const over = clientFrames([{ opcode: 0x1, payload: Buffer.alloc(capacity + 1) }]);
-    expect(feedCodec(handle, over)).toEqual({ kind: "failed" });
-    expect(codecFailureCode(handle)).toBe(1009);
-  } finally {
-    destroyCodec(handle);
-  }
-});
-
 test("a refusal is reported once and stays reported", () => {
-  const handle = codecAt(CODEC_ROLE.server);
+  const handle = serverCodec();
 
   try {
-    const unmasked = Buffer.from([0x81, 0x02, 0x68, 0x69]);
-    expect(feedCodec(handle, unmasked)).toEqual({ kind: "failed" });
+    expect(feedCodec(handle, Buffer.from([0x81, 0x02, 0x68, 0x69]))).toEqual({ kind: "failed" });
     drain(handle);
-    // A connection that has been refused is finished, so a later call reports the
-    // same reason rather than a fresh, healthy one.
+    // A refused connection is finished, so later input reports the same reason rather
+    // than a fresh, healthy one.
     expect(feedCodec(handle, Buffer.from("hi"))).toEqual({ kind: "failed" });
     expect(codecFailureCode(handle)).toBe(1002);
   } finally {

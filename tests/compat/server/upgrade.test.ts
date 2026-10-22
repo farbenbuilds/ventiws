@@ -1,3 +1,6 @@
+// The server upgrade path: the 101 itself, protocol selection, path filtering, and
+// the requests `ws` refuses before a socket exists.
+
 import { expect, test } from "vitest";
 import { WebSocket, WebSocketServer } from "../../../src/index";
 import { ACCEPT, rawUpgrade, request, serve, UPGRADE_HEADERS } from "./upgrade-support";
@@ -7,9 +10,7 @@ test("a valid handshake upgrades and emits connection", async () => {
 
   try {
     const connection = new Promise<WebSocket>((resolve) => {
-      harness.server.once("connection", (socket) => {
-        resolve(socket);
-      });
+      harness.server.once("connection", (socket) => resolve(socket));
     });
 
     const result = await rawUpgrade(harness.port, request("/", UPGRADE_HEADERS));
@@ -34,17 +35,14 @@ test("handleProtocols selects the response subprotocol and the socket sees it", 
 
   try {
     const connection = new Promise<WebSocket>((resolve) => {
-      harness.server.once("connection", (socket) => {
-        resolve(socket);
-      });
+      harness.server.once("connection", (socket) => resolve(socket));
     });
 
     const headers = { ...UPGRADE_HEADERS, "Sec-WebSocket-Protocol": "chat, superchat" };
     const result = await rawUpgrade(harness.port, request("/", headers));
     expect(result.status).toBe(101);
     expect(result.response).toContain("Sec-WebSocket-Protocol: superchat");
-    const socket = await connection;
-    expect(socket.protocol).toBe("superchat");
+    expect((await connection).protocol).toBe("superchat");
   } finally {
     await harness.close();
   }
@@ -82,18 +80,64 @@ test("the path option filters requests including their query", async () => {
   }
 });
 
-test("shouldHandle inspects the request path without the query", () => {
-  const server = new WebSocketServer({ noServer: true, path: "/ws" });
-  expect(handles(server, "/ws?a=1")).toBe(true);
-  expect(handles(server, "/ws")).toBe(true);
-  expect(handles(server, "/other")).toBe(false);
-  server.close();
+test.each([
+  ["POST", request("/", UPGRADE_HEADERS, "POST"), 405, "Invalid HTTP method"],
+  [
+    "bad key",
+    request("/", { ...UPGRADE_HEADERS, "Sec-WebSocket-Key": "short" }),
+    400,
+    "Missing or invalid Sec-WebSocket-Key header",
+  ],
+  [
+    "bad version",
+    request("/", { ...UPGRADE_HEADERS, "Sec-WebSocket-Version": "12" }),
+    400,
+    "Missing or invalid Sec-WebSocket-Version header",
+  ],
+  [
+    "bad protocol",
+    request("/", { ...UPGRADE_HEADERS, "Sec-WebSocket-Protocol": "bad protocol" }),
+    400,
+    "Invalid Sec-WebSocket-Protocol header",
+  ],
+])("rejects %s", async (_name, raw, status, message) => {
+  const harness = await serve(new WebSocketServer({ noServer: true }));
+
+  try {
+    const result = await rawUpgrade(harness.port, raw);
+    expect(result.status).toBe(status);
+    expect(result.response).toContain(message);
+  } finally {
+    await harness.close();
+  }
 });
 
-/// `shouldHandle` reads only `url`, so the fixture supplies that field rather than a whole
-/// `IncomingMessage`.
-function handles(server: WebSocketServer, url: string): boolean | Promise<boolean> {
-  // SAFETY: the method's contract here is the path in `url`; the rest of the request is
-  // never read.
-  return server.shouldHandle({ url } as never);
-}
+test("verifyClient controls the handshake", async () => {
+  const sync = await serve(
+    new WebSocketServer({
+      noServer: true,
+      verifyClient: (info: { readonly origin?: string }) => info.origin === "https://allowed.test",
+    }),
+  );
+
+  try {
+    expect(
+      (
+        await rawUpgrade(
+          sync.port,
+          request("/", { ...UPGRADE_HEADERS, Origin: "https://other.test" }),
+        )
+      ).status,
+    ).toBe(401);
+    expect(
+      (
+        await rawUpgrade(
+          sync.port,
+          request("/", { ...UPGRADE_HEADERS, Origin: "https://allowed.test" }),
+        )
+      ).status,
+    ).toBe(101);
+  } finally {
+    await sync.close();
+  }
+});

@@ -1,7 +1,10 @@
+import { createRequire } from "node:module";
+import { dirname, join, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { expect, test } from "vitest";
 import { loadAddon } from "../../src/binding/load";
 
-/// The publish workflow runs this file against a release build that passes
+/// The publish workflow runs this file against a release built with
 /// `-Dengine-addon=false` (ADR 0003), so it may only touch the public artifact.
 const CODEC_FUNCTIONS = [
   "codecCreate",
@@ -39,38 +42,46 @@ const ENGINE_FUNCTIONS = [
   "takeSocketMessage",
 ] as const;
 
-test("loads the native addon", () => {
-  expect(loadAddon().engineVersion).toBeTypeOf("function");
+const requires = createRequire(import.meta.url);
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
+const PUBLIC_ARTIFACT = join(ROOT, "zig-out", "lib", "ventiws.node");
+
+type AddonSurface = {
+  readonly [name: string]: ((...args: never[]) => void) | undefined;
+};
+
+function artifact(path: string): AddonSurface {
+  // SAFETY: both build products export only functions; the assertions below hold each name to that.
+  return requires(path) as AddonSurface;
+}
+
+test("the loader returns the public codec artifact at the pinned release", () => {
+  const addon = loadAddon();
+
+  expect(addon.engineVersion()).toBe("2.0.5");
+
+  for (const name of CODEC_FUNCTIONS) expect(addon[name]).toBeTypeOf("function");
+
+  for (const name of ENGINE_FUNCTIONS) expect(name in addon).toBe(false);
 });
 
-test("reports the pinned uWebZockets release", () => {
-  expect(loadAddon().engineVersion()).toBe("2.0.5");
+test("the public artifact file itself carries no engine ABI", () => {
+  const addon = artifact(PUBLIC_ARTIFACT);
+
+  for (const name of CODEC_FUNCTIONS) expect(addon[name]).toBeTypeOf("function");
+
+  for (const name of ENGINE_FUNCTIONS) expect(name in addon).toBe(false);
 });
 
-test.each(CODEC_FUNCTIONS)("the public addon exposes %s", (name) => {
-  expect(loadAddon()[name]).toBeTypeOf("function");
-});
-
-test.each(ENGINE_FUNCTIONS)("the public addon omits %s", (name) => {
-  expect(name in loadAddon()).toBe(false);
-});
-
-/// `capacities.zig` calls each of these "a promise the compatibility layer has to
-/// keep", and the promise is only checkable if the build reports what it compiled.
-/// A restated TypeScript copy is a second source of truth, and that is how the
-/// message cap came to be 64 KiB in the engine while a test still asserted
-/// 32 KiB and passed.
-test("the addon reports the capacities it was compiled with", () => {
+test("the compiled capacities are coherent", () => {
   const limits = loadAddon().engineLimits();
-  expect(limits.connectionCapacity).toBeGreaterThan(0);
-  expect(limits.messageBytes).toBeGreaterThan(0);
-  // A frame can never exceed a message, so the frame cap tracks it.
-  expect(limits.frameBytes).toBeLessThanOrEqual(limits.messageBytes);
-  expect(limits.inboundSlots).toBeGreaterThan(limits.outboundSlots);
-});
 
-/// RFC 6455 section 5.5 caps a control frame at 125 bytes, so the frame cap has
-/// to admit one whatever the message cap is.
-test("the frame cap admits a maximum control frame", () => {
-  expect(loadAddon().engineLimits().frameBytes).toBeGreaterThanOrEqual(125);
+  expect(limits.connectionCapacity).toBeGreaterThan(0);
+  expect(limits.messageBytes).toBeGreaterThanOrEqual(65_536);
+  // RFC 6455 section 5.5 caps a control frame at 125 bytes, so the frame cap admits one.
+  expect(limits.frameBytes).toBeGreaterThanOrEqual(125);
+  expect(limits.frameBytes).toBeLessThanOrEqual(limits.messageBytes);
+  expect(limits.maxPayloadBytes).toBeGreaterThanOrEqual(100 * 1024 * 1024);
+  expect(limits.inboundSlots).toBeGreaterThan(limits.outboundSlots);
+  expect(limits.connectionCapacity).toBeGreaterThan(limits.outboundSlots);
 });

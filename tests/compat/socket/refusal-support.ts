@@ -6,7 +6,7 @@
 
 import type { WebSocketServer } from "../../../src/index";
 import { TEST_TIMEOUT_MS } from "../../binding/support";
-import { openRawClient } from "../../binding/codec-net";
+import { openRawClient } from "../handshake";
 import { nextSocket, upgradeHarness } from "./codec-upgrade-support";
 
 /// What one refused frame reported: the application's `error`, and the socket's `close`.

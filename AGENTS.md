@@ -162,6 +162,7 @@ declarations through the package `exports` map; it needs `tsdown` output.
 - Why the published package ships only the codec and the engine addon is
   development-only: `docs/adr/0003-codec-only-public-addon.md`
 - Style depth and anti-OOP patterns: `CODING_CONVENTION.md`
+- Test layers and the one-owner-per-behavior rule: `tests/README.md`
 - Script contract, testing, PRs, release: `CONTRIBUTE.md`
 - Target workflows and native matrix: `CI_CD_PIPELINE.md`
 - Threat model and private reporting: `SECURITY.md`

@@ -5,7 +5,7 @@
 // redirect looks like on the wire (a load balancer or CDN in front of a socket endpoint).
 
 import { createServer, type Server, type Socket } from "node:net";
-import { acceptValue } from "../../binding/codec-net";
+import { acceptValue } from "../handshake";
 import { boundPort } from "../address-support";
 
 /// The token for "this peer's own authority": a self-redirect needs it before the port exists.

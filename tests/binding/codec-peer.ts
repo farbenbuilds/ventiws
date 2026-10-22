@@ -5,10 +5,13 @@
 // bytes are then gone rather than late, so a test fails for a reason that has
 // nothing to do with the codec.
 
-import { createServer, type Socket } from "node:net";
+import { createServer, type AddressInfo, type Socket } from "node:net";
 import { WebSocket as WsClient } from "ws";
 import { readHandshake, TEST_TIMEOUT_MS, writeAccept } from "./codec-net";
-import { addressPort } from "./port-support";
+
+function addressPort(address: AddressInfo | string | null): number | undefined {
+  return address instanceof Object ? address.port : undefined;
+}
 
 export type RawPeer = {
   readonly port: number;

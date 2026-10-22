@@ -112,8 +112,12 @@ reviewer checks:
 
 ## Testing
 
-- Every behavior change ships with a vitest test, and a bug fix ships with a
-  regression test that fails before the fix. A boundary change covers retained
+- [tests/README.md](tests/README.md) is the test map: one behavior owner per
+  layer, the conformance and Autobahn suites as oracles, and table-driven files
+  instead of one file per case. Extend the owning table rather than adding a
+  near-duplicate suite.
+- Every behavior change ships with a vitest test in the owning layer, and a bug
+  fix ships with a regression test that fails before the fix. A boundary change covers retained
   inbound payloads, borrowed outbound buffers, exactly-once `close`, stale
   handle access, and capacity exhaustion. A consumer-facing type change keeps
   `tests/types/consumer.ts` compiling and `pnpm typecheck:dist` passing, the

@@ -32,8 +32,8 @@ upstream is retired in the same change.
 ## uWebZockets
 
 `uWebZockets` is first-party to this project and is consumed from
-`farbenbuilds/uWebZockets`. The current pin is `v2.0.0` plus
-`v2.0.0-ventiws.1`, which packages the libxev overlay and emits function/data
+`farbenbuilds/uWebZockets`. The current pin is `v2.0.5` plus
+`v2.0.5-ventiws.1`, which packages the libxev overlay and emits function/data
 sections for the vendored C and C++ sources. The same sync rule applies when
 the engine advances: keep the small ventiws tag, record what it carries here,
 and re-run the addon size and conformance checks.

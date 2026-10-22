@@ -20,8 +20,8 @@ same information in a form `git log` can filter.
 - Update the development dependencies to their latest releases, including
   `oxlint`/`@oxlint/plugins` 1.89.0, `oxfmt` 0.74.0, `vitest` 5.0.5, `vite`
   8.3.5, `tsdown` 0.23.1, `lefthook` 2.2.2, and `@types/node` 26.6.5.
-- Adopt `uWebZockets` v2.0.0 and adapt the listener port lookup to its listener
-  array.
+- Adopt `uWebZockets` v2.0.5, including its QPACK and transport-hardening fixes,
+  and adapt the listener port lookup to its listener array.
 - Enforce the anti-slop evidence rules at `error` and format the whole tree with
   `oxfmt`.
 - Split the published addon to the codec-only route: `ventiws.node` is

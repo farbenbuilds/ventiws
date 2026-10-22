@@ -21,13 +21,33 @@ tests, Autobahn, and the engine benchmark row, and is never published.
 | linux-x64-musl |           14,380,712 |               465,912 | -13,914,800 (-96.76%) |
 | linux-x64-gnu  |           14,387,952 |               470,784 | -13,917,168 (-96.73%) |
 
-The development engine addon is 14,380,712 bytes on linux-x64-musl. It carries
+The development engine addon is 14,407,576 bytes on linux-x64-musl with the
+v2.0.5 security refresh. It carries
 the same full ABI the published addon used to expose; only the public artifact
 changed.
 
 The public artifact carries the codec, `engineVersion`, and `engineLimits`. It
 has no `createServer`, `http3Available`, `sendSocket`, or `pumpSocket`, and a
 binary scan finds no `lsquic`, `BoringSSL`, `SSL_`, or `EVP_` symbols.
+
+## Developer experience
+
+- Uncompressed, the public addon is 465,912 bytes; gzip is 182,258 bytes. The
+  development engine addon is 14,407,576 bytes raw and 1,957,072 bytes gzip.
+- A clean `npm install` smoke test used a 67 KB main tarball and a 184 KB
+  platform tarball: two packages, no compiler, no engine artifact. The old
+  package shipped the engine-sized platform binary, about 2 MB compressed.
+- The public artifact loads only Node's transport and the codec. There is no
+  extra socket or thread in the public path, so latency is the same Node
+  `http`/`Duplex` path as before, with the same AVX2 masking and libdeflate
+  framing. The 200k-message echo comparison measured 0.899 of `ws` for the
+  codec addon and 0.890 for the full-engine addon on the same host; the split
+  is not a throughput regression.
+- The tradeoff is two build products and two explicit loaders. The public
+  `engineLimits()` still reports the engine route's compiled capacities because
+  that is the existing public contract; the fields are constants, not a claim
+  that the engine is shipped. The engine artifact remains large, but only tests,
+  Autobahn, and the engine benchmark row load it.
 
 ## Why the earlier section-GC result was not enough
 
@@ -58,7 +78,7 @@ smaller optimization mode:
 | uWebZockets 1.8.0, `ReleaseSafe`           | 15,016,880 |            baseline |
 | uWebZockets 1.8.0, `ReleaseFast`           | 14,869,216 |   -147,664 (-0.98%) |
 | uWebZockets 1.8.0, `ReleaseSmall`          | 13,968,784 | -1,048,096 (-6.98%) |
-| uWebZockets 2.0.0, `ReleaseSafe`, sections | 14,380,712 |   -636,168 (-4.24%) |
+| uWebZockets 2.0.5, `ReleaseSafe`, sections | 14,407,576 |   -609,304 (-4.06%) |
 
 `ReleaseSmall` is still rejected for the default release. The codec-only split
 removes whole dependency families instead of trading runtime safety for a

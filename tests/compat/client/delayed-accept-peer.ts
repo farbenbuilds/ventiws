@@ -5,7 +5,7 @@
 // peer that completes normally can express.
 
 import { createServer, type Server, type Socket } from "node:net";
-import { acceptValue } from "../../binding/codec-net";
+import { acceptValue } from "../handshake";
 import { boundPort } from "../address-support";
 
 export type DelayedPeer = {

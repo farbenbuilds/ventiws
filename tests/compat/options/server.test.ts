@@ -1,6 +1,20 @@
+// Server option normalization: the single listen target, `ws` defaults, per-message
+// deflate, inherited properties, and the compiled ceilings on `maxPayload`.
+
 import { expect, test } from "vitest";
 import { codecLimits } from "../../../src/binding/codec";
 import { normalizeServerOptions } from "../../../src/compat/options/server";
+
+const PDT_DEFAULTS = {
+  serverNoContextTakeover: undefined,
+  clientNoContextTakeover: undefined,
+  serverMaxWindowBits: undefined,
+  clientMaxWindowBits: undefined,
+  threshold: 1024,
+  concurrencyLimit: 10,
+  zlibDeflateOptions: undefined,
+  zlibInflateOptions: undefined,
+};
 
 test("fills the ws server defaults", () => {
   const options = normalizeServerOptions({ noServer: true });
@@ -8,6 +22,9 @@ test("fills the ws server defaults", () => {
   expect(options.clientTracking).toBe(true);
   expect(options.allowSynchronousEvents).toBe(true);
   expect(options.autoPong).toBe(true);
+  expect(options.maxBufferedChunks).toBe(262144);
+  expect(options.maxFragments).toBe(16384);
+  expect(options.closeTimeout).toBe(30000);
   expect(options.maxPayload).toBe(100 * 1024 * 1024);
   expect(options.skipUTF8Validation).toBe(false);
   expect(options.perMessageDeflate).toBe(false);
@@ -34,61 +51,38 @@ test("preserves explicit falsy and zero server values", () => {
   expect(options.clientTracking).toBe(false);
   expect(options.allowSynchronousEvents).toBe(false);
   expect(options.autoPong).toBe(false);
-  // Zero is `ws`'s "no limit" rather than "refuse everything": it guards
-  // `_maxPayload > 0`, so the check is disabled. The codec's representation of that
-  // is the largest value it can enforce, so the normalized record carries the
-  // ceiling and `engineLimits().maxPayloadBytes` is what makes it checkable.
   expect(options.maxPayload).toBe(codecLimits().maxPayloadBytes);
   expect(options.skipUTF8Validation).toBe(true);
 });
 
-test("normalizes per-message deflate to its ws defaults", () => {
-  expect(normalizeServerOptions({ noServer: true, perMessageDeflate: true })).toMatchObject({
-    perMessageDeflate: {
-      serverNoContextTakeover: undefined,
-      clientNoContextTakeover: undefined,
-      serverMaxWindowBits: undefined,
-      clientMaxWindowBits: undefined,
-      threshold: 1024,
-      concurrencyLimit: 10,
-      zlibDeflateOptions: undefined,
-      zlibInflateOptions: undefined,
-    },
-  });
-});
-
-test("keeps explicit per-message deflate settings", () => {
-  const options = normalizeServerOptions({
-    noServer: true,
-    perMessageDeflate: {
-      threshold: 512,
-      serverNoContextTakeover: false,
-      serverMaxWindowBits: 10,
-      clientMaxWindowBits: 12,
-    },
-  });
-
-  expect(options.perMessageDeflate).toEqual({
+test("normalizes per-message deflate to its ws defaults and keeps overrides", () => {
+  expect(
+    normalizeServerOptions({ noServer: true, perMessageDeflate: true }).perMessageDeflate,
+  ).toEqual(PDT_DEFAULTS);
+  expect(
+    normalizeServerOptions({
+      noServer: true,
+      perMessageDeflate: {
+        threshold: 512,
+        serverNoContextTakeover: false,
+        serverMaxWindowBits: 10,
+        clientMaxWindowBits: 12,
+      },
+    }).perMessageDeflate,
+  ).toEqual({
+    ...PDT_DEFAULTS,
     serverNoContextTakeover: false,
-    clientNoContextTakeover: undefined,
     serverMaxWindowBits: 10,
     clientMaxWindowBits: 12,
     threshold: 512,
-    concurrencyLimit: 10,
-    zlibDeflateOptions: undefined,
-    zlibInflateOptions: undefined,
   });
 });
 
-test("ignores inherited option properties the way ws does", () => {
+test("ignores inherited option properties and evaluates getters once", () => {
   const polluted: { noServer?: boolean } = Object.create({ port: 8080 });
   polluted.noServer = true;
-  const options = normalizeServerOptions(polluted);
-  expect(options.noServer).toBe(true);
-  expect(options.port).toBeNull();
-});
+  expect(normalizeServerOptions(polluted).port).toBeNull();
 
-test("evaluates each option getter exactly once", () => {
   let reads = 0;
 
   const source = {
@@ -100,22 +94,35 @@ test("evaluates each option getter exactly once", () => {
     },
   };
 
-  const options = normalizeServerOptions(source);
-  expect(options.maxPayload).toBe(1024);
+  expect(normalizeServerOptions(source).maxPayload).toBe(1024);
   expect(reads).toBe(1);
 });
 
-test("treats a falsy server as absent, matching ws", () => {
-  // SAFETY: `0` is the falsy non-server a caller can pass; `ws` reads it as absent, which is
-  // the case under test.
-  const falsy = { server: 0 as never };
-  expect(() => normalizeServerOptions(falsy)).toThrow(/One and only one/);
-  expect(normalizeServerOptions({ ...falsy, port: 0 }).port).toBe(0);
-  expect(normalizeServerOptions({ ...falsy, noServer: true }).noServer).toBe(true);
+test("treats a falsy server as absent and a falsy deflate as off", () => {
+  // SAFETY: `0` is the falsy non-server a caller can pass; `ws` reads it as absent.
+  expect(() => normalizeServerOptions({ server: 0 as never })).toThrow(/One and only one/);
+  // SAFETY: `null` is the falsy out-of-type value `ws` reads as disabled.
+  expect(
+    normalizeServerOptions({ noServer: true, perMessageDeflate: null as never }).perMessageDeflate,
+  ).toBe(false);
 });
 
-test("a falsy per-message deflate value disables the extension", () => {
-  // SAFETY: `null` is the falsy out-of-type value `ws` reads as "disabled".
-  const options = { noServer: true, perMessageDeflate: null as never };
-  expect(normalizeServerOptions(options).perMessageDeflate).toBe(false);
+test("maxPayload and maxFragments above the compiled ceiling are refused by name", () => {
+  const limits = codecLimits();
+  expect(() =>
+    normalizeServerOptions({ noServer: true, maxPayload: limits.maxPayloadBytes + 1 }),
+  ).toThrow(/maxPayload option must be an integer in/);
+  expect(() =>
+    normalizeServerOptions({ noServer: true, maxFragments: limits.maxFragments + 1 }),
+  ).toThrow(/maxFragments option must be an integer in/);
 });
+
+test.each([1.5, -1, Number.NaN, Number.POSITIVE_INFINITY, "1024", null])(
+  "a non-integer maxPayload of %s is refused",
+  (value) => {
+    // SAFETY: the out-of-type values the normalizer must name and refuse.
+    expect(() => normalizeServerOptions({ noServer: true, maxPayload: value as never })).toThrow(
+      /maxPayload option must be an integer in/,
+    );
+  },
+);
