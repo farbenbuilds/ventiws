@@ -77,6 +77,13 @@ test("a re-run finds its own commit and an existing tag rather than bumping twic
   expect(BUMP_WORKFLOW).toContain('echo "$TAG already exists"');
 });
 
+test("an authored changelog section is not duplicated by the bump", () => {
+  // An untagged tree version is released as written. If the tree already carries that
+  // version's section, inserting the generated one would print the release twice.
+  expect(BUMP_SCRIPT).toContain("const alreadyDocumented = changelog.includes(`## [${next}]`);");
+  expect(BUMP_SCRIPT).toContain("if (section !== null && !alreadyDocumented)");
+});
+
 test("the bump keeps the history and tags its version rule reads", () => {
   // `bump-version` finds the previous bump commit through `git log`, so a depth-1 checkout
   // writes no changelog section at all; it also treats an untagged version as unpublished,

@@ -86,8 +86,11 @@ function main() {
 
   if (first === -1) throw new Error(`bump-version: ${CHANGELOG} has no released heading`);
   const section = changelogSection(ROOT, next, MARKER);
+  // A hand-authored section for an untagged release is the release note, not a draft for
+  // the generator to replace; inserting a second heading would duplicate the version.
+  const alreadyDocumented = changelog.includes(`## [${next}]`);
 
-  if (section !== null)
+  if (section !== null && !alreadyDocumented)
     write(CHANGELOG, changelog.slice(0, first) + section + changelog.slice(first));
 
   console.log(`bump-version: ${current} -> ${next}`);
