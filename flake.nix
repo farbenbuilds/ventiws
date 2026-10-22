@@ -44,20 +44,9 @@
           else null;
 
         # nixos-26.05 still carries 24.21.0, which predates the October 2026
-        # security release. Pin the fixed source until nixpkgs advances:
+        # security release. CI and the package engine floor use the fixed patch
+        # releases; this shell follows when nixpkgs carries a buildable 24.22.1.
         # https://nodejs.org/en/blog/vulnerability/october-2026-security-releases
-        nodejsFor = packagePkgs:
-          packagePkgs.nodejs_24.override {
-            nodejs-slim = packagePkgs.nodejs-slim_24.overrideAttrs (_: {
-              version = "24.22.1";
-              sha256 = "4f5379796280cdaeb0c2f358fd04b6a16cc4fb7dfa83b5a8c91a9d963b435231";
-              src = packagePkgs.fetchurl {
-                url = "https://nodejs.org/dist/v24.22.1/node-v24.22.1.tar.xz";
-                hash = "sha256-T1N5eWKAza6wwvNY/QS2oWzE+336g7WoyRqdljtDUjE=";
-              };
-            });
-          };
-
         hostPackages = [
           zig
           pkgs.zls
@@ -80,9 +69,11 @@
           packagePkgs.mkShell (
             {
               packages =
-                [(nodejsFor packagePkgs)]
-                ++ hostPackages
-                ++ [pnpmPackage]
+                hostPackages
+                ++ [
+                  packagePkgs.nodejs
+                  pnpmPackage
+                ]
                 ++ lib.optional (zon2nixPackage != null) zon2nixPackage;
 
               # The engine compiles BoringSSL, lsquic, libdeflate, and zlib with
