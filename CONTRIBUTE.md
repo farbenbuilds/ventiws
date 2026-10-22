@@ -70,6 +70,12 @@ pnpm exec lefthook run pre-commit --all-files
 `lefthook` also runs on a normal `git commit` against the staged files. Apply
 fixes with `pnpm lint:fix` and `pnpm format`, never with `--no-verify`.
 
+`pnpm lint` also loads the vendored anti-slop plugin under
+`tools/oxlint/anti-slop/`. Its evidence rules are staged at `warn` while the
+repository-wide cleanup lands, so the command exits zero with warnings. Treat a
+new warning in code you touched as work to fix; do not delete the plugin or
+silence a rule to get to green.
+
 ## Requirements
 
 [CODING_CONVENTION.md](CODING_CONVENTION.md) states the style in full. What a

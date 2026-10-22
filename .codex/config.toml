@@ -1,0 +1,6 @@
+# Project-scoped MCP configuration, read by trusted Codex projects.
+[mcp_servers.graphify]
+command = "graphify-mcp"
+args = ["graphify-out/graph.json"]
+cwd = "."
+startup_timeout_sec = 30

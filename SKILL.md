@@ -32,25 +32,27 @@ source or its tests before choosing a shape, and mirror what you find.
 
 ## Lifecycle skills
 
-| Work                              | Load                                                     |
-| --------------------------------- | -------------------------------------------------------- |
-| Ambiguous ask or vague idea       | `interview-me`, `idea-refine`                            |
-| New feature or protocol surface   | `spec-driven-development`, `planning-and-task-breakdown` |
-| Quality bar not written down      | `constraint-driven-development`                          |
-| Multi-file implementation         | `incremental-implementation`                             |
-| API or FFI shape decisions        | `api-and-interface-design`                               |
-| Verify against official sources   | `source-driven-development`, `context7`                  |
-| Test-first changes                | `test-driven-development`                                |
-| Divergence or failing case        | `debugging-and-error-recovery`                           |
-| Non-trivial or irreversible call  | `doubt-driven-development`                               |
-| Pre-merge review                  | `code-review-and-quality`, `code-simplification`         |
-| Untrusted input and lifetime risk | `security-and-hardening`                                 |
-| Measured performance work         | `performance-optimization`                               |
-| Logs, metrics, alerts             | `observability-and-instrumentation`                      |
-| Commits, PRs, releases            | `git-workflow-and-versioning`, `shipping-and-launch`     |
-| CI workflow changes               | `ci-cd-and-automation`                                   |
-| Docs and ADRs                     | `documentation-and-adrs`, `documentation-writer`         |
-| Retiring an export or option      | `deprecation-and-migration`                              |
+| Work                              | Load                                                                                   |
+| --------------------------------- | -------------------------------------------------------------------------------------- |
+| Ambiguous ask or vague idea       | `interview-me`, `idea-refine`, `grill-me`, `grilling`                                  |
+| New feature or protocol surface   | `spec-driven-development`, `planning-and-task-breakdown`                               |
+| Quality bar not written down      | `constraint-driven-development`                                                        |
+| Architecture review or deepening  | `improve-codebase-architecture`, `codebase-design`, `domain-modeling`                  |
+| Multi-file implementation         | `incremental-implementation`                                                           |
+| API or FFI shape decisions        | `api-and-interface-design`                                                             |
+| Verify against official sources   | `source-driven-development`, `context7`                                                |
+| Test-first changes                | `test-driven-development`                                                              |
+| Divergence or failing case        | `debugging-and-error-recovery`                                                         |
+| Non-trivial or irreversible call  | `doubt-driven-development`                                                             |
+| Pre-merge review                  | `code-review-and-quality`, `code-simplification`, `thermo-nuclear-code-quality-review` |
+| Lint or vendored-tooling changes  | `install-anti-slop`                                                                    |
+| Untrusted input and lifetime risk | `security-and-hardening`                                                               |
+| Measured performance work         | `performance-optimization`                                                             |
+| Logs, metrics, alerts             | `observability-and-instrumentation`                                                    |
+| Commits, PRs, releases            | `git-workflow-and-versioning`, `shipping-and-launch`                                   |
+| CI workflow changes               | `ci-cd-and-automation`                                                                 |
+| Docs and ADRs                     | `documentation-and-adrs`, `documentation-writer`                                       |
+| Retiring an export or option      | `deprecation-and-migration`                                                            |
 
 ## Domain skills
 
@@ -68,6 +70,9 @@ source or its tests before choosing a shape, and mirror what you find.
 | Native build matrix             | `zig-cross`, `nix-best-practices`                                         |
 | Zig tests, fuzz corpora         | `zig-testing`                                                             |
 | Zig failures                    | `zig-debugging`, `zig-compiler`                                           |
+| Deep-module design              | `codebase-design`                                                         |
+| Glossary and ADR work           | `domain-modeling`                                                         |
+| Strict maintainability review   | `thermo-nuclear-code-quality-review`                                      |
 | Minimal correct solution        | `ponytail`                                                                |
 | Dense commit and PR text        | `caveman`                                                                 |
 | API lookups                     | `context7`                                                                |
@@ -76,8 +81,10 @@ source or its tests before choosing a shape, and mirror what you find.
 
 Answer architecture questions from the graph when one exists. `graphify query`,
 `graphify path`, and `graphify explain` read `graphify-out/graph.json`, and
-`/graphify --update` refreshes a stale one. `graphify-out/` is generated
-output: never commit it or edit it by hand.
+`/graphify --update` refreshes a stale one. OpenCode and Codex both reach the
+graph through their project MCP entries, and neither graph output nor the
+installed harness skills are hand-edited. `graphify-out/` is generated output:
+never commit it or edit it by hand.
 
 Read `ws` before changing the surface. `ws` 8.22.0 and `@types/ws` 8.18.2 are
 pinned devDependencies, the declarations are vendored at

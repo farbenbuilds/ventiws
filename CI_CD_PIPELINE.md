@@ -143,11 +143,14 @@ that half-succeeded is repaired by re-running it rather than by hand.
 
 `oxlint` carries the rules a machine can check: no `class`, `this`, `extends`,
 prototype mutation, `enum`, `any`, or emoji, and no import outside `napi-zig`
-and `uWebZockets`. `oxfmt` formats TypeScript, JSON, and Markdown.
-`scripts/check-conventions.mjs` runs inside `pnpm lint` and as a `lefthook` job
-and adds what a linter cannot: the 150-line module budget, the comment budget,
-`snake_case` Zig function names, and `kebab-case` TypeScript filenames. The
-vendored `src/types/ws.d.ts` is exempt.
+and `uWebZockets`. It also loads the vendored anti-slop plugin at
+`tools/oxlint/anti-slop/index.ts`; those evidence rules are staged at `warn`
+until the follow-up cleanup, while `anti-slop/require-readable-spacing` stays
+off because its autofix conflicts with the 150-line budget. `oxfmt` formats
+TypeScript, JSON, and Markdown. `scripts/check-conventions.mjs` runs inside
+`pnpm lint` and as a `lefthook` job and adds what a linter cannot: the 150-line
+module budget, the comment budget, `snake_case` Zig function names, and
+`kebab-case` TypeScript filenames. The vendored `src/types/ws.d.ts` is exempt.
 
 `tsc --noEmit` runs `tsconfig.json` and then `tsconfig.test.json`, so the vitest
 suites are typechecked even though vitest strips types. Weakening a compiler
