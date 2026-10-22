@@ -214,7 +214,7 @@ copyFarm name
       name = "napi_zig-0.2.0-XRkY0XsYAgDIh9b-qjtT8olotHwNKi_6GSNKHwxLUR_d";
       path = fetchZigArtifact {
         name = "napi_zig";
-        url = "git+https://github.com/farbenbuilds/napi-zig?ref=fix/release-safe#038912638dbcaab61ba0bde912339200434de11a";
+        url = "git+https://github.com/farbenbuilds/napi-zig?ref=v0.3.1-ventiws.1#038912638dbcaab61ba0bde912339200434de11a";
         hash = "sha256-/fIusBvJUHHF1tDEqIwRgqntfnMBqp8llGR4VYOzbqA=";
         unpack = true;
       };
@@ -223,7 +223,7 @@ copyFarm name
       name = "uWebZockets-2.0.0-SD3SPPPFKQCVKGdvS6KdgvLfqmYJjxze0BwIwUFjC8Ae";
       path = fetchZigArtifact {
         name = "uWebZockets";
-        url = "git+https://github.com/farbenbuilds/uWebZockets#389558b46f8596599fa87d1b0b2c49e6788a591a";
+        url = "git+https://github.com/farbenbuilds/uWebZockets?ref=v2.0.0-ventiws.1#389558b46f8596599fa87d1b0b2c49e6788a591a";
         hash = "sha256-3ZERjJP3TXyt/4RbKxr45CJZICIWZ8wkX+SD+ImjjgM=";
         unpack = true;
       };
