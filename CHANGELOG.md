@@ -25,7 +25,7 @@ same information in a form `git log` can filter.
 - Enforce the anti-slop evidence rules at `error` and format the whole tree with
   `oxfmt`.
 - Split the published addon to the codec-only route: `ventiws.node` is
-  465,224 bytes on linux-x64-musl and 470,096 bytes on linux-x64-gnu, down
+  465,912 bytes on linux-x64-musl and 470,784 bytes on linux-x64-gnu, down
   from 15,016,880 and 14,940,872 bytes respectively. The published artifact no
   longer links uWebZockets, BoringSSL, or lsquic; the full engine is the
   development-only `ventiws-engine.node`.

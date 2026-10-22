@@ -18,10 +18,10 @@ tests, Autobahn, and the engine benchmark row, and is never published.
 
 | Target         | Previous full engine | Published codec addon |                 Delta |
 | -------------- | -------------------: | --------------------: | --------------------: |
-| linux-x64-musl |           14,380,712 |               465,224 | -13,915,488 (-96.76%) |
-| linux-x64-gnu  |           14,387,952 |               470,096 | -13,917,856 (-96.73%) |
+| linux-x64-musl |           14,380,712 |               465,912 | -13,914,800 (-96.76%) |
+| linux-x64-gnu  |           14,387,952 |               470,784 | -13,917,168 (-96.73%) |
 
-The development engine addon is 14,380,008 bytes on linux-x64-musl. It carries
+The development engine addon is 14,380,712 bytes on linux-x64-musl. It carries
 the same full ABI the published addon used to expose; only the public artifact
 changed.
 

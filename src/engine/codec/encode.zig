@@ -7,6 +7,7 @@
 const std = @import("std");
 const zslay = @import("zslay");
 const capacities = @import("capacities.zig");
+const masking = @import("mask.zig");
 const events = @import("events.zig");
 const growth = @import("growth.zig");
 const deflate = @import("deflate.zig");
@@ -126,7 +127,7 @@ pub fn transmit() type {
             // After the header and before the mask: RSV1 is in the first octet and the
             // mask covers the payload only.
             if (wire.compressed) rsv1.mark(tx.buffer.items[0..written]);
-            if (key) |drawn| zslay.frame.mask(start, drawn, 0);
+            if (key) |drawn| masking.apply(start, drawn, 0);
             tx.length = written + wire.bytes.len;
             tx.masked = masked;
             return .{ .ok = tx.length };
