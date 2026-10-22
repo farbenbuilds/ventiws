@@ -16,10 +16,14 @@ Release builds therefore publish `ventiws.node` with no uWebZockets, BoringSSL,
 lsquic, or QUIC code. The full engine is built as `ventiws-engine.node` for
 tests, Autobahn, and the engine benchmark row, and is never published.
 
-| Target         | Published codec addon |  Development engine addon |   Delta vs 14,380,712 |
-| -------------- | --------------------: | ------------------------: | --------------------: |
-| linux-x64-musl |               465,224 |                14,380,008 | -13,915,488 (-96.76%) |
-| linux-x64-gnu  |               470,096 | not measured on this host | -13,910,616 (-96.73%) |
+| Target         | Previous full engine | Published codec addon |                 Delta |
+| -------------- | -------------------: | --------------------: | --------------------: |
+| linux-x64-musl |           14,380,712 |               465,224 | -13,915,488 (-96.76%) |
+| linux-x64-gnu  |           14,387,952 |               470,096 | -13,917,856 (-96.73%) |
+
+The development engine addon is 14,380,008 bytes on linux-x64-musl. It carries
+the same full ABI the published addon used to expose; only the public artifact
+changed.
 
 The public artifact carries the codec, `engineVersion`, and `engineLimits`. It
 has no `createServer`, `http3Available`, `sendSocket`, or `pumpSocket`, and a
