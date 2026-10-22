@@ -59,7 +59,7 @@ function main() {
   cpSync(staged, publishable, { recursive: true });
 
   for (const target of readdirSync(join(publishable, SCOPE_DIR)).sort()) {
-    console.log(`build-bindings: staged ${SCOPE_DIR}/binding-${target}`);
+    console.log(`build-bindings: staged ${SCOPE_DIR}/${target}`);
   }
 }
 

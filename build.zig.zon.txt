@@ -1,10 +1,10 @@
 git+https://github.com/ebiggers/libdeflate#92e6a0db9fa848d742f9eb286c92afc60f2c3dda
+git+https://github.com/farbenbuilds/napi-zig?ref=fix/release-safe#038912638dbcaab61ba0bde912339200434de11a
 git+https://github.com/farbenbuilds/uWebZockets#389558b46f8596599fa87d1b0b2c49e6788a591a
 git+https://github.com/google/boringssl#dd73e69a4e86fa178a4d19033c691e9b42cc1088
 git+https://github.com/litespeedtech/ls-hpack#38ceca78054d4175ba3f6411b1b83ac5c485e542
 git+https://github.com/litespeedtech/ls-qpack#91567706c41c0d97ab8dc576873ecd472d7869fa
 git+https://github.com/litespeedtech/lsquic#d5929af7cec6fd74f1cfea2cb1c07c27ce9102b1
 git+https://github.com/mitchellh/libxev#9ce8e8e6ff89e583258a7f8e7adeeeaeae8611bf
-git+https://github.com/yuku-toolchain/napi-zig?ref=v0.3.1#1032d3e9da30bd0e8ab895886cb862d45fb56230
 https://github.com/farbenbuilds/zslay/archive/refs/tags/v0.2.1.tar.gz
 https://github.com/madler/zlib/releases/download/v1.3.2/zlib-1.3.2.tar.gz

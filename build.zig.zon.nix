@@ -211,11 +211,11 @@ copyFarm name
       };
     }
     {
-      name = "napi_zig-0.2.0-XRkY0XcYAgDV-EwyPZo287cfJkKZaES9crzUCRoqcQ09";
+      name = "napi_zig-0.2.0-XRkY0XsYAgDIh9b-qjtT8olotHwNKi_6GSNKHwxLUR_d";
       path = fetchZigArtifact {
         name = "napi_zig";
-        url = "git+https://github.com/yuku-toolchain/napi-zig?ref=v0.3.1#1032d3e9da30bd0e8ab895886cb862d45fb56230";
-        hash = "sha256-4P9gn24mcGLlWw5vl8Vfi0HrgJr9H5iIpkfRkv3bf/c=";
+        url = "git+https://github.com/farbenbuilds/napi-zig?ref=fix/release-safe#038912638dbcaab61ba0bde912339200434de11a";
+        hash = "sha256-/fIusBvJUHHF1tDEqIwRgqntfnMBqp8llGR4VYOzbqA=";
         unpack = true;
       };
     }

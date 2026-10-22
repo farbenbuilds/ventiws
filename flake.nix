@@ -51,6 +51,10 @@
             nodejs-slim = packagePkgs.nodejs-slim_24.overrideAttrs (_: {
               version = "24.22.1";
               sha256 = "4f5379796280cdaeb0c2f358fd04b6a16cc4fb7dfa83b5a8c91a9d963b435231";
+              src = packagePkgs.fetchurl {
+                url = "https://nodejs.org/dist/v24.22.1/node-v24.22.1.tar.xz";
+                hash = "sha256-T1N5eWKAza6wwvNY/QS2oWzE+336g7WoyRqdljtDUjE=";
+              };
             });
           };
 
@@ -76,11 +80,9 @@
           packagePkgs.mkShell (
             {
               packages =
-                hostPackages
-                ++ [
-                  (nodejsFor packagePkgs)
-                  pnpmPackage
-                ]
+                [(nodejsFor packagePkgs)]
+                ++ hostPackages
+                ++ [pnpmPackage]
                 ++ lib.optional (zon2nixPackage != null) zon2nixPackage;
 
               # The engine compiles BoringSSL, lsquic, libdeflate, and zlib with

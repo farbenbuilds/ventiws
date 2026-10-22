@@ -29,7 +29,7 @@ The working host is `x86_64-linux-musl`, Zig 0.16.0, Node.js 24.22.1,
 | linux-x64-musl | uWebZockets 1.8.0, `ReleaseSafe`, `http3_available` returns false | 15,016,816 |         -64 (0.00%) |
 | linux-x64-musl | uWebZockets 2.0.0, `ReleaseSafe`, function/data sections          | 14,380,712 |   -636,168 (-4.24%) |
 | linux-x64-gnu  | uWebZockets 1.8.0, `ReleaseSafe`                                  | 14,940,872 |            baseline |
-| linux-x64-gnu  | uWebZockets 2.0.0, `ReleaseSafe`, function/data sections          | 14,299,920 |   -640,952 (-4.29%) |
+| linux-x64-gnu  | uWebZockets 2.0.0, `ReleaseSafe`, function/data sections          | 14,387,952 |   -552,920 (-3.70%) |
 
 The arm64 and Darwin rows are produced by their native publish shards. The
 engine dependency is resolved for the build host, so a cross-target link from

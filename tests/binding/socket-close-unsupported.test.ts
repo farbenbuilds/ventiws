@@ -20,7 +20,13 @@ test(
     const client = new WebSocket(`ws://127.0.0.1:${port}/`);
     client.on("error", () => undefined);
 
+    const clientOpened = new Promise<void>((resolve, reject) => {
+      client.once("open", () => resolve());
+      client.once("error", reject);
+    });
+
     try {
+      await clientOpened;
       const open = await server.waitFor("connectionOpen");
       const connection = packConnectionHandle(open.index, open.generation);
       const socket = new VentiwsSocket(null);
