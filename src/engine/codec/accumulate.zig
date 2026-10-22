@@ -5,7 +5,6 @@
 //! the caller's bytes are never mutated and may be fed again after a resume.
 
 const zslay = @import("zslay");
-const uwz = @import("uWebZockets");
 const events = @import("events.zig");
 const utf8 = @import("utf8.zig");
 
@@ -32,7 +31,7 @@ pub fn consume(State: type, peer: *State, input: []const u8, offset: *usize) !vo
         const start: usize = @intCast(position);
         const written = peer.control[start..][0..count];
         @memcpy(written, chunk);
-        if (decoded.masking_key) |key| uwz.websocket_mask.apply(written, key, position);
+        if (decoded.masking_key) |key| zslay.frame.mask(written, key, position);
         return;
     }
     // Reset only on the first byte of a message: per chunk it made every later chunk a new one.
@@ -53,7 +52,7 @@ pub fn consume(State: type, peer: *State, input: []const u8, offset: *usize) !vo
     };
     // The mask is applied to the copy, never the caller's bytes, so the plaintext is what
     // the validator below reads and the input may be fed again after a resume.
-    if (decoded.masking_key) |key| uwz.websocket_mask.apply(written, key, position);
+    if (decoded.masking_key) |key| zslay.frame.mask(written, key, position);
     // Compressed bytes are not text until inflated, so validation runs at end of message.
     if (!peer.inflate.is_compressed() and peer.message_opcode == .text and peer.validate_utf8) {
         peer.utf8_state = utf8.feed(peer.utf8_state, written) orelse return error.InvalidUtf8;

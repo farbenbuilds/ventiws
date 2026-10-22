@@ -1,6 +1,8 @@
-import type { EngineDispatch, NativeEngineLimits, NativeServerConfig } from "./native";
+import type { EngineDispatch, NativeServerConfig } from "./native";
 import { callNative, guardError } from "./errors";
-import { loadAddon } from "./load";
+import { loadEngineAddon } from "./load-engine";
+
+export { engineLimits } from "./codec-limits";
 
 export type ServerHandle = number;
 
@@ -45,7 +47,7 @@ function assertConfigIntegers(config: NativeServerConfig): void {
 
 export function createServer(config: NativeServerConfig, dispatch: EngineDispatch): ServerHandle {
   assertConfigIntegers(config);
-  const addon = loadAddon();
+  const addon = loadEngineAddon();
   const handle = callNative(() => addon.createServer(config, dispatch));
   assertServerHandle(handle);
 
@@ -54,13 +56,13 @@ export function createServer(config: NativeServerConfig, dispatch: EngineDispatc
 
 export function listenServer(handle: ServerHandle): void {
   assertServerHandle(handle);
-  const addon = loadAddon();
+  const addon = loadEngineAddon();
   callNative(() => addon.listenServer(handle));
 }
 
 export function closeServer(handle: ServerHandle): void {
   assertServerHandle(handle);
-  const addon = loadAddon();
+  const addon = loadEngineAddon();
   callNative(() => addon.closeServer(handle));
 }
 
@@ -68,7 +70,7 @@ export function closeServer(handle: ServerHandle): void {
 /// while events are queued throws `EventsPending` instead of freeing referenced memory.
 export function finalizeServer(handle: ServerHandle): void {
   assertServerHandle(handle);
-  const addon = loadAddon();
+  const addon = loadEngineAddon();
   callNative(() => addon.finalizeServer(handle));
 }
 
@@ -77,7 +79,7 @@ export function finalizeServer(handle: ServerHandle): void {
 /// shutdown events out of that set.
 export function serverDroppedEvents(handle: ServerHandle): bigint {
   assertServerHandle(handle);
-  const addon = loadAddon();
+  const addon = loadEngineAddon();
 
   return callNative(() => addon.serverDroppedEvents(handle));
 }
@@ -90,7 +92,7 @@ export function serverDroppedEvents(handle: ServerHandle): bigint {
 /// Both are a peer outrunning the consumer, which is why one counter holds both.
 export function serverDroppedMessages(handle: ServerHandle): bigint {
   assertServerHandle(handle);
-  const addon = loadAddon();
+  const addon = loadEngineAddon();
 
   return callNative(() => addon.serverDroppedMessages(handle));
 }
@@ -100,14 +102,7 @@ export function serverDroppedMessages(handle: ServerHandle): bigint {
 /// write queue is full, so a status-only caller saw success for bytes that were never sent.
 export function serverUndeliveredMessages(handle: ServerHandle): bigint {
   assertServerHandle(handle);
-  const addon = loadAddon();
+  const addon = loadEngineAddon();
 
   return callNative(() => addon.serverUndeliveredMessages(handle));
-}
-
-/// Read from the addon rather than restated in TypeScript: a restated copy is how the
-/// promise and the build drift apart. Nothing here is a runtime option, because the engine
-/// bakes these into its application type and refuses a configuration that disagrees.
-export function engineLimits(): NativeEngineLimits {
-  return loadAddon().engineLimits();
 }

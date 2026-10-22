@@ -57,11 +57,16 @@ export const NATIVE_SOCKET_STATUSES = [
 
 export type NativeSocketStatus = (typeof NATIVE_SOCKET_STATUSES)[number];
 
-export type VentiAddon = {
+/// The public artifact: the frame codec plus the compiled capacities, with no engine server.
+export type CodecAddon = NativeCodecAddon & {
   engineVersion(): string;
-  http3Available(): boolean;
   /// The compiled-in capacities. Takes no handle and cannot fail.
   engineLimits(): NativeEngineLimits;
+};
+
+/// The development-only artifact: the codec surface plus the engine server and socket slab.
+export type EngineAddon = CodecAddon & {
+  http3Available(): boolean;
   createServer(config: NativeServerConfig, dispatch: EngineDispatch): number;
   listenServer(server: number): void;
   closeServer(server: number): void;
@@ -86,4 +91,8 @@ export type VentiAddon = {
   /// Staged payloads the engine refused after the pump took them off the ring. Non-zero means
   /// `pumpSocket` reported `ok` for bytes that never reached a peer.
   serverUndeliveredMessages(server: number): bigint;
-} & NativeCodecAddon;
+};
+
+/// A bench and Autobahn harness name the engine surface this way; aliasing keeps them off
+/// the public loader without a second declaration.
+export type VentiAddon = EngineAddon;

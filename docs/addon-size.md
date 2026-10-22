@@ -5,81 +5,77 @@ were run, and the reduction that shipped. The objective is a smaller native
 artifact without weakening `ws` compatibility or the runtime safety checks that
 guard peer-controlled WebSocket bytes.
 
-## Production posture
+## What ships
 
-Published addons stay on Zig `ReleaseSafe`. `ReleaseSmall` saves roughly seven
-percent on the host measurement, but it changes the failure mode of an invariant
-violation in a network parser. That trade is not acceptable for the default
-release. `ReleaseSmall` remains an experiment only.
+The published addon is the **codec route** only. The public `ws` facade uses
+Node's `http.Server` and `upgrade` event, and a Zig frame codec over the adopted
+`Duplex`; it does not use the µWebZockets server route. ADR 0003 records that
+boundary.
 
-`scripts/build-bindings.mjs` now builds the per-platform release artifacts with
-`--release=safe` as well. Before this change it passed `--release=fast`, so the
-cross-compiled packages were not built in the mode the project documents.
+Release builds therefore publish `ventiws.node` with no uWebZockets, BoringSSL,
+lsquic, or QUIC code. The full engine is built as `ventiws-engine.node` for
+tests, Autobahn, and the engine benchmark row, and is never published.
 
-## Host baseline
+| Target         | Published codec addon |  Development engine addon |   Delta vs 14,380,712 |
+| -------------- | --------------------: | ------------------------: | --------------------: |
+| linux-x64-musl |               465,224 |                14,380,008 | -13,915,488 (-96.76%) |
+| linux-x64-gnu  |               470,096 | not measured on this host | -13,910,616 (-96.73%) |
 
-The working host is `x86_64-linux-musl`, Zig 0.16.0, Node.js 24.22.1,
-`napi-zig` 0.3.1. All sizes are uncompressed `.node` bytes.
+The public artifact carries the codec, `engineVersion`, and `engineLimits`. It
+has no `createServer`, `http3Available`, `sendSocket`, or `pumpSocket`, and a
+binary scan finds no `lsquic`, `BoringSSL`, `SSL_`, or `EVP_` symbols.
 
-| Target         | Build                                                             |      Bytes | Delta from baseline |
-| -------------- | ----------------------------------------------------------------- | ---------: | ------------------: |
-| linux-x64-musl | uWebZockets 1.8.0, `ReleaseSafe`                                  | 15,016,880 |            baseline |
-| linux-x64-musl | uWebZockets 1.8.0, `ReleaseFast`                                  | 14,869,216 |   -147,664 (-0.98%) |
-| linux-x64-musl | uWebZockets 1.8.0, `ReleaseSmall`                                 | 13,968,784 | -1,048,096 (-6.98%) |
-| linux-x64-musl | uWebZockets 1.8.0, `ReleaseSafe`, `http3_available` returns false | 15,016,816 |         -64 (0.00%) |
-| linux-x64-musl | uWebZockets 2.0.0, `ReleaseSafe`, function/data sections          | 14,380,712 |   -636,168 (-4.24%) |
-| linux-x64-gnu  | uWebZockets 1.8.0, `ReleaseSafe`                                  | 14,940,872 |            baseline |
-| linux-x64-gnu  | uWebZockets 2.0.0, `ReleaseSafe`, function/data sections          | 14,387,952 |   -552,920 (-3.70%) |
+## Why the earlier section-GC result was not enough
 
-The arm64 and Darwin rows are produced by their native publish shards. The
-engine dependency is resolved for the build host, so a cross-target link from
-the x86_64 host is not a supported measurement path; the release matrix builds
-each target on a native runner.
+`ReleaseSafe` with `-ffunction-sections`/`-fdata-sections` reduced the full
+engine artifact from 15,016,880 to 14,380,712 bytes (-4.24%). Removing only the
+engine exports while the codec still imported uWebZockets produced 5,358,064
+bytes: the codec used that import for `websocket_mask` and the libdeflate
+compression stream, and those references kept the engine's TLS and QUIC
+families in the link. The capability probe was not the cause; making
+`http3_available` return false saved 64 bytes.
 
-The `http3_available` experiment is the important negative result: the exported
-capability probe costs 64 bytes, not the QUIC implementation. Removing the probe
-does not make `lsquic` unreachable, because the engine's build graph compiles
-and links the QUIC shim and library unconditionally.
+The split removes the import itself:
 
-## What shipped
+- masking is `zslay.frame.mask`, the same first-party primitive the engine
+  route uses;
+- RFC 7692 compression uses a local wrapper over the pinned libdeflate source,
+  at the same level and with the same `deflate_raw` framing;
+- the codec-only addon links libdeflate and zslay directly, and nothing else.
 
-`uWebZockets` now emits function and data sections for its vendored C and C++
-sources. The linker's existing `--gc-sections` can then discard unused functions
-inside an archive member that was pulled in for another symbol. This is a
-behavior-preserving build-graph change; `ReleaseSafe` and the WebSocket parser
-are unchanged.
+## Mode comparison
 
-The upstream change is pinned by commit
-`389558b46f8596599fa87d1b0b2c49e6788a591a` in `build.zig.zon`. It also packages
-the `vendor/libxev_overlay` directory that v2.0.0 referenced but omitted from
-`.paths`, which is required for a clean `zig fetch`.
+The host baseline is `x86_64-linux-musl`, Zig 0.16.0, Node.js 24.22.1,
+`napi-zig` 0.3.1. The comparison remains useful as evidence against shipping a
+smaller optimization mode:
 
-## Why the larger HTTP/3 cut did not ship
+| Build                                      |      Bytes | Delta from baseline |
+| ------------------------------------------ | ---------: | ------------------: |
+| uWebZockets 1.8.0, `ReleaseSafe`           | 15,016,880 |            baseline |
+| uWebZockets 1.8.0, `ReleaseFast`           | 14,869,216 |   -147,664 (-0.98%) |
+| uWebZockets 1.8.0, `ReleaseSmall`          | 13,968,784 | -1,048,096 (-6.98%) |
+| uWebZockets 2.0.0, `ReleaseSafe`, sections | 14,380,712 |   -636,168 (-4.24%) |
 
-The preferred reduction is still a compile-time engine profile that excludes
-HTTP/3, QUIC, and `lsquic`. uWebZockets 2.0.0 has no such option: `builds/vendor/root.zig`
-builds and links `lsquic`, and `builds/targets/native.zig` always compiles
-`src/quic/lsquic_shim.c`. A runtime `if` would leave the libraries in the
-artifact. Splitting the engine source behind a feature flag is a separate,
-reviewable upstream change, and it must prove that the WebSocket-over-HTTP/1.1
-path still passes the same conformance and safety tests.
-
-That work is deliberately not mixed into this release. The measured 4.24%
-reduction is the low-risk result that is justified by the evidence here.
+`ReleaseSmall` is still rejected for the default release. The codec-only split
+removes whole dependency families instead of trading runtime safety for a
+compiler mode.
 
 ## Reproduce
 
 ```sh
 pnpm build:binding
-stat -c '%s %n' zig-out/lib/ventiws.node
+stat -c '%s %n' zig-out/lib/ventiws.node zig-out/lib/ventiws-engine.node
 
-npx napi-zig build --optimize fast
-stat -c '%s %n' zig-out/lib/ventiws.node
+node -e 'const a=require("./zig-out/lib/ventiws.node"); console.log(Object.keys(a).sort().join("\n"))'
+node -e 'const a=require("./zig-out/lib/ventiws-engine.node"); console.log(a.http3Available())'
 
-npx napi-zig build --optimize small
-stat -c '%s %n' zig-out/lib/ventiws.node
+node scripts/build-bindings.mjs --platform=linux-x64-gnu
+stat -c '%s %n' npm/ventiws/@ventiws/binding-linux-x64-gnu/ventiws.node
 ```
 
-Cross-platform release sizes are recorded by the publish matrix from the same
-`build-bindings.mjs` invocation that stages `npm/`. A host measurement is not a
-claim about another target.
+`tests/tooling/addon-size.test.ts` guards the host public artifact against a
+target-specific ceiling. `tests/binding/artifact-split.test.ts` holds the two
+export sets apart, and `tests/binding/engine-addon.test.ts` covers the
+development engine addon. The arm64 and Darwin sizes are produced by their
+native publish shards; the engine dependency is resolved for the build host, so
+a cross-target link from this x86_64 host is not a supported measurement path.

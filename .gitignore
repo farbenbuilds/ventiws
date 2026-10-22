@@ -9,6 +9,7 @@ zig-out/
 zig-cache/
 zig-pkg/
 ventiws.js
+ventiws-engine.js
 
 # staged npm packages for a release; build output, never source
 npm/

@@ -27,6 +27,12 @@
             .url = "git+https://github.com/farbenbuilds/napi-zig?ref=v0.3.1-ventiws.1#038912638dbcaab61ba0bde912339200434de11a",
             .hash = "napi_zig-0.2.0-XRkY0XsYAgDIh9b-qjtT8olotHwNKi_6GSNKHwxLUR_d",
         },
+        // ebiggers/libdeflate: the same revision the engine vendors, resolved directly so
+        // the codec-only addon can compress without importing or linking the engine.
+        .libdeflate = .{
+            .url = "git+https://github.com/ebiggers/libdeflate#92e6a0db9fa848d742f9eb286c92afc60f2c3dda",
+            .hash = "N-V-__8AAEaRCwCsYb_rSsH72Pb6DNFQLSjdRzTFOVsJWcoB",
+        },
     },
     .paths = .{
         "build.zig",

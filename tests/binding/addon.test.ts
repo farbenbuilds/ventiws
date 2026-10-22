@@ -1,6 +1,43 @@
 import { expect, test } from "vitest";
 import { loadAddon } from "../../src/binding/load";
-import { engineLimits } from "../../src/binding/server";
+
+/// The publish workflow runs this file against a release build that passes
+/// `-Dengine-addon=false` (ADR 0003), so it may only touch the public artifact.
+const CODEC_FUNCTIONS = [
+  "codecCreate",
+  "codecDestroy",
+  "codecFeed",
+  "codecResume",
+  "codecPending",
+  "codecSelect",
+  "codecEvent",
+  "codecFragments",
+  "codecNext",
+  "codecProcessInto",
+  "codecMaterialize",
+  "codecTake",
+  "codecEncode",
+  "codecWrite",
+  "codecHeader",
+  "codecOutbound",
+  "codecOutboundMasked",
+  "codecFailureCode",
+  "codecFailure",
+  "codecReset",
+  "codecRole",
+  "codecCeilings",
+] as const;
+
+/// The engine server is development-only. A release that leaks one of these is
+/// shipping the full uWebZockets link the codec split exists to remove.
+const ENGINE_FUNCTIONS = [
+  "http3Available",
+  "createServer",
+  "listenServer",
+  "sendSocket",
+  "pumpSocket",
+  "takeSocketMessage",
+] as const;
 
 test("loads the native addon", () => {
   expect(loadAddon().engineVersion).toBeTypeOf("function");
@@ -10,26 +47,12 @@ test("reports the pinned uWebZockets release", () => {
   expect(loadAddon().engineVersion()).toBe("2.0.0");
 });
 
-test("reports HTTP/3 support from the linked engine", () => {
-  expect(loadAddon().http3Available()).toBe(true);
+test.each(CODEC_FUNCTIONS)("the public addon exposes %s", (name) => {
+  expect(loadAddon()[name]).toBeTypeOf("function");
 });
 
-test("exposes the server lifecycle surface", () => {
-  const addon = loadAddon();
-  expect(addon.createServer).toBeTypeOf("function");
-  expect(addon.listenServer).toBeTypeOf("function");
-  expect(addon.closeServer).toBeTypeOf("function");
-  expect(addon.finalizeServer).toBeTypeOf("function");
-});
-
-test("exposes the per-connection socket surface", () => {
-  const addon = loadAddon();
-  expect(addon.sendSocket).toBeTypeOf("function");
-  expect(addon.closeSocket).toBeTypeOf("function");
-  expect(addon.pauseSocket).toBeTypeOf("function");
-  expect(addon.resumeSocket).toBeTypeOf("function");
-  expect(addon.socketBufferedAmount).toBeTypeOf("function");
-  expect(addon.serverDroppedEvents).toBeTypeOf("function");
+test.each(ENGINE_FUNCTIONS)("the public addon omits %s", (name) => {
+  expect(name in loadAddon()).toBe(false);
 });
 
 /// `capacities.zig` calls each of these "a promise the compatibility layer has to
@@ -38,7 +61,7 @@ test("exposes the per-connection socket surface", () => {
 /// message cap came to be 64 KiB in the engine while a test still asserted
 /// 32 KiB and passed.
 test("the addon reports the capacities it was compiled with", () => {
-  const limits = engineLimits();
+  const limits = loadAddon().engineLimits();
   expect(limits.connectionCapacity).toBeGreaterThan(0);
   expect(limits.messageBytes).toBeGreaterThan(0);
   // A frame can never exceed a message, so the frame cap tracks it.
@@ -49,5 +72,5 @@ test("the addon reports the capacities it was compiled with", () => {
 /// RFC 6455 section 5.5 caps a control frame at 125 bytes, so the frame cap has
 /// to admit one whatever the message cap is.
 test("the frame cap admits a maximum control frame", () => {
-  expect(engineLimits().frameBytes).toBeGreaterThanOrEqual(125);
+  expect(loadAddon().engineLimits().frameBytes).toBeGreaterThanOrEqual(125);
 });

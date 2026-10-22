@@ -40,7 +40,7 @@ function run(command, args) {
 
 function main() {
   const platforms = parsePlatforms(process.argv.slice(2));
-  const args = ["build", "-Dnpm=true", "--release=safe"];
+  const args = ["build", "-Dnpm=true", "--release=safe", "-Dengine-addon=false"];
 
   // The scope is repeated in the staging path rather than read from the build graph, so
   // the two have to agree; `tests/tooling/publish-platforms.test.ts` holds them together.

@@ -7,6 +7,6 @@ export {
   createWebSocketStream,
 } from "./compat/constructors";
 
-export { engineLimits } from "./binding/server";
+export { engineLimits } from "./binding/codec-limits";
 
 export type { NativeEngineLimits as EngineLimits } from "./binding/native-limits";

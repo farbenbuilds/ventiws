@@ -14,10 +14,10 @@ import { initialState, onEngineEvent } from "./native-state.ts";
 /// `src/binding` uses extensionless relative imports, which Node's type stripping
 /// cannot resolve at runtime, so only the ABI declaration is reused here and it
 /// is erased before execution. The addon is resolved the way
-/// `src/binding/load.ts` resolves it, with the same candidate order.
+/// `src/binding/load-engine.ts` resolves it, with the same candidate order.
 const CANDIDATE_PATHS = [
-  ["zig-out", "lib", "ventiws.node"],
-  ["dist", "ventiws.node"],
+  ["zig-out", "lib", "ventiws-engine.node"],
+  ["dist", "ventiws-engine.node"],
 ] as const;
 
 const PACKAGE_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");

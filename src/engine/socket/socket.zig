@@ -28,7 +28,7 @@ pub fn socket_slab(
         /// `queues.take_outbound`.
         ring: PayloadRing = .{},
         /// Parsed inbound messages waiting for the Node main thread, filled by the
-        /// engine thread. `instance.inbound_slots` says why this is deeper than `ring`.
+        /// engine thread. `server/capacities.zig` says why this is deeper than `ring`.
         inbound: InboundRing = .{},
         slots: [capacity]Slot = [_]Slot{.{}} ** capacity,
 

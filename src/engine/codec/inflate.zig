@@ -4,7 +4,8 @@
 //! it is a property of *this* message, latched from the RSV1 bit of its first frame, while
 //! whether RSV1 may mean anything is a connection property arriving as `compressible`.
 const std = @import("std");
-const uwz = @import("uWebZockets");
+const build_options = @import("build_options");
+const compression = if (build_options.engine) @import("uWebZockets").compression_stream else @import("compression.zig");
 const deflate = @import("deflate.zig");
 const events = @import("events.zig");
 const growth = @import("growth.zig");
@@ -28,7 +29,7 @@ pub const Message = struct {
     /// The libdeflate engine, built on the connection's first compressed message and reused
     /// after it, so a peer that compresses every message does not malloc and free an engine
     /// for each one.
-    stream: ?uwz.compression_stream.DecompressionStream = null,
+    stream: ?compression.DecompressionStream = null,
     pub fn init(compressible: bool) Message {
         return .{ .compressible = compressible };
     }
@@ -93,14 +94,14 @@ pub const Message = struct {
 
     /// A rewind is what a finished pass leaves behind: the borrow of `input`, which
     /// `reserve` may have moved, the write cursor, and the closed flag.
-    fn engine(message: *Message) Error!*uwz.compression_stream.DecompressionStream {
+    fn engine(message: *Message) Error!*compression.DecompressionStream {
         if (message.stream) |*open| {
             open.input = message.input.items;
             open.input_length = 0;
             open.closed = false;
             return open;
         }
-        message.stream = uwz.compression_stream.DecompressionStream.init(
+        message.stream = compression.DecompressionStream.init(
             .deflate_raw,
             message.input.items,
         ) catch return error.OutOfMemory;

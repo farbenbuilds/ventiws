@@ -9,11 +9,11 @@ import { PACKAGE_ROOT } from "./paths.ts";
 /// `src/binding` uses extensionless relative imports, which Node's type
 /// stripping cannot resolve at runtime; only the ABI declaration is reused
 /// here, and it is erased before execution. The addon itself is loaded the way
-/// `src/binding/load.ts` loads it, with the same candidate order, so the target
-/// and the unit tests exercise the same artifact.
+/// `src/binding/load-engine.ts` loads it, with the same candidate order, so the
+/// target and the unit tests exercise the same development artifact.
 const CANDIDATE_PATHS = [
-  ["zig-out", "lib", "ventiws.node"],
-  ["dist", "ventiws.node"],
+  ["zig-out", "lib", "ventiws-engine.node"],
+  ["dist", "ventiws-engine.node"],
 ] as const;
 
 const require = createRequire(import.meta.url);

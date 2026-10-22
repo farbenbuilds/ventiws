@@ -24,10 +24,15 @@ same information in a form `git log` can filter.
   array.
 - Enforce the anti-slop evidence rules at `error` and format the whole tree with
   `oxfmt`.
+- Split the published addon to the codec-only route: `ventiws.node` is
+  465,224 bytes on linux-x64-musl and 470,096 bytes on linux-x64-gnu, down
+  from 15,016,880 and 14,940,872 bytes respectively. The published artifact no
+  longer links uWebZockets, BoringSSL, or lsquic; the full engine is the
+  development-only `ventiws-engine.node`.
 - Emit function and data sections for the engine's vendored C and C++ sources,
-  reducing the linux-x64-musl addon from 15,016,880 to 14,380,712 bytes
-  (-4.24%) while keeping `ReleaseSafe`.
-- Build the cross-compiled release artifacts with `--release=safe`.
+  so the development engine addon keeps the section-level reduction.
+- Build the cross-compiled release artifacts with `--release=safe` and skip
+  the development engine addon.
 
 ### Fixed
 

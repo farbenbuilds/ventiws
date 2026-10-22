@@ -32,8 +32,8 @@ plus `pnpm install`.
 | Command                 | Tool     | Purpose                                                                                                                |
 | ----------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------- |
 | `pnpm install`          | pnpm     | Install development dependencies and the `lefthook` hooks                                                              |
-| `pnpm build`            | napi-zig | Build the addon, bundle `dist/`, then check the declarations                                                           |
-| `pnpm build:binding`    | napi-zig | Build the native addon only                                                                                            |
+| `pnpm build`            | napi-zig | Build both native addons, bundle `dist/`, then check the declarations                                                  |
+| `pnpm build:binding`    | napi-zig | Build the public codec addon and the development engine addon                                                          |
 | `pnpm dev`              | tsdown   | Rebuild the TypeScript bundle in watch mode                                                                            |
 | `pnpm test`             | vitest   | Rebuild the addon, then every suite serially                                                                           |
 | `pnpm test:watch`       | vitest   | Rebuild the addon, then rerun on change                                                                                |
@@ -52,6 +52,11 @@ plus `pnpm install`.
 | `pnpm bump`             | node     | Advance the version by a `--release <kind>` directive                                                                  |
 | `pnpm release`          | node     | Tag the version the tree carries by hand, for recovery                                                                 |
 | `pnpm prepublishOnly`   | pnpm     | `pnpm build`, run by pnpm before publishing                                                                            |
+
+`pnpm build:binding` produces `zig-out/lib/ventiws.node` for the published
+codec surface and `zig-out/lib/ventiws-engine.node` for tests, Autobahn, and
+the engine benchmark row. Release builds pass `-Dengine-addon=false`; the
+engine artifact is never published or copied into `dist/`. See ADR 0003.
 
 `tsdown` rewrites the `exports` map on every build, so the `types` and
 named-runtime conditions have to be a step rather than a hand-edit the next
@@ -88,7 +93,9 @@ reviewer checks:
   conditionals, no allocation on hot paths.
 - Every peer-controlled length, count, and queue capped; exhaustion is a typed
   error or backpressure, never growth. Peer data reaches JavaScript as a copy.
-- No runtime dependency beyond `napi-zig` and `uWebZockets`. A public type is
+- No runtime dependency beyond `napi-zig` and `uWebZockets`. `napi-zig` is a
+  fork; keep it synced with `yuku-toolchain/napi-zig`, carry only the patch
+  documented in `docs/forks.md`, and pin it by tag plus commit. A public type is
   declared once and re-exported, and generated `.d.ts` output is never
   hand-edited.
 - `tsconfig.json` runs in `strict`, and a compiler option is never weakened to

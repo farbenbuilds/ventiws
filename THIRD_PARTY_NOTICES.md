@@ -37,6 +37,10 @@ artifact and into the npm tarball. Every one of these libraries is compiled
 into the addon from its pinned package sources, so none of them is resolved
 from the host toolchain at build or run time.
 
+The public codec-only addon also links libdeflate directly, at the same pinned
+`1.26` source (`92e6a0d`), for RFC 7692 `permessage-deflate`. It is the same
+MIT-licensed library recorded above; no additional package is resolved.
+
 ## Vendored type definitions
 
 `src/types/ws.d.ts` is adapted from the DefinitelyTyped declarations for `ws`
