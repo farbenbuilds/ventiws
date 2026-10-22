@@ -96,10 +96,9 @@ no prototype.
 
 ### Examples
 
-[examples/](examples/) holds the same echo server and client for Node.js, Bun,
-and Deno, each a standalone project with a `package.json` and no build step:
-Node.js strips the types itself, and Bun and Deno run TypeScript natively. The
-commands, and the permissions Deno needs, are in
+[examples/](examples/) holds the same echo server and client for Node.js and
+Bun, each a standalone project with a `package.json` and no build step: Node.js
+strips the types itself, and Bun runs TypeScript natively. The commands are in
 [examples/README.md](examples/README.md).
 
 ### Dev logger

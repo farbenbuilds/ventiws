@@ -33,6 +33,8 @@ same information in a form `git log` can filter.
   so the development engine addon keeps the section-level reduction.
 - Build the cross-compiled release artifacts with `--release=safe` and skip
   the development engine addon.
+- Drop Deno support, including the `deno` export conditions, the loader branch,
+  and the Deno example.
 
 ### Fixed
 

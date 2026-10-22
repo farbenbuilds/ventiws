@@ -2,8 +2,8 @@ import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-/// A Deno host without `--allow-read` throws from the fs module where Node returns
-/// false; the loader's own message is more actionable than that permission error.
+/// A host whose fs module throws where Node returns false is treated as an absent path;
+/// the loader's own message is more actionable than that permission error.
 function pathExists(path: string): boolean {
   try {
     return existsSync(path);

@@ -6,7 +6,7 @@ import { readFileSync } from "node:fs";
 import { expect, test } from "vitest";
 
 const ROOT = new URL("../../", import.meta.url);
-const EXAMPLES = ["vanilla", "bun", "deno", "effect-rpc", "express-session"];
+const EXAMPLES = ["vanilla", "bun", "effect-rpc", "express-session"];
 
 type Manifest = {
   readonly dependencies?: Record<string, string>;
@@ -21,14 +21,11 @@ const manifest = (runtime: string): Manifest => JSON.parse(example(runtime, "pac
 test("each runtime example names its own host API", () => {
   expect(example("vanilla", "index.ts")).toContain("process.env");
   expect(example("bun", "index.ts")).toContain("Bun.env");
-  expect(example("deno", "index.ts")).toContain("Deno.env.get");
-  expect(example("deno", "index.ts")).toContain("Deno.exitCode");
 });
 
 test("only the Node example dials with the ventiws client", () => {
   expect(example("vanilla", "index.ts")).toContain("{ WebSocket, WebSocketServer }");
   expect(example("bun", "index.ts")).toContain("{ WebSocketServer }");
-  expect(example("deno", "index.ts")).toContain("{ WebSocketServer }");
 });
 
 test("every example resolves ventiws from the registry, not the workspace", () => {
@@ -40,8 +37,8 @@ test("every example resolves ventiws from the registry, not the workspace", () =
 });
 
 test("only the Node examples declare @types/node", () => {
-  // Bun and Deno type their own APIs; a direct @types/node there would pin a second
-  // Node surface beside the runtime's.
+  // Bun types its own API; a direct @types/node there would pin a second Node surface
+  // beside the runtime's.
   const carriers = EXAMPLES.filter(
     (runtime) => manifest(runtime).devDependencies?.["@types/node"] !== undefined,
   );

@@ -29,10 +29,6 @@
         "import": "./dist/index.mjs",
         "require": "./dist/index.cjs"
       },
-      "deno": {
-        "import": "./dist/index.mjs",
-        "require": "./dist/index.cjs"
-      },
       "import": "./dist/index.mjs",
       "require": "./dist/index.cjs"
     },
@@ -42,10 +38,6 @@
         "require": "./dist/logging.d.cts"
       },
       "bun": {
-        "import": "./dist/logging.mjs",
-        "require": "./dist/logging.cjs"
-      },
-      "deno": {
         "import": "./dist/logging.mjs",
         "require": "./dist/logging.cjs"
       },

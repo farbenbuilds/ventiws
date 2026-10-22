@@ -44,7 +44,7 @@ test("loads the native addon", () => {
 });
 
 test("reports the pinned uWebZockets release", () => {
-  expect(loadAddon().engineVersion()).toBe("2.0.0");
+  expect(loadAddon().engineVersion()).toBe("2.0.5");
 });
 
 test.each(CODEC_FUNCTIONS)("the public addon exposes %s", (name) => {

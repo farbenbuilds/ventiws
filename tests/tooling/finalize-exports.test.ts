@@ -21,7 +21,6 @@ type ExportConditions = {
   readonly require?: string;
   readonly types?: string | Readonly<Record<string, string>>;
   readonly bun?: ExportConditions;
-  readonly deno?: ExportConditions;
 };
 
 type Manifest = {
@@ -71,7 +70,7 @@ test("adds a declaration beside each bundled runtime path", () => {
   expect(manifest.types).toBe("./dist/index.d.mts");
 });
 
-test("names Bun and Deno ahead of the format condition", () => {
+test("names Bun ahead of the format condition", () => {
   const { status, manifest } = run({
     exports: { ".": { import: "./dist/index.mjs", require: "./dist/index.cjs" } },
   });
@@ -80,12 +79,10 @@ test("names Bun and Deno ahead of the format condition", () => {
   const root = manifest.exports?.["."];
   const keys = Object.keys(root ?? {});
   expect(root?.bun).toEqual({ import: "./dist/index.mjs", require: "./dist/index.cjs" });
-  expect(root?.deno).toEqual({ import: "./dist/index.mjs", require: "./dist/index.cjs" });
-  // A resolver stops at the first matching key, so the named runtimes have to precede
-  // the format condition they fall back to; the value keeps the CJS require shape.
+  // A resolver stops at the first matching key, so the named runtime has to precede the
+  // format condition it falls back to; the value keeps the CJS require shape.
   expect(keys.indexOf("types")).toBeLessThan(keys.indexOf("bun"));
-  expect(keys.indexOf("bun")).toBeLessThan(keys.indexOf("deno"));
-  expect(keys.indexOf("deno")).toBeLessThan(keys.indexOf("import"));
+  expect(keys.indexOf("bun")).toBeLessThan(keys.indexOf("import"));
 });
 
 test("a completed manifest is stable when it is completed again", () => {
@@ -112,7 +109,6 @@ test("a subpath with no ESM bundle gets no named-runtime keys", () => {
   const legacy = manifest.exports?.["./legacy"];
   expect(legacy?.types).toEqual({ require: "./dist/legacy.d.cts" });
   expect(legacy?.bun).toBeUndefined();
-  expect(legacy?.deno).toBeUndefined();
 });
 
 test("refuses a manifest with no exports map", () => {

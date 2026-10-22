@@ -17,8 +17,8 @@ will own parsing, buffers, and backpressure.
   socket operations. The layout follows `napi-zig`: the Zig root module lives
   in `src/` next to the TypeScript
   sources. `src/binding/{load,load-engine,open}.ts` resolve and load the public
-  codec artifact and the development engine artifact for Node.js, Bun, and Deno,
-  with `runtime.ts`/`host-libc.ts` naming the host;
+  codec artifact and the development engine artifact for Node.js and Bun, with
+  `runtime.ts`/`host-libc.ts` naming the host;
   `src/binding/{native,handle,server,socket}.ts` declare the addon ABI and wrap
   the lifecycle and socket calls; `src/types/ws.d.ts` vendors the DefinitelyTyped
   `ws` declarations, and `src/index.ts` re-exports that surface as type-only ESM

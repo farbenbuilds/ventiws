@@ -157,11 +157,11 @@ in
 copyFarm name
   [
     {
-      name = "N-V-__8AAI8Hdw49zvJpQMT6mP3lUI2BU88KafEc3BkYlcu6";
+      name = "N-V-__8AAA5Ieg5843crc8uXWdNhmmfStwJqA-9TknJSx3_n";
       path = fetchZigArtifact {
         name = "boringssl";
-        url = "git+https://github.com/google/boringssl#dd73e69a4e86fa178a4d19033c691e9b42cc1088";
-        hash = "sha256-cSwDjwSPP13GB4as9Nwm8iQTN/K2ZP5T9wVHWTzYQA4=";
+        url = "git+https://github.com/google/boringssl#d3bf4795ad5b79d646cddf2fec687da5b9b502db";
+        hash = "sha256-PKIXmxdr8DtYuz54vxxrSNy3qNYakFoGByoTTAHCB08=";
         unpack = true;
       };
     }
@@ -184,11 +184,11 @@ copyFarm name
       };
     }
     {
-      name = "N-V-__8AABFJVQBMmGjr7hbydaG9qS3FWrGChwmOj7c-A6Xy";
+      name = "N-V-__8AABdJVQA4Si44bpY_UYIuBqJm--4p63YluoS15TT-";
       path = fetchZigArtifact {
         name = "lshpack";
-        url = "git+https://github.com/litespeedtech/ls-hpack#38ceca78054d4175ba3f6411b1b83ac5c485e542";
-        hash = "sha256-JeXjNds4Gc+dkieA0TQmbhoPvozAx/23FO8HgjQu5wE=";
+        url = "git+https://github.com/litespeedtech/ls-hpack#fda48e02491d865cce00612be8cc10c2622b8e55";
+        hash = "sha256-oXfrZYOnKD2fAL6sX/6kaSL3F7/Wz9G9k8zRS4HJfUU=";
         unpack = true;
       };
     }
@@ -202,11 +202,11 @@ copyFarm name
       };
     }
     {
-      name = "N-V-__8AABlSZwC2bZHS0kM4Fi6Cz3MPxNN3TFeim4QI6R9A";
+      name = "N-V-__8AAH6VZwAKiOkYrd_YSpAX_LDuhK6AYwKdPAW-Yg-d";
       path = fetchZigArtifact {
         name = "lsquic";
-        url = "git+https://github.com/litespeedtech/lsquic#d5929af7cec6fd74f1cfea2cb1c07c27ce9102b1";
-        hash = "sha256-kb47Ibl3S9sBsNuhyaYhh1ix9Jb60FOMkCGVD6FIizU=";
+        url = "git+https://github.com/litespeedtech/lsquic#a9616720af78b9aab895145c1792d5305c480ae8";
+        hash = "sha256-/OwOctrxOL7KLiE0vhDO282LjMYq+A3fP7TFzdeP2+8=";
         unpack = true;
       };
     }
@@ -220,11 +220,11 @@ copyFarm name
       };
     }
     {
-      name = "uWebZockets-2.0.0-SD3SPPPFKQCVKGdvS6KdgvLfqmYJjxze0BwIwUFjC8Ae";
+      name = "uWebZockets-2.0.5-SD3SPM1tKgBrClxOl0zHBMAzBQ9GIc6RZU3O4sCLU8LD";
       path = fetchZigArtifact {
         name = "uWebZockets";
-        url = "git+https://github.com/farbenbuilds/uWebZockets?ref=v2.0.0-ventiws.1#389558b46f8596599fa87d1b0b2c49e6788a591a";
-        hash = "sha256-3ZERjJP3TXyt/4RbKxr45CJZICIWZ8wkX+SD+ImjjgM=";
+        url = "git+https://github.com/farbenbuilds/uWebZockets?ref=v2.0.5-ventiws.1#15ec728ac3a066a07e5e90a2364161021b463fa2";
+        hash = "sha256-SDoqHQU4GttRT8rD0kPFBh2vr7gC4qRALXoitGOa8R0=";
         unpack = true;
       };
     }
