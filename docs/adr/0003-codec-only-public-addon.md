@@ -42,8 +42,9 @@ passes `-Dengine-addon=false`, so `npm/` and `dist/` contain only the public
 artifact. `loadAddon()` resolves only the public artifact; `loadEngineAddon()`
 resolves only the development artifact and never falls back to the public one.
 
-The codec keeps `zslay` for RFC 6455 framing and masking, and its own
-`compression.zig` over the pinned libdeflate package for RFC 7692. The engine
+The codec keeps `zslay` for RFC 6455 framing, owns the first-party
+AVX2/SSE2 mask the engine route uses, and has its own `compression.zig` over the
+pinned libdeflate package for RFC 7692. The engine
 addon uses the engine's libdeflate stream so the two artifacts do not link two
 copies of libdeflate.
 
@@ -54,7 +55,7 @@ copies of libdeflate.
 - The download and load footprint follows the code the public facade actually
   runs. Cross-compiling the release matrix no longer builds the engine per
   platform.
-- The codec's behavior is unchanged: the masks are the same `zslay` primitive,
+- The codec's behavior is unchanged: the mask is the same AVX2/SSE2 algorithm,
   and the deflate wrapper uses the same libdeflate version and level as the
   engine route.
 - The development artifact keeps the full engine for the conformance, Autobahn,

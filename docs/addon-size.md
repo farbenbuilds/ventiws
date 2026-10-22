@@ -41,8 +41,8 @@ families in the link. The capability probe was not the cause; making
 
 The split removes the import itself:
 
-- masking is `zslay.frame.mask`, the same first-party primitive the engine
-  route uses;
+- masking is the codec's first-party AVX2/SSE2 mask, the same algorithm
+  the engine route uses;
 - RFC 7692 compression uses a local wrapper over the pinned libdeflate source,
   at the same level and with the same `deflate_raw` framing;
 - the codec-only addon links libdeflate and zslay directly, and nothing else.
