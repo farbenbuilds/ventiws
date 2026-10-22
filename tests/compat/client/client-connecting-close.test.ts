@@ -8,7 +8,7 @@
 import { expect, test } from "vitest";
 import { WebSocket } from "../../../src/index";
 import { TEST_TIMEOUT_MS } from "../../binding/support";
-import { delayedAcceptServer } from "./raw-peer";
+import { delayedAcceptServer } from "./delayed-accept-peer";
 import { waitFor } from "./client-support";
 
 test.each(["close", "terminate"])(
@@ -21,6 +21,7 @@ test.each(["close", "terminate"])(
     const errors: Error[] = [];
     let code = -1;
     let reason: Buffer = Buffer.from([1]);
+
     const closed = new Promise<void>((resolve) => {
       socket.on("upgrade", () => events.push("upgrade"));
       socket.on("error", (error) => {
@@ -33,12 +34,15 @@ test.each(["close", "terminate"])(
         resolve();
       });
     });
+
     let departed = false;
     void peer.gone.then(() => {
       departed = true;
     });
+
     try {
       await peer.requestRead;
+
       if (operation === "close") socket.close();
       else socket.terminate();
       await closed;

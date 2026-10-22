@@ -9,15 +9,9 @@ import {
   type BenchmarkRecord,
   type RecordWorkflow,
 } from "../../scripts/bench-record.mjs";
+import type { ReportFixture } from "./bench-report-types";
 
 const ROOT = new URL("../../", import.meta.url);
-
-export type ReportFixture = {
-  readonly provenance: Record<string, unknown>;
-  readonly parameters: Record<string, unknown>;
-  readonly configurations: Record<string, unknown>[];
-  readonly gate: { readonly failed: boolean };
-};
 
 export type PublishInput = {
   readonly record: BenchmarkRecord;
@@ -99,7 +93,7 @@ export const reportOf = (messages = CONTRACT.messages): ReportFixture => ({
   gate: { failed: false },
 });
 
-export const build = (report: unknown): BenchmarkRecord =>
+export const build = (report: ReportFixture): BenchmarkRecord =>
   buildRecord({
     report,
     contractSource: CONTRACT_SOURCE,

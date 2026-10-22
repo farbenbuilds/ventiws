@@ -29,6 +29,7 @@ test(
     const harness = await upgradeHarness(deflateServer());
     const accepted = nextSocket(harness.server);
     const handshake = await offerExtension(harness.port, WS_OFFER);
+
     try {
       expect(handshake.status).toBe(101);
       expect(handshake.headers["sec-websocket-extensions"]).toBe(NEGOTIATED);
@@ -65,8 +66,10 @@ test(
         perMessageDeflate: { threshold: COMPRESSIBLE_LENGTH * 2 },
       }),
     );
+
     const accepted = nextSocket(harness.server);
     const handshake = await offerExtension(harness.port, "permessage-deflate");
+
     try {
       expect(handshake.status).toBe(101);
       const socket = await accepted;
@@ -85,9 +88,11 @@ test("a server with the extension off never sets RSV1", { timeout: TEST_TIMEOUT_
   const harness = await upgradeHarness(
     new WebSocketServer({ noServer: true, perMessageDeflate: false }),
   );
+
   const accepted = nextSocket(harness.server);
   // Offered anyway, which is what a peer ignoring the server's configuration does.
   const handshake = await offerExtension(harness.port, WS_OFFER);
+
   try {
     expect(handshake.status).toBe(101);
     expect(handshake.headers["sec-websocket-extensions"]).toBeUndefined();
@@ -111,8 +116,10 @@ test(
     const harness = await upgradeHarness(
       new WebSocketServer({ noServer: true, perMessageDeflate: false }),
     );
+
     const accepted = nextSocket(harness.server);
     const handshake = await offerExtension(harness.port, "permessage-deflate");
+
     try {
       expect(handshake.status).toBe(101);
       const socket = await accepted;

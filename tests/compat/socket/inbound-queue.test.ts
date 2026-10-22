@@ -31,10 +31,12 @@ test(
     const server = new WebSocketServer({
       noServer: true,
       allowSynchronousEvents: false,
-    } as never);
+    });
+
     const harness = await upgradeHarness(server);
     const accepted = nextSocket(server);
     const raw = await openRawClient(harness.port);
+
     try {
       const socket = await accepted;
       const seen: string[] = [];
@@ -60,20 +62,24 @@ test(
     const server = new WebSocketServer({
       noServer: true,
       allowSynchronousEvents: false,
-    } as never);
+    });
+
     const harness = await upgradeHarness(server);
     const accepted = nextSocket(server);
     const raw = await openRawClient(harness.port);
+
     try {
       const socket = await accepted;
       const seen: string[] = [];
       socket.on("error", () => undefined);
       socket.on("message", (data: Buffer) => seen.push(data.toString()));
+
       for (let index = 0; index < 12; index += 1) {
         raw.write(framed(1));
         // A yield per message, which is what puts a read inside the next tick's pause.
         await new Promise((resolve) => setImmediate(resolve));
       }
+
       await waitFor(() => seen.length === 12);
       expect(seen).toHaveLength(12);
     } finally {
@@ -94,10 +100,12 @@ test(
     const harness = await upgradeHarness();
     const accepted = nextSocket(harness.server);
     const raw = await openRawClient(harness.port);
+
     try {
       const socket = await accepted;
       const state = socketStateOf(socket);
       expect(state).toBeDefined();
+
       if (state === undefined) return;
       socket.on("error", () => undefined);
       const failure = new Promise<CodedError>((resolve) => socket.once("error", resolve));

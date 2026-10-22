@@ -14,6 +14,7 @@ test(
   { timeout: TEST_TIMEOUT_MS },
   async () => {
     const { server, connection, socket } = await connectedSocket();
+
     try {
       expect(closeSocket(server.handle, connection, 1005, new Uint8Array())).toBe(
         "invalid-close-code",
@@ -36,6 +37,7 @@ test(
   { timeout: TEST_TIMEOUT_MS },
   async () => {
     const { server, connection, socket } = await connectedSocket();
+
     try {
       socket.close();
       await server.waitFor("connectionClose");
@@ -52,10 +54,11 @@ test(
 
 test("rejects malformed arguments and unknown servers", { timeout: TEST_TIMEOUT_MS }, async () => {
   const { server, connection, socket } = await connectedSocket();
+
   try {
-    expect(() => sendSocket(server.handle, connection, "text" as unknown as Uint8Array)).toThrow(
-      /Uint8Array/,
-    );
+    // A JavaScript caller can pass a string where the binding expects bytes.
+    // @ts-expect-error a string is not a Uint8Array
+    expect(() => sendSocket(server.handle, connection, "text")).toThrow(/Uint8Array/);
     expect(() => closeSocket(server.handle, connection, 70_000, new Uint8Array())).toThrow(
       /uint16/,
     );

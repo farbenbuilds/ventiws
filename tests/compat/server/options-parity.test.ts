@@ -1,20 +1,24 @@
 import { WebSocketServer as WsServer } from "ws";
 import { expect, test } from "vitest";
 import { WebSocketServer } from "../../../src/index";
+import { optionValues } from "../server-options";
 
 /// The `ws`-shaped server record is built from options before any connection
 /// exists, so these are pure property comparisons: every one of them was
 /// asserted against a running suite when it was wrong, and none of them needs a
 /// socket to be observable.
 
-type Record_ = Record<string, unknown>;
+type EitherServer = WsServer | WebSocketServer;
 
-function read(server: object, key: string): unknown {
-  return (server as Record_)[key];
+function present(server: EitherServer, key: string): boolean {
+  return key in server;
 }
 
-function present(server: object, key: string): boolean {
-  return key in server;
+/// The tracked client count, or undefined when `clientTracking` left the key off entirely.
+function clientCount(server: EitherServer): number | undefined {
+  if (!("clients" in server)) return undefined;
+
+  return server.clients.size;
 }
 
 test.each([true, false])(
@@ -27,16 +31,16 @@ test.each([true, false])(
     const reference = new WsServer({ clientTracking: tracking, noServer: true });
     const ours = new WebSocketServer({ clientTracking: tracking, noServer: true });
     expect(present(ours, "clients")).toBe(present(reference, "clients"));
-    expect(read(ours, "clients")).toEqual(read(reference, "clients"));
+    expect(clientCount(ours)).toBe(clientCount(reference));
   },
 );
 
 test("clientTracking true adds an empty set in both", () => {
   const reference = new WsServer({ noServer: true });
-  expect((read(reference, "clients") as Set<unknown>).size).toBe(0);
+  expect(clientCount(reference)).toBe(0);
 
   const ours = new WebSocketServer({ noServer: true });
-  expect((read(ours, "clients") as Set<unknown>).size).toBe(0);
+  expect(clientCount(ours)).toBe(0);
 });
 
 /// `path` is declared by `@types/ws` but `ws`'s runtime never sets it, so
@@ -48,7 +52,8 @@ test("ws does not expose path at runtime", () => {
   expect(present(reference, "path")).toBe(false);
 
   const ours = new WebSocketServer({ noServer: true, path: "/ws" });
-  expect(read(ours, "path")).toBe("/ws");
+  expect(present(ours, "path")).toBe(true);
+  expect(ours.path).toBe("/ws");
 });
 
 /// `ws` rewrites the `perMessageDeflate: true` shorthand to an options object on
@@ -56,18 +61,15 @@ test("ws does not expose path at runtime", () => {
 /// rather than the boolean it passed.
 test("perMessageDeflate true is rewritten to an object", () => {
   const reference = new WsServer({ noServer: true, perMessageDeflate: true });
-  const expected = read(reference.options, "perMessageDeflate");
-  expect(typeof expected).toBe("object");
+  expect(optionValues(reference.options).get("perMessageDeflate")).toEqual(expect.any(Object));
 
   const ours = new WebSocketServer({ noServer: true, perMessageDeflate: true });
-  expect(typeof read(ours.options, "perMessageDeflate")).toBe("object");
+  expect(optionValues(ours.options).get("perMessageDeflate")).toEqual(expect.any(Object));
 });
 
-/// The three sender limits `@types/ws` declares and the reference does not list.
-/// They are observable on `server.options`, so omitting them made a defaulted
-/// record a strict subset of the contract.
-/// `ws` defaults all three and exposes them on `server.options`, while
-/// `@types/ws` declares none of them. ventiws matches the runtime.
+/// The sender limits `@types/ws` declares and the reference does not list. They
+/// are observable on `server.options`, so omitting them made a defaulted record a
+/// strict subset of the contract.
 test.each([
   ["maxBufferedChunks", 262144],
   ["maxFragments", 16384],
@@ -79,12 +81,12 @@ test.each([
 ])("server.options defaults %s to the ws value", (key, expected) => {
   const reference = new WsServer({ noServer: true });
   const ours = new WebSocketServer({ noServer: true });
-  expect(read(ours.options, key)).toBe(expected);
-  expect(read(ours.options, key)).toBe(read(reference.options, key));
+  expect(optionValues(ours.options).get(key)).toBe(expected);
+  expect(optionValues(ours.options).get(key)).toBe(optionValues(reference.options).get(key));
 });
 
 test("an explicit option is never overwritten by the defaults", () => {
   const ours = new WebSocketServer({ noServer: true, maxPayload: 1024, autoPong: false });
-  expect(read(ours.options, "maxPayload")).toBe(1024);
-  expect(read(ours.options, "autoPong")).toBe(false);
+  expect(optionValues(ours.options).get("maxPayload")).toBe(1024);
+  expect(optionValues(ours.options).get("autoPong")).toBe(false);
 });

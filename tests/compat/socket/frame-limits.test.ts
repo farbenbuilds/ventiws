@@ -7,20 +7,11 @@
 // the code did not have.
 
 import { expect, test } from "vitest";
-import { WebSocket, WebSocketServer, type ServerOptions } from "../../../src/index";
+import { WebSocket, WebSocketServer } from "../../../src/index";
 import { TEST_TIMEOUT_MS } from "../../binding/support";
 import { clientFrames } from "../../binding/codec-frames";
 import { openRawClient } from "../../binding/codec-net";
 import { nextSocket, openClient, upgradeHarness, waitFor } from "./codec-upgrade-support";
-
-/// An option `ws` accepts at runtime and `@types/ws` does not declare.
-///
-/// `skipUTF8Validation`, `closeTimeout`, `maxBufferedChunks`, and `maxFragments` are
-/// all missing from the pinned declaration file, so a TypeScript caller is refused by
-/// `ws` for the same reason and has to cast.
-function atRuntime(options: Record<string, unknown>): ServerOptions {
-  return options as ServerOptions;
-}
 
 /// A whole text message whose bytes are not valid UTF-8: a lone continuation byte.
 const INVALID_TEXT = Buffer.from([0x41, 0x80, 0x42]);
@@ -35,6 +26,7 @@ async function withRawPeer(
   const harness = await upgradeHarness(server);
   const accepted = nextSocket(server);
   const raw = await openRawClient(harness.port);
+
   try {
     const socket = await accepted;
     // The refusal cases below close on purpose, and an `error` with no listener is
@@ -53,6 +45,7 @@ test("a text message is validated by default", { timeout: TEST_TIMEOUT_MS }, asy
     const closed = new Promise<number>((resolve) => {
       socket.on("close", (code: number) => resolve(code));
     });
+
     const seen: string[] = [];
     socket.on("message", (data: Buffer) => seen.push(data.toString()));
     write(clientFrames([{ opcode: 0x1, payload: INVALID_TEXT }]));
@@ -64,7 +57,7 @@ test("a text message is validated by default", { timeout: TEST_TIMEOUT_MS }, asy
 });
 
 test("skipUTF8Validation delivers it anyway", { timeout: TEST_TIMEOUT_MS }, async () => {
-  const server = new WebSocketServer(atRuntime({ noServer: true, skipUTF8Validation: true }));
+  const server = new WebSocketServer({ noServer: true, skipUTF8Validation: true });
   await withRawPeer(server, async (socket, write) => {
     const seen: string[] = [];
     socket.on("message", (data: Buffer) => seen.push(data.toString()));
@@ -82,10 +75,11 @@ test("skipUTF8Validation delivers it anyway", { timeout: TEST_TIMEOUT_MS }, asyn
 
 /// The flag is per codec, so a second connection on the same server still validates.
 test("the option is per connection", { timeout: TEST_TIMEOUT_MS }, async () => {
-  const server = new WebSocketServer(atRuntime({ noServer: true, skipUTF8Validation: true }));
+  const server = new WebSocketServer({ noServer: true, skipUTF8Validation: true });
   const harness = await upgradeHarness(server);
   const accepted = nextSocket(server);
   const client = await openClient(harness.url);
+
   try {
     const socket = await accepted;
     const seen: string[] = [];
@@ -107,7 +101,7 @@ test(
   async () => {
     // `ws` guards the reason with `!this._skipUTF8Validation`, and the reason is then
     // delivered exactly as the peer sent it: the option is what decides, not the bytes.
-    const server = new WebSocketServer(atRuntime({ noServer: true, skipUTF8Validation: true }));
+    const server = new WebSocketServer({ noServer: true, skipUTF8Validation: true });
     await withRawPeer(server, async (socket, write) => {
       const closed = new Promise<Buffer>((resolve) => {
         socket.on("close", (code: number, reason: Buffer) => {
@@ -115,6 +109,7 @@ test(
           resolve(reason);
         });
       });
+
       write(clientFrames([{ opcode: 0x8, payload: INVALID_REASON_CLOSE }]));
       expect([...(await closed)]).toEqual([0xff, 0xfe]);
     });
@@ -130,6 +125,7 @@ test(
       const closed = new Promise<number>((resolve) => {
         socket.on("close", (code: number) => resolve(code));
       });
+
       write(clientFrames([{ opcode: 0x8, payload: INVALID_REASON_CLOSE }]));
       // RFC 6455 section 7.4.1: a close reason that is not valid UTF-8 is 1007, the same
       // code a text message with the same bytes gets.

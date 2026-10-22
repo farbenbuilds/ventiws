@@ -22,6 +22,7 @@ type BaselineGroup = {
 };
 
 const GROUPS: Readonly<Record<string, BaselineGroup>> = baseline.groups;
+
 const IDS: ReadonlySet<string> = new Set(
   Object.values(GROUPS).flatMap((group) => group.cases.split(" ")),
 );
@@ -32,6 +33,7 @@ export const ALL_BASELINE_IDS: readonly string[] = [...IDS].sort();
 /// stale: the deflate groups are absent by design in `framing` mode.
 export function idsInGroups(groups: readonly string[]): readonly string[] {
   const wanted = new Set(groups);
+
   return [...IDS].filter((id) => wanted.has(id.split(".")[0])).sort();
 }
 
@@ -68,14 +70,19 @@ export function baselineDrift(cases: readonly CaseReport[], mode: ModeCounts): B
   const fixed: string[] = [];
   const selected = idsInGroups(mode.groups);
   const seen = new Set<string>();
+
   for (const entry of cases) {
     if (!KNOWN_FAILURES.has(entry.id)) continue;
     seen.add(entry.id);
+
     if (entry.outcome === "skipped-capacity") continue;
+
     if (isTolerated(entry.behavior) && isTolerated(entry.behaviorClose)) fixed.push(entry.id);
   }
+
   for (const id of selected) {
     if (!seen.has(id)) stale.push(id);
   }
+
   return { stale: stale.sort(), fixed: fixed.sort() };
 }

@@ -26,11 +26,13 @@ function section(version: string, body: string): string {
 /// untagged, and the previous tag is further back than the previous version.
 function repo(versions: readonly string[], tagged: number): string {
   const root = mkdtempSync(join(tmpdir(), "ventiws-notes-"));
+
   const git = (...args: string[]) =>
     execFileSync("git", ["-c", "user.email=t@t", "-c", "user.name=t", ...args], {
       cwd: root,
       stdio: "pipe",
     });
+
   writeFileSync(join(root, "package.json"), JSON.stringify({ name: "ventiws", version: "x" }));
   writeFileSync(join(root, "CHANGELOG.md"), PREAMBLE);
   git("init", "-q");
@@ -44,16 +46,21 @@ function repo(versions: readonly string[], tagged: number): string {
     );
     git("add", "-A");
     git("commit", "-q", "-m", `chore(release): v${version}`);
+
     if (index < tagged) git("tag", `v${version}`);
   }
+
   return root;
 }
 
+type ReleaseNotes = { readonly text: string; readonly versions: string[] };
+
 /// The notes the script writes, and which versions they claim.
-function notes(root: string): { readonly text: string; readonly versions: string[] } {
+function notes(root: string): ReleaseNotes {
   const out = join(root, "notes.md");
   execFileSync(process.execPath, [SCRIPT, out], { cwd: root, stdio: "pipe" });
   const text = readFileSync(out, "utf8");
+
   return {
     text,
     versions: [...text.matchAll(/^## \[([^\]]+)\]/gm)].map((match) => match[1] ?? ""),
@@ -86,6 +93,7 @@ test("several merges between two tags are all included", () => {
   const result = notes(
     repo(["1.0.0-alpha.1", "1.0.0-alpha.2", "1.0.0-alpha.3", "1.0.0-alpha.4"], 1),
   );
+
   expect(result.versions).toEqual(["1.0.0-alpha.4", "1.0.0-alpha.3", "1.0.0-alpha.2"]);
 });
 

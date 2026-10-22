@@ -16,10 +16,7 @@ export function createSocket(
   options?: ClientOptions | ServerOptions | undefined,
 ): WebSocket {
   if (address === null) return buildSocketRecord(createSocketState());
-  const promoted = promoteOptions(protocols, options as ClientOptions | undefined);
-  return connectSocket(
-    address,
-    promoted.protocols,
-    promoted.options as ClientOptions | ServerOptions | undefined,
-  );
+  const promoted = promoteOptions(protocols, options);
+
+  return connectSocket(address, promoted.protocols, promoted.options);
 }

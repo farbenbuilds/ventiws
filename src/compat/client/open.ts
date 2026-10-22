@@ -9,7 +9,6 @@
 import { CODEC_ROLE } from "../../binding/codec";
 import type { IncomingMessage } from "node:http";
 import type { Socket } from "node:net";
-import type { WebSocket } from "../../types/ws";
 import { attachSocket } from "../socket/attach";
 import { emitEvent } from "../events/emitter";
 import { createError } from "../errors";
@@ -33,20 +32,29 @@ export function onUpgrade(
   // of when it went away, which is most of them.
   socket.on("error", () => undefined);
   emitEvent(state, "upgrade", response);
+
   if (state.readyState === CLOSED) {
     discard(socket);
+
     return;
   }
+
   const refused = reject(response, attempt);
+
   if (refused !== null) {
     abort(attempt, createError("ERR_PROTOCOL", refused));
+
     return;
   }
+
   const extension = acceptExtension(response, attempt.options.perMessageDeflate);
+
   if ("refusal" in extension) {
     abort(attempt, createError("ERR_PROTOCOL", extension.refusal));
+
     return;
   }
+
   state.protocol = response.headers["sec-websocket-protocol"] ?? "";
   state.extensions = response.headers["sec-websocket-extensions"] ?? "";
   // Set before `attachSocket`, because the codec reads it there: a codec built for an
@@ -54,26 +62,24 @@ export function onUpgrade(
   state.compressible = extension.accepted !== null;
   // The deadline was the handshake's: `ws` leaves an open socket with no read deadline.
   socket.setTimeout(0);
-  const target: WebSocket | null = (state.target as WebSocket | undefined) ?? null;
-  if (target === null) {
-    abort(attempt, createError("ERR_INVALID_STATE", "ventiws: the socket record is missing"));
-    return;
-  }
   // `head` is what followed the response head, so a frame sharing the read with the 101
   // reaches the codec, after `open`, because `attachSocket` owns that order.
   attempt.transport = socket;
   // The hook would only be able to abort a request that has already been superseded.
   state.cancelHandshake = null;
-  attachSocket(target, socket, CODEC_ROLE.client, head);
+  attachSocket(attempt.socket, socket, CODEC_ROLE.client, head);
 }
 
 function reject(response: IncomingMessage, attempt: Attempt): string | null {
   const upgrade = response.headers.upgrade;
+
   if (upgrade === undefined || upgrade.toLowerCase() !== "websocket") {
     return "Invalid Upgrade header";
   }
+
   if (response.headers["sec-websocket-accept"] !== expectedAccept(attempt.handshake.key)) {
     return "Invalid Sec-WebSocket-Accept header";
   }
+
   return protocolRejection(response.headers["sec-websocket-protocol"], attempt.offered);
 }

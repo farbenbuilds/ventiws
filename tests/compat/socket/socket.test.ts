@@ -2,7 +2,6 @@ import { expect, test } from "vitest";
 import { closeFrameWritten } from "../../../src/compat/socket/lifecycle";
 import { createWebSocketStream } from "../../../src/compat/stream";
 import { WebSocket, WebSocketServer } from "../../../src/index";
-import type { CodedError } from "../../../src/types/errors";
 import { TEST_TIMEOUT_MS } from "../../binding/support";
 import { attached, terminateClient } from "./socket-support";
 
@@ -39,6 +38,7 @@ test(
   { timeout: TEST_TIMEOUT_MS },
   async () => {
     const { server, client, socket } = await attached();
+
     try {
       expect(socket.readyState).toBe(socket.OPEN);
       expect(socket.bufferedAmount).toBe(0);
@@ -46,8 +46,10 @@ test(
         socket.send("hello", (error) => {
           if (error) {
             reject(error);
+
             return;
           }
+
           resolve();
         });
       });
@@ -63,22 +65,24 @@ test(
 
 test("send reports ring overflow through the callback", { timeout: TEST_TIMEOUT_MS }, async () => {
   const { server, client, socket } = await attached();
+
   try {
     const failures: Error[] = [];
     const sends = 9;
     await new Promise<void>((resolve) => {
       let pending = sends;
+
       for (let index = 0; index < sends; index += 1) {
         socket.send(new Uint8Array(MAX_MESSAGE_BYTES), (error) => {
           if (error) failures.push(error);
           pending -= 1;
+
           if (pending === 0) resolve();
         });
       }
     });
-    expect(failures.map((error) => (error as { code?: string }).code)).toEqual([
-      "ERR_BACKPRESSURE",
-    ]);
+    expect(failures).toHaveLength(1);
+    expect(failures[0]).toMatchObject({ code: "ERR_BACKPRESSURE" });
   } finally {
     terminateClient(client);
     await server.dispose();
@@ -92,14 +96,16 @@ test(
   { timeout: TEST_TIMEOUT_MS },
   async () => {
     const { server, client, socket } = await attached();
+
     try {
-      const errors: CodedError[] = [];
-      socket.on("error", (error: Error) => {
-        errors.push(error as CodedError);
+      const errors: Error[] = [];
+      socket.on("error", (error) => {
+        errors.push(error);
       });
       socket.close(1000, "done");
       socket.close(1000, "done");
-      expect(errors.map((error) => error.code)).toEqual(["ERR_POLICY_VIOLATION"]);
+      expect(errors).toHaveLength(1);
+      expect(errors[0]).toMatchObject({ code: "ERR_POLICY_VIOLATION" });
       expect(socket.readyState).toBe(socket.OPEN);
       expect(closeFrameWritten(socket)).toBe(false);
     } finally {
@@ -111,6 +117,7 @@ test(
 
 test("pause and resume mirror the native dispatch flag", { timeout: TEST_TIMEOUT_MS }, async () => {
   const { server, client, socket } = await attached();
+
   try {
     expect(socket.isPaused).toBe(false);
     socket.pause();
@@ -126,14 +133,16 @@ test("pause and resume mirror the native dispatch flag", { timeout: TEST_TIMEOUT
 });
 
 test("ready-state statics are non-writable like ws", () => {
-  expect(() => {
-    (WebSocket as unknown as { CONNECTING: number }).CONNECTING = 5;
-  }).toThrow(TypeError);
+  // `Reflect.set` reports the refusal as `false` where a strict-mode assignment throws, which
+  // is the same non-writable property observed without asserting the constructor to a mutable shape.
+  expect(Reflect.set(WebSocket, "CONNECTING", 5)).toBe(false);
   expect(WebSocket.CONNECTING).toBe(0);
 });
 
 test("binaryType accepts blob at runtime like ws", () => {
   const socket = new WebSocket(null);
+  // SAFETY: `blob` is the runtime-only value `ws` accepts and `@types/ws` omits; the
+  // assertion is that it is stored and reported back.
   socket.binaryType = "blob" as never;
   expect(socket.binaryType).toBe("blob");
 });

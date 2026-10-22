@@ -30,11 +30,15 @@ export function socketAccept(key: string): string {
 
 export function requestHeader(request: IncomingMessage, name: string): string | undefined {
   const value = request.headers[name];
+
   return Array.isArray(value) ? value[0] : value;
 }
 
 export function isSecure(request: IncomingMessage): boolean {
+  // SAFETY: a TLS socket is a `net.Socket` carrying the two flags below; both are absent
+  // on a plain socket, where the read yields undefined and means insecure.
   const socket = request.socket as TlsSocketInfo;
+
   return Boolean(socket.authorized || socket.encrypted);
 }
 
@@ -45,11 +49,14 @@ export function parseProtocols(
   socket: Duplex,
 ): readonly string[] | undefined {
   const header = request.headers["sec-websocket-protocol"];
+
   if (header === undefined) return [];
+
   try {
     return parseProtocolHeader(Array.isArray(header) ? header.join(",") : header);
   } catch {
     abortOrEmit(state, request, socket, 400, "Invalid Sec-WebSocket-Protocol header");
+
     return undefined;
   }
 }
@@ -66,7 +73,9 @@ export function selectProtocol(
   const offered = new Set(protocols);
   const handleProtocols = state.options.handleProtocols;
   const selected = handleProtocols ? handleProtocols(offered, request) : (protocols[0] ?? false);
+
   if (!isProtocolToken(selected)) return false;
+
   return selected;
 }
 
@@ -83,8 +92,10 @@ export function abortOrEmit(
 ): void {
   if (listenerCount(state.listeners, "wsClientError") > 0) {
     emitEvent(state, "wsClientError", createError("ERR_PROTOCOL", message), socket, request);
+
     return;
   }
+
   abortHandshake(socket, code, message, headers);
 }
 
@@ -99,15 +110,18 @@ export function abortHandshake(
 ): void {
   const status = Number.isInteger(code) && code >= STATUS_MIN && code <= STATUS_MAX ? code : 500;
   const body = message || STATUS_CODES[status] || "";
+
   const merged: OutgoingHttpHeaders = {
     Connection: "close",
     "Content-Type": "text/html",
     "Content-Length": Buffer.byteLength(body),
     ...sanitizeHeaders(headers),
   };
+
   const lines = Object.keys(merged)
     .map((name) => `${name}: ${String(merged[name])}`)
     .join("\r\n");
+
   socket.once("finish", () => {
     socket.destroy();
   });
@@ -118,14 +132,18 @@ export function abortHandshake(
 /// forwards them verbatim; this is a deliberate hardening divergence.
 function sanitizeHeaders(headers?: OutgoingHttpHeaders): OutgoingHttpHeaders {
   const safe: OutgoingHttpHeaders = {};
+
   for (const [name, value] of Object.entries(headers ?? {})) {
     if (hasControlCharacters(name)) continue;
     const values = Array.isArray(value) ? value : [value];
+
     const unsafe = values.some(
       (entry) => entry !== undefined && hasControlCharacters(String(entry)),
     );
+
     if (unsafe) continue;
     safe[name] = value;
   }
+
   return safe;
 }

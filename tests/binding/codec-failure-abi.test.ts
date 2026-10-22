@@ -19,23 +19,31 @@ function zigEnumMembers(enumName: string): string[] {
   const body = new RegExp(`pub const ${enumName} = enum\\([^)]*\\) \\{([\\s\\S]*?)\\n\\};`);
   const matched = body.exec(source);
   expect(matched, `no enum ${enumName} in events.zig`).not.toBeNull();
+
   const members = (matched?.[1] ?? "")
     .split("\n")
     .map((line) => /^\s{4}([a-z][a-z0-9_]*)\s*(=\s*\d+)?,/.exec(line)?.[1])
     .filter((name): name is string => name !== undefined);
+
   expect(members.length, `enum ${enumName} parsed empty`).toBeGreaterThan(0);
+
   return members;
 }
 
 /// The camelCase spelling TypeScript uses, which is the Zig name with `_` removed. The
 /// one exception is `unexpected_rsv_2_3`, whose name cannot start with a digit, so it
-/// becomes `unexpectedRsv2or3`; the alias list below is what makes that explicit
+/// becomes `unexpectedRsv2or3`; the rename list below is what makes that explicit
 /// rather than a silent mismatch.
-const RENAMED: Readonly<Record<string, string>> = { unexpected_rsv_2_3: "unexpectedRsv2or3" };
+type Rename = { readonly zigName: string; readonly tsName: string };
+
+const RENAMES: readonly Rename[] = [{ zigName: "unexpected_rsv_2_3", tsName: "unexpectedRsv2or3" }];
 
 function toTsName(zigName: string): string {
-  if (RENAMED[zigName] !== undefined) return RENAMED[zigName];
+  const rename = RENAMES.find((entry) => entry.zigName === zigName);
+
+  if (rename !== undefined) return rename.tsName;
   const [head, ...rest] = zigName.split("_");
+
   return head + rest.map((part) => part[0]?.toUpperCase() + part.slice(1)).join("");
 }
 
@@ -46,9 +54,11 @@ test("every Zig failure is in the TypeScript table, in the same order", () => {
 
 test("every failure the table names exists on the Zig side", () => {
   const members = new Set(zigEnumMembers("Failure"));
+
   const unknown = CODEC_FAILURES.filter((name) =>
     [...members].every((zig) => toTsName(zig) !== name),
   );
+
   expect(unknown).toEqual([]);
 });
 
@@ -66,10 +76,11 @@ test("the Kind vocabulary matches too", () => {
 });
 
 test("the renames are the ones the table claims", () => {
-  // Guards the alias map itself: a new Zig name that TypeScript spells differently has
+  // Guards the rename list itself: a new Zig name that TypeScript spells differently has
   // to be added here, which is the point of the test, not a workaround for it.
   const members = new Set(zigEnumMembers("Failure"));
-  expect([...members].filter((name) => RENAMED[name] !== undefined)).toEqual(
-    Object.keys(RENAMED).filter((name) => members.has(name)),
-  );
+
+  const declared = RENAMES.flatMap((entry) => (members.has(entry.zigName) ? [entry.zigName] : []));
+
+  expect([...members].filter((name) => declared.includes(name))).toEqual(declared);
 });

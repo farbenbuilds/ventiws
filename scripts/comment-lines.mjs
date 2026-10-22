@@ -21,16 +21,20 @@ const BLOCK_CLOSE = "*/";
 export function commentLines(source) {
   const flags = [];
   let inBlock = false;
+
   for (const raw of source.split("\n")) {
     let sawComment = false;
     let quote = null;
     let inRegex = false;
     let index = 0;
+
     while (index < raw.length) {
       const char = raw[index];
       const pair = raw.slice(index, index + 2);
+
       if (inBlock) {
         sawComment = true;
+
         if (pair === BLOCK_CLOSE) inBlock = false;
       } else if (inRegex) {
         // A `/` ends the regex unless it is the escaped one in a character class.
@@ -41,6 +45,7 @@ export function commentLines(source) {
         else if (char === quote) quote = null;
       } else if (pair === LINE_COMMENT || pair === BLOCK_OPEN) {
         sawComment = true;
+
         if (pair === BLOCK_OPEN && !raw.includes(BLOCK_CLOSE, index + 2)) inBlock = true;
         break;
       } else if (char === "/" && startsRegex(raw, index)) {
@@ -48,11 +53,14 @@ export function commentLines(source) {
       } else if (char === "'" || char === '"' || char === "`") {
         quote = char;
       }
+
       index += 1;
     }
+
     if (raw.trim() === "") flags.push(null);
     else flags.push(sawComment);
   }
+
   return flags;
 }
 
@@ -61,6 +69,8 @@ export function commentLines(source) {
 /// nothing. A `//` is a comment either way, so this never hides one.
 function startsRegex(line, index) {
   const previous = line[index - 1];
+
   if (previous === undefined || previous === " " || previous === "\t") return true;
+
   return !/[A-Za-z0-9_$)\]]/.test(previous);
 }

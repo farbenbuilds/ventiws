@@ -2,6 +2,7 @@ import type { NativeEngineLimits } from "./native-limits";
 import type { NativeCodecAddon } from "./native-codec";
 
 export type { NativeEngineLimits };
+
 export type {
   NativeCodecAddon,
   NativeCodecEvent,

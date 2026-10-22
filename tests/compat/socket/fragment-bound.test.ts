@@ -7,17 +7,12 @@
 
 import { expect, test } from "vitest";
 import { engineLimits } from "../../../src/binding/server";
-import { WebSocketServer, type ServerOptions, type WebSocket } from "../../../src/index";
+import { WebSocketServer, type WebSocket } from "../../../src/index";
+import { optionValues } from "../server-options";
 import { TEST_TIMEOUT_MS } from "../../binding/support";
 import { clientFrames } from "../../binding/codec-frames";
 import { openRawClient } from "../../binding/codec-net";
 import { nextSocket, upgradeHarness, waitFor } from "./codec-upgrade-support";
-
-/// `maxFragments` is accepted at runtime by `ws` and declared by neither it nor
-/// `@types/ws`, so a TypeScript caller is refused by both and has to cast.
-function atRuntime(options: Record<string, unknown>): ServerOptions {
-  return options as ServerOptions;
-}
 
 /// The frames a text message split into three pieces, one of which is a two-byte
 /// character followed by its continuation.
@@ -35,6 +30,7 @@ async function withRawPeer(
   const harness = await upgradeHarness(server);
   const accepted = nextSocket(server);
   const raw = await openRawClient(harness.port);
+
   try {
     const socket = await accepted;
     // The refusal cases close on purpose, and an `error` with no listener is thrown
@@ -51,7 +47,7 @@ test(
   "a message within the fragment bound is reassembled",
   { timeout: TEST_TIMEOUT_MS },
   async () => {
-    const server = new WebSocketServer(atRuntime({ noServer: true, maxFragments: 4 }));
+    const server = new WebSocketServer({ noServer: true, maxFragments: 4 });
     await withRawPeer(server, async (socket, write) => {
       const seen: string[] = [];
       socket.on("message", (data: Buffer) => seen.push(data.toString()));
@@ -69,10 +65,10 @@ test(
     // The option is reported on `server.options` because `ws` reports it, and the bound
     // that is actually applied is the compiled one, so a caller can read what it is
     // competing with rather than guessing.
-    const server = new WebSocketServer(atRuntime({ noServer: true }));
+    const server = new WebSocketServer({ noServer: true });
+
     try {
-      const options = server.options as unknown as Record<string, unknown>;
-      expect(options.maxFragments).toBe(16384);
+      expect(optionValues(server.options).get("maxFragments")).toBe(16384);
       expect(engineLimits().maxFragments).toBe(16384);
     } finally {
       server.close();
@@ -89,9 +85,11 @@ test("too many fragments closes 1008", { timeout: TEST_TIMEOUT_MS }, async () =>
     const closed = new Promise<number>((resolve) => {
       socket.on("close", (code: number) => resolve(code));
     });
+
     // One byte per frame, which is the shape the bound exists for: the reassembly
     // cost is the same either way and the per-frame work is not.
     const limit = engineLimits().maxFragments;
+
     const pieces = [
       { opcode: 0x2, payload: Buffer.from([0x41]), fin: false },
       ...Array.from({ length: limit }, () => ({
@@ -101,6 +99,7 @@ test("too many fragments closes 1008", { timeout: TEST_TIMEOUT_MS }, async () =>
       })),
       { opcode: 0x0, payload: Buffer.from([0x43]) },
     ];
+
     write(clientFrames(pieces));
     expect(await closed).toBe(1008);
   });

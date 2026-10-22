@@ -18,8 +18,12 @@ const STAGE_SCRIPT = read("scripts/stage-publish.mjs");
 const TARGET_TS = read("src/binding/target.ts");
 const GITIGNORE = read(".gitignore");
 
+type PlatformsManifest = { readonly platforms: string[] };
+
 function declaredPlatforms(): string[] {
-  return (JSON.parse(PLATFORM_MANIFEST) as { platforms: string[] }).platforms.sort();
+  const manifest: PlatformsManifest = JSON.parse(PLATFORM_MANIFEST);
+
+  return manifest.platforms.sort();
 }
 
 type Shard = { readonly os: string; readonly platform: string };
@@ -59,6 +63,7 @@ test("the release gate reads the manifest, not a shard's scaffold", () => {
   expect(STAGE_SCRIPT).toContain("src/builds/platforms.json");
   expect(STAGE_SCRIPT).not.toContain("optionalDependencies ?? {}");
 });
+
 test("every published platform is built by a runner in the release workflow", () => {
   // The schedule is what decides which platform is compiled; a target with no matrix
   // entry is a package the manifest declares, the release fails on, and no user gets.
@@ -69,15 +74,17 @@ test("each platform is built on a runner that is native for it", () => {
   // Family alone is not the claim: `ubuntu-24.04` is x64 and `ubuntu-24.04-arm` is arm64,
   // and a cross-compiled addon links a foreign BoringSSL that misbehaves later. The
   // pairing is asserted target by target, so the wrong architecture fails here.
-  const native: Record<string, string> = {
-    "linux-x64-gnu": "ubuntu-24.04",
-    "linux-arm64-gnu": "ubuntu-24.04-arm",
-    "darwin-x64": "macos-15-intel",
-    "darwin-arm64": "macos-15",
-  };
+  const native = new Map([
+    ["linux-x64-gnu", "ubuntu-24.04"],
+    ["linux-arm64-gnu", "ubuntu-24.04-arm"],
+    ["darwin-x64", "macos-15-intel"],
+    ["darwin-arm64", "macos-15"],
+  ]);
+
   const shards = scheduledShards();
   expect(shards.length).toBeGreaterThan(0);
-  for (const shard of shards) expect(shard.os).toBe(native[shard.platform]);
+
+  for (const shard of shards) expect(shard.os).toBe(native.get(shard.platform));
 });
 
 test("the musl platform is built in a musl container, not on a glibc runner", () => {

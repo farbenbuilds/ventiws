@@ -10,6 +10,7 @@ type RuntimeGlobals = {
 };
 
 export function runtimeGlobals(): RuntimeGlobals {
+  // SAFETY: TypeScript declares neither host's optional marker on the global object.
   return globalThis as RuntimeGlobals;
 }
 
@@ -19,8 +20,12 @@ export function runtimeGlobals(): RuntimeGlobals {
 export function runtimeName(): RuntimeName {
   const versions: Record<string, string | undefined> = process.versions;
   const globals = runtimeGlobals();
+
   if (globals.Deno !== undefined || versions.deno !== undefined) return "deno";
+
   if (globals.Bun !== undefined || versions.bun !== undefined) return "bun";
+
   if (versions.node !== undefined) return "node";
+
   return "unknown";
 }

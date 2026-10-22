@@ -7,12 +7,19 @@ import { createServer } from "node:net";
 import { WebSocket as WsClient } from "ws";
 import { expect, test } from "vitest";
 import { WebSocket } from "../../src/index";
+import type { ClientOptions } from "../../src/index";
 import { TEST_TIMEOUT_MS } from "../binding/support";
-import { undeclared } from "../compat/client/undeclared";
+import { boundPort } from "./bound-port";
 
 type ClientLike = {
   terminate(): void;
-  on(event: "error", listener: (error: Error) => void): unknown;
+  on(event: "error", listener: (error: Error) => void): void;
+};
+
+/// The two constructors' independent answers, reduced to what a comparison reads.
+type Refusal = {
+  readonly name: string;
+  readonly message: string;
 };
 
 /// Sends one opening handshake at a peer that reads the head and hangs up, and resolves
@@ -27,9 +34,9 @@ function offer(build: (url: string) => ClientLike): Promise<string | undefined> 
         resolve(protocolHeader(data.toString("latin1")));
       });
     });
+
     listener.listen(0, "127.0.0.1", () => {
-      const address = listener.address();
-      const port = typeof address === "object" && address !== null ? address.port : 0;
+      const port = boundPort(listener);
       const socket = build(`ws://127.0.0.1:${port}/`);
       socket.on("error", (error) => {
         socket.terminate();
@@ -46,20 +53,35 @@ function protocolHeader(head: string): string | undefined {
       return line.slice(line.indexOf(":") + 1).trim();
     }
   }
+
   return undefined;
 }
 
 /// The constructor's thrown error as a comparable record. A constructor that does not
 /// throw is reported rather than left to dial in the background.
-function refusal(build: () => unknown): { name: string; message: string } {
+function refusal(build: () => ClientLike): Refusal {
   try {
-    const socket = build() as ClientLike;
+    const socket = build();
     socket.on("error", () => undefined);
+
     return { name: "none", message: "no throw" };
   } catch (error) {
-    const failure = error as Error;
-    return { name: failure.constructor.name, message: failure.message };
+    return {
+      name: error instanceof Error ? error.constructor.name : "Thrown",
+      message: error instanceof Error ? error.message : String(error),
+    };
   }
+}
+
+/// The options record the table sends; `protocols` is the field `ws` 8.22.0 reads.
+type ProtocolOptions = ClientOptions & {
+  readonly protocols: string | string[];
+};
+
+function protocolOptions(protocols: string | string[]): ClientOptions {
+  const options: ProtocolOptions = { protocols };
+
+  return options;
 }
 
 /// Each row: the name, the constructor's subprotocol argument, the options record, and
@@ -68,7 +90,7 @@ function refusal(build: () => unknown): { name: string; message: string } {
 type ProtocolCase = readonly [
   name: string,
   protocols: string | string[] | undefined,
-  options: Record<string, unknown>,
+  options: ProtocolOptions,
   header: string,
 ];
 
@@ -83,8 +105,8 @@ test.each(CASES)(
   "%s reaches the wire like ws",
   { timeout: TEST_TIMEOUT_MS },
   async (_name, protocols, options, header) => {
-    const reference = await offer((url) => new WsClient(url, protocols, undeclared(options)));
-    const actual = await offer((url) => new WebSocket(url, protocols, undeclared(options)));
+    const reference = await offer((url) => new WsClient(url, protocols, options));
+    const actual = await offer((url) => new WebSocket(url, protocols, options));
     expect(reference).toBe(header);
     expect(actual).toBe(header);
   },
@@ -93,7 +115,7 @@ test.each(CASES)(
 /// The two-argument overload: an options record in the subprotocol slot is promoted by
 /// `ws`, and its `protocols` field is the list that goes on the wire.
 test("the promoted options record carries protocols", { timeout: TEST_TIMEOUT_MS }, async () => {
-  const options = undeclared({ protocols: ["foo"] });
+  const options = protocolOptions(["foo"]);
   const reference = await offer((url) => new WsClient(url, options));
   const actual = await offer((url) => new WebSocket(url, options));
   expect(reference).toBe("foo");
@@ -102,11 +124,13 @@ test("the promoted options record carries protocols", { timeout: TEST_TIMEOUT_MS
 
 /// `new WebSocket(address, null)` reaches the parser as `[null]`, which `ws` refuses with
 /// its one subprotocol `SyntaxError`. `null` is not `undefined`, so it must not fall
-/// through to the options record; `null as never` is the same runtime shape a JavaScript
-/// caller sends.
+/// through to the options record.
 test("a null subprotocol argument is refused like ws", () => {
-  const reference = refusal(() => new WsClient("ws://127.0.0.1:1/", null as never));
-  const actual = refusal(() => new WebSocket("ws://127.0.0.1:1/", null as never));
+  // SAFETY: The table exists to compare the runtime value `null`, which the overload
+  // types exclude, through the same seam both constructors' JavaScript callers use.
+  const nullProtocols = null as never;
+  const reference = refusal(() => new WsClient("ws://127.0.0.1:1/", nullProtocols));
+  const actual = refusal(() => new WebSocket("ws://127.0.0.1:1/", nullProtocols));
   expect(reference.name).toBe("SyntaxError");
   expect(actual.name).toBe(reference.name);
   expect(actual.message).toBe(reference.message);

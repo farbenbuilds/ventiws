@@ -2,11 +2,13 @@ import { createServer } from "node:http";
 import { Server } from "socket.io";
 import type { EchoConnection, EchoServer, EchoServerOptions } from "../echo-types.ts";
 import { ECHO_EVENT, toBinaryBuffer } from "./socket-io-binary.ts";
+import type { SocketIoPayload } from "./socket-io-binary.ts";
 
 const readPort = (address: { readonly port: number } | string | null): number => {
-  if (address === null || typeof address === "string") {
+  if (address === null || !(address instanceof Object)) {
     throw new Error("the server reported no TCP address");
   }
+
   return address.port;
 };
 
@@ -15,6 +17,7 @@ const readPort = (address: { readonly port: number } | string | null): number =>
 /// message, and that overhead is the point of the row.
 export const socketIoServer = (options: EchoServerOptions): EchoServer => {
   const httpServer = createServer();
+
   const io = new Server(httpServer, {
     transports: ["websocket"],
     allowUpgrades: false,
@@ -22,24 +25,29 @@ export const socketIoServer = (options: EchoServerOptions): EchoServer => {
     maxHttpBufferSize: options.maxPayloadBytes,
     serveClient: false,
   });
+
   const errors: ((error: Error) => void)[] = [];
   let onConnection: ((connection: EchoConnection) => void) | null = null;
 
   io.on("connection", (socket) => {
     const connectionErrors: ((error: Error) => void)[] = [];
+
     const connection: EchoConnection = {
       send: (payload) => {
         socket.emit(ECHO_EVENT, payload);
       },
       onMessage: (listener) => {
-        socket.on(ECHO_EVENT, (payload: unknown) => {
+        socket.on(ECHO_EVENT, (payload: SocketIoPayload) => {
           const binary = toBinaryBuffer(payload);
+
           if (binary === null) {
             for (const fail of connectionErrors) {
               fail(new Error("Socket.IO delivered a non-binary payload"));
             }
+
             return;
           }
+
           listener(binary);
         });
       },
@@ -47,6 +55,7 @@ export const socketIoServer = (options: EchoServerOptions): EchoServer => {
         connectionErrors.push(listener);
       },
     };
+
     socket.on("error", (error: Error) => {
       for (const fail of connectionErrors) fail(error);
     });

@@ -78,7 +78,10 @@ export type FeedOutcome =
 export function decodeOutcome(value: number): FeedOutcome {
   if (value >= 0) return { kind: "consumed", bytes: value };
   const ordinal = -value;
+
   if (ordinal === CODEC_OUTCOME.backpressure) return { kind: "backpressure" };
+
   if (ordinal === CODEC_OUTCOME.failed) return { kind: "failed" };
+
   return { kind: "stale-handle" };
 }

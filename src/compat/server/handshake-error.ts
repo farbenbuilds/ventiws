@@ -4,24 +4,24 @@ import type { Duplex } from "node:stream";
 /// before validating anything, because a socket failing mid-handshake must be destroyed rather
 /// than leaked; `completeUpgrade` removes it after the 101, so no leftover handler that only
 /// destroys can race the terminal latch and discard the close code. A per-socket closure, so
-/// the reference stored on the socket is the one `removeListener` matches: a shared function
-/// would need `this` to find its socket, which the anti-OOP rule bans.
-const HANDSHAKE_ERROR = Symbol("ventiws.handshakeError");
-
-type HandshakeSocket = Duplex & { [HANDSHAKE_ERROR]?: () => void };
+/// the reference matches the one `removeListener` was given; a shared function would need
+/// `this` to find its socket, which the anti-OOP rule bans.
+const HANDSHAKE_ERRORS = new WeakMap<Duplex, () => void>();
 
 export function attachHandshakeError(socket: Duplex): void {
   const handler = (): void => {
     socket.destroy();
   };
-  (socket as HandshakeSocket)[HANDSHAKE_ERROR] = handler;
+
+  HANDSHAKE_ERRORS.set(socket, handler);
   socket.on("error", handler);
 }
 
 export function detachHandshakeError(socket: Duplex): void {
-  const record = socket as HandshakeSocket;
-  const handler = record[HANDSHAKE_ERROR];
+  const handler = HANDSHAKE_ERRORS.get(socket);
+
   if (handler === undefined) return;
+
   socket.removeListener("error", handler);
-  delete record[HANDSHAKE_ERROR];
+  HANDSHAKE_ERRORS.delete(socket);
 }

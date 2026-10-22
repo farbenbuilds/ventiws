@@ -41,12 +41,17 @@ function drain(
   first: CodecFirst | null,
 ): void {
   const handle = codecOf(state);
+
   if (handle === null) return;
+
   if (isDeliveryPaused(state)) return;
+
   if (state.allowSynchronousEvents === false) {
     drainDeferred(state, handle, released, resume);
+
     return;
   }
+
   if (first !== null) {
     dispatch(
       state,
@@ -56,12 +61,16 @@ function drain(
       first.payload,
       first.ends,
     );
+
     if (state.readyState === CLOSED) return;
   }
+
   for (;;) {
     const next = nextCodecEvent(handle, state.binaryType === "fragments");
+
     if (next === null) return;
     dispatch(state, handle, kindOf(next[0]), next[0] & 0xffff, next[1], next[2] ?? null);
+
     if (state.readyState === CLOSED) return;
   }
 }
@@ -78,20 +87,26 @@ function drainDeferred(
   resume: () => void,
 ): void {
   let honoured = released;
+
   while (selectCodecEvent(handle)) {
     const event = selectedCodecEvent(handle);
+
     if (!honoured && isDeferrable(event)) {
       pauseUntilNextTick(state, resume);
+
       return;
     }
+
     honoured = false;
     // Read inside the select/take window: the only one where the reassembly buffer is
     // still this message, so fragments are readable here or not at all. Only a socket
     // that asked for `fragments` pays for the read, as on the synchronous path.
     const ends = state.binaryType === "fragments" ? codecFragmentEnds(handle) : null;
     takeCodecEvent(handle);
+
     if (event === null) continue;
     dispatch(state, handle, event.kind, event.code, event.payload, ends);
+
     if (state.readyState === CLOSED) return;
   }
 }

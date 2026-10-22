@@ -5,14 +5,10 @@
 import { afterEach, expect, test, vi } from "vitest";
 import { runtimeName } from "../../src/binding/runtime";
 
-function versions(): Record<string, string | undefined> {
-  return process.versions as Record<string, string | undefined>;
-}
-
 afterEach(() => {
   vi.unstubAllGlobals();
-  delete versions().deno;
-  delete versions().bun;
+  delete process.versions.deno;
+  delete process.versions.bun;
 });
 
 test("a Node host reports node", () => {
@@ -38,9 +34,9 @@ test("Deno wins when both runtime globals are present", () => {
 
 test("the versions keys identify a runtime with no global", () => {
   // A bundler's `node:process` shim can carry the versions key without the global.
-  versions().deno = "2.8.0";
+  process.versions.deno = "2.8.0";
   expect(runtimeName()).toBe("deno");
-  delete versions().deno;
-  versions().bun = "1.2.0";
+  delete process.versions.deno;
+  process.versions.bun = "1.2.0";
   expect(runtimeName()).toBe("bun");
 });

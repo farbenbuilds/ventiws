@@ -4,7 +4,7 @@
 // sitting behind the messages in the same read is not delivered before them.
 
 import { expect, test } from "vitest";
-import { WebSocketServer, type ServerOptions } from "../../../src/index";
+import { WebSocketServer } from "../../../src/index";
 import { TEST_TIMEOUT_MS } from "../../binding/support";
 import { clientFrames } from "../../binding/codec-frames";
 import { openRawClient } from "../../binding/codec-net";
@@ -23,17 +23,13 @@ const MESSAGE_THEN_CLOSE = clientFrames([
   { opcode: 0x8, payload: Buffer.from([0x03, 0xe8]) },
 ]);
 
-/// `@types/ws` declares this; the cast keeps a suite from testing a different configuration.
-function atRuntime(options: Record<string, unknown>): ServerOptions {
-  return options as ServerOptions;
-}
-
 /// The turn index advances only when this loop advances it, so the question answered is whether the
 /// messages *shared* a turn, not how late the transport was. One turn is synchronous, three is deferral.
 async function turnsFor(server: WebSocketServer, count: number): Promise<number> {
   const harness = await upgradeHarness(server);
   const accepted = nextSocket(server);
   const raw = await openRawClient(harness.port);
+
   try {
     const socket = await accepted;
     const arrivals: number[] = [];
@@ -43,11 +39,14 @@ async function turnsFor(server: WebSocketServer, count: number): Promise<number>
     });
     socket.on("error", () => undefined);
     raw.write(BATCH);
+
     for (let step = 0; step < 40 && arrivals.length < count; step += 1) {
       turn += 1;
       await new Promise<void>((resolve) => setImmediate(resolve));
     }
+
     await waitFor(() => arrivals.length === count);
+
     return new Set(arrivals).size;
   } finally {
     raw.destroy();
@@ -60,6 +59,7 @@ async function closeOrder(server: WebSocketServer): Promise<string[]> {
   const harness = await upgradeHarness(server);
   const accepted = nextSocket(server);
   const raw = await openRawClient(harness.port);
+
   try {
     const socket = await accepted;
     const order: string[] = [];
@@ -69,6 +69,7 @@ async function closeOrder(server: WebSocketServer): Promise<string[]> {
     socket.on("error", () => undefined);
     raw.write(MESSAGE_THEN_CLOSE);
     await waitFor(() => order.length === 2);
+
     return order;
   } finally {
     raw.destroy();
@@ -78,6 +79,7 @@ async function closeOrder(server: WebSocketServer): Promise<string[]> {
 
 test("the default delivers every message in one turn", { timeout: TEST_TIMEOUT_MS }, async () => {
   const server = new WebSocketServer({ noServer: true });
+
   try {
     // `true` is the default, and the synchronous path is what every existing caller is running.
     expect(await turnsFor(server, 3)).toBe(1);
@@ -87,7 +89,8 @@ test("the default delivers every message in one turn", { timeout: TEST_TIMEOUT_M
 });
 
 test("false puts each message on its own turn", { timeout: TEST_TIMEOUT_MS }, async () => {
-  const server = new WebSocketServer(atRuntime({ noServer: true, allowSynchronousEvents: false }));
+  const server = new WebSocketServer({ noServer: true, allowSynchronousEvents: false });
+
   try {
     // The order has to survive: the drain stops at the first deferrable event and resumes next tick.
     expect(await turnsFor(server, 3)).toBe(3);
@@ -100,9 +103,8 @@ test(
   "a close behind a deferred message still arrives after it",
   { timeout: TEST_TIMEOUT_MS },
   async () => {
-    const server = new WebSocketServer(
-      atRuntime({ noServer: true, allowSynchronousEvents: false }),
-    );
+    const server = new WebSocketServer({ noServer: true, allowSynchronousEvents: false });
+
     try {
       // A buffered deferral gets this wrong: a `close` in the same read would be dispatched immediately.
       expect(await closeOrder(server)).toEqual(["message:last", "close"]);
@@ -114,6 +116,7 @@ test(
 
 test("a close is not deferred by default", { timeout: TEST_TIMEOUT_MS }, async () => {
   const server = new WebSocketServer({ noServer: true });
+
   try {
     // The option is a real choice, not a slower path for everything.
     expect(await closeOrder(server)).toEqual(["message:last", "close"]);

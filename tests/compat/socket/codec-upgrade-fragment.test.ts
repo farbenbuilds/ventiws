@@ -17,6 +17,7 @@ test(
     const accepted = nextSocket(harness.server);
     // No `ws` client: a second connection would leave the fragments unread.
     const raw = await openRawClient(harness.port);
+
     try {
       const socket = await accepted;
       const messages: string[] = [];

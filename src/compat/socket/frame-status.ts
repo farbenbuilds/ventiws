@@ -43,9 +43,11 @@ export function encodeFailure(ordinal: number): FrameStatus {
 /// error behind an outcome that has none.
 export function frameError(status: FailureStatus): Error {
   if (status === "closed" || status === "closing") return noTransportError();
+
   // The same code the engine's own backpressure uses, so handling one handles the other.
   if (status === "backpressure") {
     return createError("ERR_BACKPRESSURE", "ventiws: the codec's event queue is full");
   }
+
   return statusError(status);
 }

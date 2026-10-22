@@ -31,8 +31,10 @@ export function addressOf(state: ServerState): AddressInfo | string | null {
   if (state.normalizedOptions.noServer) {
     throw createError("ERR_INVALID_STATE", 'The server is operating in "noServer" mode');
   }
+
   if (state.server === null) return null;
-  return state.server.address() as AddressInfo | string | null;
+
+  return state.server.address();
 }
 
 /// Mirrors `ws` close semantics: the callback is a one-time `close` listener,
@@ -45,30 +47,40 @@ export function closeWebSocketServer(state: ServerState, callback?: (error?: Err
         callback(createError("ERR_SOCKET_CLOSED", "The server is not running"));
       });
     }
+
     process.nextTick(() => {
       emitCloseAgain(state);
     });
+
     return;
   }
+
   if (callback) {
     onceEvent(state, "close", () => {
       callback();
     });
   }
+
   if (state.lifecycle === "closing") return;
   state.lifecycle = "closing";
   const external = state.normalizedOptions.noServer || state.normalizedOptions.server !== null;
+
   if (external) {
     detachServer(state);
+
     if (!state.normalizedOptions.clientTracking || clientCount(state) === 0) {
       process.nextTick(() => {
         emitClose(state);
       });
+
       return;
     }
+
     state.shouldEmitClose = true;
+
     return;
   }
+
   const httpServer = state.server;
   detachServer(state);
   httpServer?.close(() => {

@@ -1,5 +1,6 @@
 import type { EmitterState, EventMap, EventName } from "../../types/events";
 import { createError } from "../errors";
+import { isNumberValue } from "../scalars";
 import { listenerCount } from "./registry";
 
 /// Raises Node's listener-leak warning when a registration passes the limit. The guard is
@@ -12,8 +13,10 @@ export function warnOnOverflow<E extends EventMap>(
 ): void {
   if (state.maxListeners <= 0) return;
   const count = listenerCount(state.listeners, event);
+
   if (count <= state.maxListeners) return;
   const name = String(event);
+
   if (state.warned.has(name)) return;
   state.warned.add(name);
   process.emitWarning(createOverflowWarning(count, name, state.maxListeners));
@@ -27,8 +30,10 @@ export function forgetWarning<E extends EventMap>(
 ): void {
   if (event === undefined) {
     state.warned.clear();
+
     return;
   }
+
   state.warned.delete(String(event));
 }
 
@@ -37,7 +42,9 @@ function createOverflowWarning(count: number, event: string, limit: number): Err
     `Possible EventEmitter memory leak detected. ${count} ${event} listeners added to ` +
       `the emitter. MaxListeners is ${limit}. Use emitter.setMaxListeners() to increase limit`,
   );
+
   warning.name = "MaxListenersExceededWarning";
+
   return warning;
 }
 
@@ -45,13 +52,14 @@ function createOverflowWarning(count: number, event: string, limit: number): Err
 /// `EventEmitter` and a caller that relies on the rejection sees a `TypeError` upstream
 /// and a silent `Infinity` here. A fractional value is accepted, as Node accepts it.
 export function assertListenerLimit(count: number): number {
-  if (typeof count !== "number") {
+  if (!isNumberValue(count)) {
     throw createError(
       "ERR_INVALID_OPTION",
       'The "setMaxListeners" argument must be of type number. Received ' + String(count),
       TypeError,
     );
   }
+
   if (count < 0 || Number.isNaN(count)) {
     throw createError(
       "ERR_INVALID_OPTION",
@@ -59,5 +67,6 @@ export function assertListenerLimit(count: number): number {
       RangeError,
     );
   }
+
   return count;
 }

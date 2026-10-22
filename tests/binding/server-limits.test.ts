@@ -7,13 +7,16 @@ test("maxConnections caps accepted peers", { timeout: TEST_TIMEOUT_MS }, async (
   const { server, port } = await startAndWait({ host: "127.0.0.1", port: 0, maxConnections: 1 });
   let first: WebSocket | undefined;
   let second: WebSocket | undefined;
+
   try {
     first = new WebSocket(`ws://127.0.0.1:${port}/`);
     second = new WebSocket(`ws://127.0.0.1:${port}/`);
+
     const refused = new Promise<void>((resolve) => {
       second?.addEventListener("close", () => resolve());
       second?.addEventListener("error", () => resolve());
     });
+
     await server.waitFor("connectionOpen");
     await refused;
     await server.settle();
@@ -34,6 +37,7 @@ test(
   async () => {
     const blocker = await occupyPort();
     const server = fixture({ host: "127.0.0.1", port: blocker.port });
+
     try {
       expect(() => listenServer(server.handle)).toThrow(/AddressInUse/);
     } finally {
@@ -42,6 +46,7 @@ test(
     }
 
     const replacement = start({ host: "127.0.0.1", port: blocker.port });
+
     try {
       await replacement.waitFor("listening");
     } finally {

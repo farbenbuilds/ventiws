@@ -11,17 +11,21 @@ import { TEST_TIMEOUT_MS } from "./codec-net";
 export function readBytes(socket: Socket, count: number): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     let buffered: Buffer = Buffer.alloc(0);
+
     const timer = setTimeout(() => {
       socket.off("data", onData);
       reject(new Error(`only ${buffered.length} of ${count} bytes arrived within the timeout`));
     }, TEST_TIMEOUT_MS);
+
     const onData = (chunk: Buffer): void => {
       buffered = Buffer.concat([buffered, chunk]);
+
       if (buffered.length < count) return;
       clearTimeout(timer);
       socket.off("data", onData);
       resolve(buffered);
     };
+
     socket.on("data", onData);
     socket.on("error", (error: Error) => {
       clearTimeout(timer);

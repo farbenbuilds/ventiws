@@ -7,8 +7,10 @@ export function formatExtension(
   parameters: Readonly<Record<string, string>>,
 ): string {
   const parts = [name];
+
   for (const [key, value] of Object.entries(parameters)) {
     parts.push(value === "" ? key : `${key}=${value}`);
   }
+
   return parts.join("; ");
 }

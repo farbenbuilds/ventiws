@@ -11,8 +11,15 @@ import { normalizeParameters, WINDOW_BITS, type Normalized } from "./params";
 export type AcceptedDeflate = {
   readonly name: string;
   /// In the order `ws` writes them, which is what a `ws` peer's tests compare against.
-  readonly parameters: Readonly<Record<string, string>>;
+  readonly parameters: DeflateParameters;
   readonly header: string;
+};
+
+export type DeflateParameters = {
+  server_no_context_takeover?: string;
+  client_no_context_takeover?: string;
+  server_max_window_bits?: string;
+  client_max_window_bits?: string;
 };
 
 /// Picks one of a client's offers, or refuses every one of them. A refusal is returned
@@ -29,16 +36,21 @@ export function acceptAsServer(
   options: NormalizedPerMessageDeflate | false,
 ): DeflateNegotiation | null {
   if (options === false) return null;
+
   if (offers.length === 0) return null;
 
   for (const offer of offers) {
     const normalized = normalizeParameters(offer.parameters, true);
+
     if (normalized === null) {
       return { refusal: "Invalid or unacceptable Sec-WebSocket-Extensions header" };
     }
+
     if (declines(options, normalized)) continue;
+
     return { accepted: answer(options, normalized) };
   }
+
   return { refusal: "Invalid or unacceptable Sec-WebSocket-Extensions header" };
 }
 
@@ -50,43 +62,53 @@ export function acceptAsClient(
 ): { readonly accepted: AcceptedDeflate } | { readonly refusal: string } | null {
   if (options === false) return null;
   const normalized = normalizeParameters(response.parameters, false);
+
   if (normalized === null) {
     return { refusal: "Invalid Sec-WebSocket-Extensions header" };
   }
+
   // The inflater is one-shot: a server reusing its window makes the second message undecodable.
   if (normalized.server_no_context_takeover !== true) {
     return { refusal: 'Missing parameter "server_no_context_takeover"' };
   }
+
   if (normalized.client_no_context_takeover && options.clientNoContextTakeover === false) {
     return { refusal: 'Unexpected parameter "client_no_context_takeover"' };
   }
+
   const asked = normalized.client_max_window_bits;
+
   if (asked === undefined) return { accepted: answer(options, normalized) };
+
   // A valueless form here is a server that declined to choose, which RFC 7692
   // section 7.1.2.1 forbids. `acceptAsServer` never emits one, so this only fires
   // against a non-conforming peer.
   if (asked === true) return { refusal: 'Value must be specified for "client_max_window_bits"' };
   const wanted = options.clientMaxWindowBits;
+
   if (wanted === false) {
     return { refusal: 'Unexpected or invalid parameter "client_max_window_bits"' };
   }
-  if (typeof wanted === "number" && asked > wanted) {
+
+  if (wanted !== undefined && asked > wanted) {
     return { refusal: 'Unexpected or invalid parameter "client_max_window_bits"' };
   }
-  if (typeof asked === "number" && asked < WINDOW_BITS) {
+
+  if (asked < WINDOW_BITS) {
     // Refused, not silently accepted: a wider window would emit a stream the peer's
     // inflater rejects mid-message.
     return { refusal: "Server requested a window this implementation cannot use" };
   }
+
   return { accepted: answer(options, normalized) };
 }
 
 /// 15 is the only window libdeflate emits, so only a client window below it is written.
 function narrowClientWindow(
-  parameters: Record<string, string>,
+  parameters: DeflateParameters,
   option: number | false | undefined,
 ): void {
-  if (typeof option !== "number" || option >= WINDOW_BITS) return;
+  if (option === false || option === undefined || option >= WINDOW_BITS) return;
   parameters.client_max_window_bits = String(option);
 }
 
@@ -96,11 +118,13 @@ function narrowClientWindow(
 /// side will do. Context takeover is always declined: a one-shot codec carrying a window
 /// would corrupt the second message.
 function answer(options: NormalizedPerMessageDeflate, offer: Normalized): AcceptedDeflate {
-  const parameters: Record<string, string> = { ...NO_CONTEXT_TAKEOVER };
+  const parameters: DeflateParameters = { ...NO_CONTEXT_TAKEOVER };
+
   if (offer.server_no_context_takeover) parameters.server_no_context_takeover = "";
   // The server window is never written: 15 is all this compressor emits, and a below-15
   // option is declined by `serverWindowUsable` before an answer is built.
   narrowClientWindow(parameters, options.clientMaxWindowBits);
+
   return {
     name: PERMESSAGE_DEFLATE,
     parameters,

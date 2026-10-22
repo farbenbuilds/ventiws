@@ -9,8 +9,8 @@
 
 import { expect, test } from "vitest";
 import { createServer, type Server } from "node:http";
-import type { AddressInfo } from "node:net";
 import { WebSocket, WebSocketServer } from "../../../src/index";
+import { boundPort } from "../address-support";
 import { TEST_TIMEOUT_MS } from "../../binding/support";
 
 /// A `WebSocketServer` behind a real HTTP server over one UNIX domain socket.
@@ -30,6 +30,7 @@ async function ipcServer(): Promise<{
   await new Promise<void>((resolve) => {
     http.listen(socketPath, resolve);
   });
+
   return {
     socketPath,
     server,
@@ -48,15 +49,18 @@ test("a ws+unix address dials the socket and echoes", { timeout: TEST_TIMEOUT_MS
   const harness = await ipcServer();
   const socket = new WebSocket(`ws+unix:${harness.socketPath}:/chat`);
   socket.on("error", () => undefined);
+
   try {
     await new Promise<void>((resolve) => {
       socket.once("open", () => resolve());
     });
+
     // The request target after the separator is what the peer routes on, so a
     // mismatch here shows up as a server that never sees the connection.
     const echoed = new Promise<string>((resolve) => {
       socket.once("message", (data) => resolve(data.toString()));
     });
+
     socket.send("hello");
     expect(await echoed).toBe("echo:hello");
   } finally {
@@ -69,6 +73,7 @@ test("a ws+unix address with no path requests the root", { timeout: TEST_TIMEOUT
   const harness = await ipcServer();
   const socket = new WebSocket(`ws+unix:${harness.socketPath}`);
   socket.on("error", () => undefined);
+
   try {
     await new Promise<void>((resolve) => {
       socket.once("open", () => resolve());
@@ -94,12 +99,15 @@ test("an unknown scheme is still refused", () => {
 
 test("a TCP address is unaffected", async () => {
   const server = new WebSocketServer({ port: 0 });
+
   const accepted = new Promise<void>((resolve) => {
     server.once("connection", () => resolve());
   });
-  const { port } = server.address() as AddressInfo;
+
+  const port = boundPort(server.address());
   const socket = new WebSocket(`ws://127.0.0.1:${port}/chat`);
   socket.on("error", () => undefined);
+
   try {
     await new Promise<void>((resolve) => {
       socket.once("open", () => resolve());

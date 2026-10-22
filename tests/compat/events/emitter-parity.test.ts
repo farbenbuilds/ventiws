@@ -1,9 +1,10 @@
 import { expect, test } from "vitest";
-import { target } from "./emitter-support";
+import { emitNonError, setLimitAtRuntime, target } from "./emitter-support";
 
 test("registration methods return the emitter for chaining", () => {
   const { emitter, self } = target();
   const handler = (): void => {};
+
   expect(emitter.on("open", handler)).toBe(self);
   expect(emitter.addListener("open", handler)).toBe(self);
   expect(emitter.once("open", handler)).toBe(self);
@@ -21,8 +22,8 @@ test("registration methods return the emitter for chaining", () => {
 /// rejection.
 test("setMaxListeners refuses a non-number the way Node does", () => {
   const { emitter } = target();
-  expect(() => emitter.setMaxListeners(undefined as never)).toThrow(TypeError);
-  expect(() => emitter.setMaxListeners("4" as never)).toThrow(TypeError);
+  expect(() => setLimitAtRuntime(emitter, undefined)).toThrow(TypeError);
+  expect(() => setLimitAtRuntime(emitter, "4")).toThrow(TypeError);
 });
 
 /// Node accepts a fractional limit; only a non-number, a negative, and `NaN` are
@@ -38,12 +39,16 @@ test("setMaxListeners accepts a fractional limit and refuses out-of-range ones",
 test("unhandled non-Error values are wrapped like Node", () => {
   const { emitter } = target();
   let thrown: unknown;
+
   try {
-    emitter.emit("error", "boom" as never);
+    emitNonError(emitter);
   } catch (error) {
     thrown = error;
   }
+
   expect(thrown).toBeInstanceOf(Error);
-  expect((thrown as Error).message).toBe("Unhandled error. ('boom')");
-  expect((thrown as { context?: unknown }).context).toBe("boom");
+  expect(thrown).toMatchObject({
+    message: "Unhandled error. ('boom')",
+    context: "boom",
+  });
 });

@@ -4,9 +4,11 @@ import { target } from "./emitter-support";
 test("keeps duplicate handlers and dispatches them in registration order", () => {
   const { emitter } = target();
   const seen: string[] = [];
+
   const handler = (value: string): void => {
     seen.push(value);
   };
+
   emitter.on("message", handler);
   emitter.on("message", handler);
   expect(emitter.emit("message", "a", 1)).toBe(true);
@@ -17,10 +19,12 @@ test("keeps duplicate handlers and dispatches them in registration order", () =>
 test("once runs a handler once and is removed before it throws", () => {
   const { emitter } = target();
   let calls = 0;
+
   const handler = (): void => {
     calls += 1;
     throw new Error("boom");
   };
+
   emitter.once("open", handler);
   expect(() => emitter.emit("open")).toThrow("boom");
   expect(emitter.emit("open")).toBe(false);
@@ -30,9 +34,11 @@ test("once runs a handler once and is removed before it throws", () => {
 test("removeListener matches once wrappers through their original handler", () => {
   const { emitter } = target();
   let calls = 0;
+
   const handler = (): void => {
     calls += 1;
   };
+
   emitter.once("open", handler);
   expect(emitter.rawListeners("open")).toHaveLength(1);
   expect(emitter.listeners("open")[0]).toBe(handler);
@@ -83,15 +89,23 @@ test("introspection mirrors EventEmitter", () => {
   expect(emitter.eventNames()).toEqual([]);
 });
 
+/// The probe runs as a function body, so the array it pushes to has to be reachable from
+/// the global object rather than from this closure.
+const PROBE_KEY = "__ventiwsThisProbe";
+
 test("invokes listeners with the emitter as this", () => {
   const { emitter, self } = target();
   const reads: unknown[] = [];
-  const probe = new Function("value", "globalThis.__ventiwsThisProbe.push(this)") as (
+
+  // SAFETY: `new Function` builds a callable and the test passes the single string its body
+  // declares; the assertion restores the signature the constructor erases.
+  const probe = new Function("value", `globalThis.${PROBE_KEY}.push(this)`) as (
     value: string,
   ) => void;
-  (globalThis as Record<string, unknown>).__ventiwsThisProbe = reads;
+
+  Reflect.set(globalThis, PROBE_KEY, reads);
   emitter.on("message", probe);
   emitter.emit("message", "x", 1);
   expect(reads[0]).toBe(self);
-  delete (globalThis as Record<string, unknown>).__ventiwsThisProbe;
+  Reflect.deleteProperty(globalThis, PROBE_KEY);
 });

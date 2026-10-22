@@ -21,18 +21,19 @@ type Leg = {
   readonly hops: number;
 };
 
-type Client = {
-  on(event: string, listener: (...args: never[]) => void): void;
-  terminate(): void;
+type RedirectOptions = {
+  readonly followRedirects: true;
+  readonly maxRedirects?: number;
 };
 
-type Make = (url: string, maxRedirects: number | undefined) => Client;
+type Make = (url: string, maxRedirects: number | undefined) => WsSocket;
 
 /// `ws` merges options by spreading them, so an explicit `undefined` overwrites its own
 /// default of 10 with nothing and the limit stops existing. Omitting the key is the only
 /// way to ask either implementation for its default.
-function redirectOptions(maxRedirects: number | undefined): Record<string, unknown> {
+function redirectOptions(maxRedirects: number | undefined): RedirectOptions {
   if (maxRedirects === undefined) return { followRedirects: true };
+
   return { followRedirects: true, maxRedirects };
 }
 
@@ -42,27 +43,30 @@ async function chain(make: Make, maxRedirects: number | undefined): Promise<Leg>
   const peer = await scriptedPeer({ first: 302, location: "self/", after: 302 });
   const socket = make(peer.url, maxRedirects);
   let hops = 0;
+
   const outcome = await new Promise<string>((resolve) => {
     socket.on("redirect", () => {
       hops += 1;
     });
     socket.on("open", () => resolve("open"));
-    socket.on("error", (error: never) => resolve((error as Error).message));
+    socket.on("error", (error) => resolve(error.message));
   });
+
   // A `terminate` on a socket that never opened reports the aborted handshake, so the
   // teardown has to be listening for it.
   socket.on("error", () => undefined);
   socket.terminate();
   const served = peer.paths.length;
   await peer.close();
+
   return { outcome, served, hops };
 }
 
 const wsLeg: Make = (url, maxRedirects) =>
-  new WsSocket(url, undefined, redirectOptions(maxRedirects)) as unknown as Client;
+  new WsSocket(url, undefined, redirectOptions(maxRedirects));
 
 const ventiwsLeg: Make = (url, maxRedirects) =>
-  new WebSocket(url, undefined, undeclared(redirectOptions(maxRedirects))) as unknown as Client;
+  new WebSocket(url, undefined, undeclared(redirectOptions(maxRedirects)));
 
 test.each([
   { label: "0", maxRedirects: 0, served: 1 },

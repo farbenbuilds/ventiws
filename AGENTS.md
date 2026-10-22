@@ -58,9 +58,8 @@ will own parsing, buffers, and backpressure.
   `scripts/check-conventions.mjs` (run by `pnpm lint` and a `lefthook` job)
   enforces the line budget, Zig naming, filename case, and the emoji ban.
   `pnpm lint` also loads the vendored anti-slop Oxlint plugin under
-  `tools/oxlint/anti-slop/`; its evidence rules are staged at `warn` until the
-  follow-up cleanup, and `anti-slop/require-readable-spacing` stays off because
-  its autofix conflicts with the 150-line budget. The pinned `ws`/`@types/ws`
+  `tools/oxlint/anti-slop/`, and every evidence rule is enforced at `error`;
+  the 150-line and comment budgets still apply. The pinned `ws`/`@types/ws`
   devDependencies back the first conformance leg in `tests/conformance/`.
 - Root documents (`CODEBASE.md`, `CONTRIBUTE.md`, `CI_CD_PIPELINE.md`,
   `SKILL.md`) specify the intended architecture. When they disagree with
@@ -80,7 +79,7 @@ will own parsing, buffers, and backpressure.
 ## Commands
 
 Use pnpm; do not invoke package binaries directly. The shell normally runs
-inside `nix develop` (Node 24, pnpm 12, Zig 0.16.0, zls).
+inside `nix develop` (Node 24.22.1, pnpm 12, Zig 0.16.0, zls).
 
 | Task                          | Command                                                                            |
 | ----------------------------- | ---------------------------------------------------------------------------------- |
@@ -149,6 +148,8 @@ declarations through the package `exports` map; it needs `tsdown` output.
 
 - Ownership, target layout, boundary contracts: `CODEBASE.md`
 - Why Node owns the socket and Zig owns the framing: `docs/adr/0001-transport-and-framing-ownership.md`
+- Addon size, release mode, and the measured size budget:
+  `docs/addon-size.md`, `docs/adr/0002-addon-size-and-release-safe.md`
 - Style depth and anti-OOP patterns: `CODING_CONVENTION.md`
 - Script contract, testing, PRs, release: `CONTRIBUTE.md`
 - Target workflows and native matrix: `CI_CD_PIPELINE.md`

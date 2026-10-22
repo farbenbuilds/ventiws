@@ -14,7 +14,7 @@ import { expect, test } from "vitest";
 import { WebSocket } from "../../../src/index";
 import { TEST_TIMEOUT_MS } from "../../binding/support";
 import { downgradePeer } from "./downgrade-peer";
-import { handshakePeer } from "./redirect-peer";
+import { handshakePeer } from "./redirect-presets";
 import { certificates } from "./tls-support";
 import { undeclared } from "./undeclared";
 
@@ -28,26 +28,16 @@ type Hop = {
   readonly requests: number;
 };
 
-type Client = {
-  readonly url: string;
-  on(event: string, listener: (...args: never[]) => void): void;
-  terminate(): void;
-};
-
-type Make = (url: string) => Client;
+type Make = (url: string) => WsSocket;
 
 const wsLeg: Make = (url) =>
   new WsSocket(url, undefined, {
     followRedirects: true,
     ca: certificates().ca,
-  }) as unknown as Client;
+  });
 
 const ventiwsLeg: Make = (url) =>
-  new WebSocket(
-    url,
-    undefined,
-    undeclared({ followRedirects: true, ca: certificates().ca }),
-  ) as unknown as Client;
+  new WebSocket(url, undefined, undeclared({ followRedirects: true, ca: certificates().ca }));
 
 /// The one scenario: a `wss:` peer that redirects to a `ws:` peer, against either client.
 async function hop(make: Make): Promise<Hop> {
@@ -55,16 +45,19 @@ async function hop(make: Make): Promise<Hop> {
   const peer = await downgradePeer(destination.url);
   const socket = make(peer.url);
   const hops: string[] = [];
+
   const outcome = await new Promise<string>((resolve) => {
-    socket.on("redirect", (target: never) => hops.push(String(target)));
+    socket.on("redirect", (target) => hops.push(String(target)));
     socket.on("open", () => resolve("open"));
-    socket.on("error", (error: never) => resolve((error as Error).message));
+    socket.on("error", (error) => resolve(error.message));
   });
+
   const seen: Hop = { outcome, url: socket.url, hops, requests: destination.paths.length };
   socket.on("error", () => undefined);
   socket.terminate();
   await peer.close();
   await destination.close();
+
   return seen;
 }
 

@@ -25,6 +25,7 @@ test(
     // A reset can arrive while the teardown destroys this socket; every assertion is
     // already decided, and an unhandled `error` event would fail the whole suite.
     socket.on("error", () => undefined);
+
     try {
       await new Promise<void>((resolve) => socket.once("connect", resolve));
       socket.write(

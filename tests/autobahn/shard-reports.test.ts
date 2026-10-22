@@ -20,11 +20,13 @@ function caseReport(
 /// the gate's count contract without a suite run.
 function casesForGroups(groups: readonly string[], perGroup: number): readonly CaseReport[] {
   const cases: CaseReport[] = [];
+
   for (const group of groups) {
     for (let index = 1; index <= perGroup; index += 1) {
       cases.push(caseReport(`${group}.${index}.1`));
     }
   }
+
   return cases;
 }
 
@@ -36,10 +38,12 @@ describe("shard union", () => {
   it("concatenates without deduplicating, so an overlap trips the count gate", () => {
     const shard = planShards(4, "framing")[0];
     const shared = [caseReport("6.1.1")];
+
     const results: readonly ShardResult[] = [
       { shard, code: 0, cases: shared },
       { shard, code: 0, cases: shared },
     ];
+
     expect(unionCases(results)).toHaveLength(2);
     expect(duplicateCaseIds(results)).toEqual(["6.1.1"]);
   });
@@ -57,16 +61,19 @@ describe("shard union", () => {
       shardResult(2, []),
       shardResult(3, []),
     ];
+
     expect(silentShards(results)).toEqual([0, 1, 2, 3]);
   });
 
   it("reports no duplicates when the shards partition the mode cleanly", () => {
     const plan = planShards(4, "framing");
+
     const results = plan.map((shard) => ({
       shard,
       code: 0,
       cases: casesForGroups(shard.groups, 2),
     }));
+
     expect(duplicateCaseIds(results)).toEqual([]);
     expect(silentShards(results)).toEqual([]);
     expect(unionCases(results)).toHaveLength(MODE_COUNTS.framing.groups.length * 2);
@@ -100,11 +107,13 @@ describe("the gate over a union", () => {
     // expectation comes from the mode, never from what the reports happen to
     // contain, so a missing case is a `count-total` violation.
     const plan = planShards(4, "framing");
+
     const complete = plan.map((shard) => ({
       shard,
       code: 0,
       cases: casesForGroups(shard.groups, 2),
     }));
+
     const short = complete.slice(0, 3);
     const gate = evaluateGate(unionCases(short), "framing");
     expect(gate.ok).toBe(false);

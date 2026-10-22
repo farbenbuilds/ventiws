@@ -27,6 +27,7 @@ test(
     // number that stops growing.
     const peer = await scriptedPeer({ first: 101, after: 101 });
     const socket = new WebSocket(peer.url);
+
     try {
       await new Promise<void>((resolve, reject) => {
         socket.once("open", resolve);
@@ -34,10 +35,12 @@ test(
       });
       const payload = Buffer.alloc(16 * 1024);
       let reported = 0;
+
       for (let index = 0; index < 200; index += 1) {
         socket.send(payload);
         reported = Math.max(reported, socket.bufferedAmount);
       }
+
       // The figure is the transport's queue, and the transport stops accepting once the
       // kernel's buffer is full, so the number settles rather than tracking the sends.
       expect(reported).toBeGreaterThan(0);
@@ -58,6 +61,7 @@ test(
     // The answer has to be a number that stops growing, because a socket library that
     // grows a queue without bound is a memory leak with a delay.
     const peer = await scriptedPeer({ first: 101, after: 101 });
+
     try {
       const socket = new WebSocket(peer.url);
       await new Promise<void>((resolve, reject) => {
@@ -66,10 +70,12 @@ test(
       });
       const payload = Buffer.alloc(16 * 1024);
       let reported = 0;
+
       for (let index = 0; index < 200; index += 1) {
         socket.send(payload);
         reported = Math.max(reported, socket.bufferedAmount);
       }
+
       // The figure is the transport's queue, and the transport stops accepting once the
       // kernel's buffer is full, so the number settles rather than tracking the sends.
       expect(reported).toBeGreaterThan(0);
@@ -90,6 +96,7 @@ test("an oversized send is refused and costs no memory", { timeout: TEST_TIMEOUT
   // only reachable if the connection was given a ceiling it can actually exceed, and
   // a ceiling of four gigabytes cannot be exceeded by a test.
   const over = MAX_PAYLOAD + 1;
+
   const { socket, harness } = await openWithPeer(
     (peer) => {
       peer.on("message", (data) => peer.send(data));
@@ -98,6 +105,7 @@ test("an oversized send is refused and costs no memory", { timeout: TEST_TIMEOUT
     undefined,
     { maxPayload: MAX_PAYLOAD },
   );
+
   try {
     const failures: Error[] = [];
     socket.on("error", (error) => failures.push(error));

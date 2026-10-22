@@ -1,16 +1,14 @@
 import { describe, expect, it } from "vitest";
 import weights from "../autobahn/shard-weights.json" with { type: "json" };
 import { maxShardsFor, planShards } from "../autobahn/shard-plan.ts";
+import type { Weights } from "../autobahn/shard-plan.ts";
 import { COMPRESSION_CASES, MODE_COUNTS, TOTAL_CASES } from "../autobahn/expected-cases.ts";
 
 /// The committed weight table is hand-maintained, so these are the checks that stop
 /// it rotting: the counts are pinned to the run that measured them and their sums
 /// must equal the totals the repository asserts independently.
 
-const TABLE = weights as {
-  readonly groups: Readonly<Record<string, number>>;
-  readonly caseCounts: Readonly<Record<string, number>>;
-};
+const TABLE: Weights = weights;
 
 describe("weight table", () => {
   it("carries the per-group case counts measured by run 36287763043", () => {
@@ -49,6 +47,7 @@ describe("weight table", () => {
       const plan = planShards(4, mode);
       const covered = plan.flatMap((shard) => [...shard.groups]).sort();
       expect(covered).toEqual([...MODE_COUNTS[mode].groups].sort());
+
       for (const shard of plan) expect(shard.costSeconds).toBeGreaterThan(0);
     }
   });
@@ -67,6 +66,7 @@ describe("the shard ceiling", () => {
       expect(plan.flatMap((shard) => [...shard.groups]).sort()).toEqual(
         [...MODE_COUNTS[mode].groups].sort(),
       );
+
       for (const shard of plan) expect(shard.groups).toHaveLength(1);
     }
   });

@@ -11,6 +11,7 @@ test("attribute assignment does not crash next to a raw listener", () => {
   socket.onmessage = () => {
     attribute += 1;
   };
+
   expect(socket.onmessage).toBeInstanceOf(Function);
   socket.emit("message", Buffer.from("x"), false);
   expect(raw).toBe(1);
@@ -21,12 +22,15 @@ test("raw and DOM registrations stay disjoint like ws", () => {
   const socket = new WebSocket(null);
   let raw = 0;
   let dom = 0;
+
   const rawHandler = (): void => {
     raw += 1;
   };
+
   const domHandler = (): void => {
     dom += 1;
   };
+
   socket.on("open", rawHandler);
   socket.addEventListener("open", domHandler);
 
@@ -46,6 +50,8 @@ test("raw and DOM registrations stay disjoint like ws", () => {
 test("the once option follows truthiness like ws", () => {
   const socket = new WebSocket(null);
   let calls = 0;
+  // SAFETY: `ws` reads `once` by truthiness; `1` is the non-boolean fixture the declaration
+  // forbids, and the assertion is that the listener is still removed after one event.
   socket.addEventListener(
     "message",
     () => {

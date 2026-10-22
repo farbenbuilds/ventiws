@@ -6,6 +6,7 @@ import { expect, test } from "vitest";
 import { createServer, type Server } from "node:http";
 import type { Socket } from "node:net";
 import { WebSocket } from "../../../src/index";
+import { boundPort } from "../address-support";
 import { TEST_TIMEOUT_MS } from "../../binding/support";
 
 /// An HTTP server that accepts the connection and says nothing, so the handshake stays
@@ -14,19 +15,23 @@ import { TEST_TIMEOUT_MS } from "../../binding/support";
 /// what these tests deliberately leave behind.
 async function silentPeer(): Promise<{ url: string; close: () => Promise<void> }> {
   const open: Socket[] = [];
+
   const server: Server = createServer((_request, response) => {
     response.on("error", () => undefined);
   });
+
   server.on("connection", (socket) => {
     open.push(socket);
     socket.on("error", () => undefined);
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", () => resolve()));
-  const port = (server.address() as { port: number }).port;
+  const port = boundPort(server.address());
+
   return {
     url: `ws://127.0.0.1:${port}/`,
     close: () => {
       for (const socket of open) socket.destroy();
+
       return new Promise<void>((resolve) => server.close(() => resolve()));
     },
   };
@@ -46,11 +51,13 @@ test(
   async () => {
     const peer = await silentPeer();
     const socket = new WebSocket(peer.url, { handshakeTimeout: 120 });
+
     try {
       const outcome = await new Promise<string>((resolve) => {
         socket.once("error", (error: Error) => resolve(error.message));
         setTimeout(() => resolve("(no error)"), 1500);
       });
+
       expect(outcome).toBe("Opening handshake has timed out");
     } finally {
       socket.terminate();
@@ -67,6 +74,7 @@ test(
     // that fired on the next tick and refused a handshake nobody had put a deadline on.
     const peer = await silentPeer();
     const socket = new WebSocket(peer.url, { handshakeTimeout: 0 });
+
     try {
       expect(await firstEvent(socket, 700)).toBe("timeout");
       expect(socket.readyState).toBe(WebSocket.CONNECTING);
@@ -82,6 +90,7 @@ test("no option at all is also no deadline", { timeout: TEST_TIMEOUT_MS }, async
   // only checked the no-option case would have passed either way.
   const peer = await silentPeer();
   const socket = new WebSocket(peer.url);
+
   try {
     expect(await firstEvent(socket, 700)).toBe("timeout");
     expect(socket.readyState).toBe(WebSocket.CONNECTING);

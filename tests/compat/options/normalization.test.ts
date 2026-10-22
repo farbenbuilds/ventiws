@@ -3,12 +3,17 @@ import { normalizeClientOptions } from "../../../src/compat/options/client";
 import { normalizeProtocols } from "../../../src/compat/options/shared";
 import { normalizeServerOptions } from "../../../src/compat/options/server";
 
-function capture(fn: () => void): unknown {
+/// The error a normalizer raised, narrowed, so a caller reads the stable fields rather than
+/// an unparsed `unknown`.
+function capture(fn: () => void): Error | undefined {
   try {
     fn();
   } catch (error) {
-    return error;
+    if (error instanceof Error) return error;
+
+    throw error;
   }
+
   return undefined;
 }
 
@@ -37,16 +42,20 @@ test("validates subprotocols against the ws token grammar", () => {
   expect(() => normalizeProtocols(["chat", "chat"])).toThrow(SyntaxError);
 });
 
-test("wraps out-of-type values the way ws does", () => {
-  expect(() => normalizeProtocols(5 as never)).toThrow(SyntaxError);
-  expect(() => normalizeProtocols(null as never)).toThrow(SyntaxError);
+test.each([5, null])("wraps the out-of-type value %s the way ws does", (value) => {
+  // SAFETY: the argument is deliberately outside the declared union; `ws` reports it as a
+  // SyntaxError at runtime rather than a TypeError.
+  expect(() => normalizeProtocols(value as never)).toThrow(SyntaxError);
 });
 
 test("a falsy client per-message deflate value disables the extension", () => {
-  expect(normalizeClientOptions({ perMessageDeflate: null as never }).perMessageDeflate).toBe(
-    false,
-  );
-  expect(normalizeClientOptions({ perMessageDeflate: 0 as never }).perMessageDeflate).toBe(false);
+  for (const value of [null, 0]) {
+    // SAFETY: `null` and `0` are the falsy out-of-type values `ws` reads as "disabled".
+    expect(normalizeClientOptions({ perMessageDeflate: value as never }).perMessageDeflate).toBe(
+      false,
+    );
+  }
+
   expect(normalizeClientOptions({ perMessageDeflate: false }).perMessageDeflate).toBe(false);
   expect(normalizeClientOptions({ perMessageDeflate: true }).perMessageDeflate).not.toBe(false);
   expect(normalizeClientOptions().perMessageDeflate).not.toBe(false);

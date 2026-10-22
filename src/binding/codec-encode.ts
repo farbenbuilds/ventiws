@@ -2,7 +2,7 @@
 /// here copies out of engine memory and nothing takes bytes in, so there is no untrusted
 /// argument to validate on this side.
 
-import { callNative, nativeError } from "./errors";
+import { callNative } from "./errors";
 import { loadAddon } from "./load";
 
 /// The framed length is returned so the caller can allocate before copying, which keeps the
@@ -19,6 +19,7 @@ export function encodeCodecFrame(
   mask: Uint8Array = EMPTY,
 ): number {
   const addon = loadAddon();
+
   return callNative(() =>
     addon.codecEncode(
       handle,
@@ -47,19 +48,10 @@ export function writeCodecFrame(
   mask: Uint8Array = EMPTY,
 ): Buffer | number {
   const addon = loadAddon();
-  try {
-    return addon.codecWrite(
-      handle,
-      kind,
-      fin ? 1 : 0,
-      payload,
-      compress ? 1 : 0,
-      maskFrame ? 1 : 0,
-      mask,
-    );
-  } catch (error) {
-    throw nativeError(error);
-  }
+
+  return callNative(() =>
+    addon.codecWrite(handle, kind, fin ? 1 : 0, payload, compress ? 1 : 0, maskFrame ? 1 : 0, mask),
+  );
 }
 
 /// Formats only the header for a payload the caller writes as its own chunk, the writev
@@ -74,28 +66,21 @@ export function writeCodecHeader(
   out: Uint8Array,
 ): number {
   const addon = loadAddon();
-  try {
-    return addon.codecHeader(
-      handle,
-      kind,
-      fin ? 1 : 0,
-      payloadLength,
-      maskFrame ? 1 : 0,
-      mask,
-      out,
-    );
-  } catch (error) {
-    throw nativeError(error);
-  }
+
+  return callNative(() =>
+    addon.codecHeader(handle, kind, fin ? 1 : 0, payloadLength, maskFrame ? 1 : 0, mask, out),
+  );
 }
 
 export function codecOutbound(handle: bigint): Buffer {
   const addon = loadAddon();
+
   return callNative(() => addon.codecOutbound(handle));
 }
 
 /// Lets a caller assert the role was honoured without parsing a header.
 export function codecOutboundMasked(handle: bigint): boolean {
   const addon = loadAddon();
+
   return callNative(() => addon.codecOutboundMasked(handle));
 }

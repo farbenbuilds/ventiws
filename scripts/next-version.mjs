@@ -23,7 +23,9 @@ const PATTERN = /^(\d+)\.(\d+)\.(\d+)(?:-([a-z][a-z0-9-]*)(?:\.(\d+))?)?$/;
 /// The version's parts, or null when the string is not one.
 export function parseVersion(version) {
   const match = PATTERN.exec(version);
+
   if (match === null) return null;
+
   return {
     major: Number(match[1]),
     minor: Number(match[2]),
@@ -36,7 +38,9 @@ export function parseVersion(version) {
 /// The base bumped by `kind`, which is one of `BASES`.
 function bumpBase(parts, kind) {
   if (kind === "major") return `${parts.major + 1}.0.0`;
+
   if (kind === "minor") return `${parts.major}.${parts.minor + 1}.0`;
+
   return `${parts.major}.${parts.minor}.${parts.patch + 1}`;
 }
 
@@ -48,18 +52,25 @@ function bumpBase(parts, kind) {
 /// `major` -> `2.0.0-alpha.0`); add `stable` or a prerelease kind to pick the other outcome.
 export function nextVersion(current, kinds) {
   const parts = parseVersion(current);
+
   if (parts === null) throw new Error(`next-version: ${current} is not a version`);
+
   for (const kind of kinds) {
     if (!KINDS.includes(kind)) throw new Error(`next-version: unknown release kind '${kind}'`);
   }
+
   const bases = kinds.filter((kind) => BASES.includes(kind));
   const preids = kinds.filter((kind) => PREIDS.includes(kind));
+
   if (bases.length > 1) throw new Error(`next-version: ${bases.join(" and ")} cannot combine`);
+
   if (preids.length > 1) throw new Error(`next-version: ${preids.join(" and ")} cannot combine`);
   const stable = kinds.includes("stable");
   const inTrain = parts.preid !== null;
+
   if (stable && !inTrain && bases.length === 0)
     throw new Error(`next-version: ${current} is already stable`);
+
   // A stable version with no base bump starts the next patch's train, so `beta` on 1.0.0
   // means 1.0.1-beta.0 rather than a version behind the one already published.
   const base =
@@ -68,10 +79,13 @@ export function nextVersion(current, kinds) {
         ? `${parts.major}.${parts.minor}.${parts.patch}`
         : bumpBase(parts, "patch")
       : bumpBase(parts, bases[0]);
+
   if (stable || (!inTrain && bases.length > 0 && preids.length === 0)) return base;
   const id = preids[0] ?? parts.preid ?? "alpha";
+
   if (base === `${parts.major}.${parts.minor}.${parts.patch}` && id === parts.preid)
     return `${base}-${id}.${parts.counter + 1}`;
+
   return `${base}-${id}.0`;
 }
 
@@ -88,14 +102,21 @@ export function releaseVersion(current, kinds, tagged) {
 export function compareVersions(a, b) {
   const left = parseVersion(a);
   const right = parseVersion(b);
+
   if (left === null) throw new Error(`next-version: ${a} is not a version`);
+
   if (right === null) throw new Error(`next-version: ${b} is not a version`);
+
   for (const part of ["major", "minor", "patch"]) {
     if (left[part] !== right[part]) return Math.sign(left[part] - right[part]);
   }
+
   if (left.preid === right.preid) return Math.sign(left.counter - right.counter);
+
   if (left.preid === null) return 1;
+
   if (right.preid === null) return -1;
+
   return left.preid < right.preid ? -1 : 1;
 }
 
@@ -105,6 +126,7 @@ const invoked =
 if (invoked) {
   const [current, ...args] = process.argv.slice(2);
   const kinds = args.flatMap((arg) => arg.split(",")).filter((kind) => kind !== "");
+
   try {
     if (current === undefined)
       throw new Error("next-version: usage: next-version <current> <kind...>");

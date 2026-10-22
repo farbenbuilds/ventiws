@@ -1,7 +1,8 @@
 /// The RFC 6455 extension header grammar, parsed, in `ws`'s shape: a name to a list of
 /// configurations, each a parameter to a list of values, which is what makes a duplicate detectable.
 
-import { scanConfiguration, skipWhitespace, syntax, unexpectedEnd } from "./scan";
+import { scanConfiguration } from "./scan";
+import { skipWhitespace, syntax, unexpectedEnd } from "./scan-text";
 
 export type ParsedExtension = {
   readonly name: string;
@@ -19,21 +20,28 @@ export function parseExtensions(header: string): ParsedExtensions {
   const out = new Map<string, ParsedExtension[]>();
   // Not skipped first: `ws`'s scanner refuses a header that opens with whitespace.
   let index = 0;
+
   while (index < header.length) {
     const scanned = scanConfiguration(header, index);
     const extension: ParsedExtension = { name: scanned.name, parameters: scanned.parameters };
     index = skipWhitespace(header, scanned.rest);
+
     if (index < header.length) {
       if (header.charCodeAt(index) !== COMMA) {
         throw syntax(header, index, "expected ',' between extensions");
       }
+
       index = skipWhitespace(header, index + 1);
     }
+
     const existing = out.get(extension.name);
+
     if (existing === undefined) out.set(extension.name, [extension]);
     else existing.push(extension);
   }
+
   if (out.size === 0) throw unexpectedEnd(header, 0);
+
   return out;
 }
 

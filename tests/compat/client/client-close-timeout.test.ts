@@ -6,29 +6,25 @@
 // that has stopped reading is a promise that is never kept.
 
 import { expect, test } from "vitest";
-import { WebSocket, type ClientOptions } from "../../../src/index";
+import { WebSocket } from "../../../src/index";
 import { TEST_TIMEOUT_MS } from "../../binding/support";
 import { open, openWithPeer } from "./client-support";
 import { rawAcceptServer } from "./raw-peer";
-
-/// `closeTimeout` is accepted at runtime, as `ws` accepts it, and `@types/ws` does not
-/// declare it, so a caller in typed code is refused by `ws` too. The cast is what a
-/// JavaScript caller does implicitly, and the deadline is the difference between a
-/// close that resolves and one that never does.
-function withCloseTimeout(milliseconds: number): ClientOptions {
-  return { closeTimeout: milliseconds } as ClientOptions;
-}
+import { undeclared } from "./undeclared";
 
 test(
   "a peer that never answers the close is torn down at the deadline",
   { timeout: TEST_TIMEOUT_MS },
   async () => {
     const peer = await rawAcceptServer();
+
     try {
-      const socket = await open(peer.url, undefined, undefined, withCloseTimeout(150));
+      const socket = await open(peer.url, undefined, undefined, undeclared({ closeTimeout: 150 }));
+
       const closed = new Promise<number>((resolve) => {
         socket.on("close", resolve);
       });
+
       socket.close(1000, "bye");
       // The socket is observably CLOSING until the handshake completes or the deadline
       // expires, and the deadline is what makes the second outcome reachable.
@@ -49,11 +45,13 @@ test(
       () => undefined,
       undefined,
       undefined,
-      withCloseTimeout(5_000),
+      undeclared({ closeTimeout: 5_000 }),
     );
+
     const closed = new Promise<[number, string]>((resolve) => {
       socket.on("close", (code, reason) => resolve([code, reason.toString()]));
     });
+
     try {
       socket.close(1000, "bye");
       // A peer that answers reports the code the close carried, not the 1006 the
@@ -74,11 +72,13 @@ test("a finished socket does not keep a deadline alive", { timeout: TEST_TIMEOUT
     () => undefined,
     undefined,
     undefined,
-    withCloseTimeout(5_000),
+    undeclared({ closeTimeout: 5_000 }),
   );
+
   const closed = new Promise<number>((resolve) => {
     socket.on("close", resolve);
   });
+
   try {
     socket.close(1000, "bye");
     expect(await closed).toBe(1000);

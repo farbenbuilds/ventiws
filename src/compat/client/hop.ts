@@ -10,7 +10,6 @@ import { createError } from "../errors";
 import { CLOSED } from "../ready-state";
 import type { Attempt } from "./connect";
 import type { Handshake } from "./request";
-import type { WebSocket } from "../../types/ws";
 
 /// The two answers a hop can get, wired by the caller to the modules that own their
 /// policies. `open.ts` and `redirect.ts` are why this cannot be an import here.
@@ -28,22 +27,20 @@ export type HopHandlers = {
 /// option inert: a last-moment header would be dropped without an error.
 export function finish(attempt: Attempt, request: ClientRequest): void {
   const callback = attempt.options.finishRequest;
+
   if (callback === undefined) {
     request.end();
+
     return;
   }
-  // Checked because `ws` passes it and a missing target crashes the callback.
-  const target = attempt.state.target as WebSocket | undefined;
-  if (target === undefined) {
-    request.end();
-    return;
-  }
-  callback(request, target);
+
+  callback(request, attempt.socket);
 }
 
 /// Creates and wires a hop's request unsent, since `redirect` carries the next hop's.
 export function create(attempt: Attempt, handlers: HopHandlers): ClientRequest | null {
   const { options, handshake } = attempt;
+
   // Dialling a socket that closed mid-handshake opens a connection nothing reads it.
   if (attempt.state.readyState === CLOSED) return null;
 
@@ -53,12 +50,14 @@ export function create(attempt: Attempt, handlers: HopHandlers): ClientRequest |
   attempt.state.cancelHandshake = () => {
     request.abort();
   };
+
   // `ws` guards this by clearing `_req`; the identity check is the equivalent.
   request.on("error", (error: Error) => {
     if (attempt.request !== request) return;
     attempt.request = null;
     failConnection(attempt.state, error);
   });
+
   // Truthiness, as `ws` gates it (`websocket.js:888`): zero says "no deadline", and a zero
   // timer would fire on the next tick and refuse a handshake nobody put one on. Re-armed
   // per hop, because the deadline is per handshake.
@@ -67,6 +66,7 @@ export function create(attempt: Attempt, handlers: HopHandlers): ClientRequest |
       refuse(attempt, request, "Opening handshake has timed out");
     });
   }
+
   request.on("upgrade", (response, socket, head) => {
     if (attempt.request !== request) return;
     attempt.request = null;
@@ -77,6 +77,7 @@ export function create(attempt: Attempt, handlers: HopHandlers): ClientRequest |
     attempt.request = null;
     handlers.response(attempt, request, response);
   });
+
   return request;
 }
 
@@ -95,10 +96,12 @@ export function refuse(attempt: Attempt, request: ClientRequest | null, message:
 /// already-`CLOSED` socket and latching here would swallow the `close` event.
 export function abort(attempt: Attempt, error: Error): void {
   const { state } = attempt;
+
   if (state.readyState === CLOSED) return;
   state.cancelHandshake = null;
   attempt.request?.destroy();
   attempt.request = null;
+
   if (attempt.transport !== null) discard(attempt.transport);
   failConnection(state, error);
 }

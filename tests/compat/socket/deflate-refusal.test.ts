@@ -30,11 +30,13 @@ test.each([
     // nullable header: a 400 has to stop the handshake, and a 101 written after it is a
     // stream error on the caller's own socket rather than the refusal the peer was told.
     const harness = await upgradeHarness(deflateServer());
+
     try {
       const result = await rawUpgrade(
         harness.port,
         request("/", { ...UPGRADE_HEADERS, "Sec-WebSocket-Extensions": extension }),
       );
+
       expect(result.status).toBe(400);
     } finally {
       await harness.close();

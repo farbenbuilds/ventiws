@@ -14,14 +14,17 @@ test(
   { timeout: TEST_TIMEOUT_MS },
   async () => {
     const { server, client, socket } = await attached();
+
     try {
       const stream = createWebSocketStream(socket);
       await new Promise<void>((resolve, reject) => {
         stream.write("streamed", (error) => {
           if (error) {
             reject(error);
+
             return;
           }
+
           resolve();
         });
       });
@@ -49,11 +52,12 @@ test.each(TEXTS)(
     const harness = await upgradeHarness();
     const accepted = nextSocket(harness.server);
     const client = await openClient(harness.url);
+
     try {
       const socket = await accepted;
       const stream = createWebSocketStream(socket, { readableObjectMode: true });
       const chunks: unknown[] = [];
-      stream.on("data", (chunk: unknown) => {
+      stream.on("data", (chunk) => {
         chunks.push(chunk);
       });
       client.send(text);
@@ -78,6 +82,7 @@ test(
     const harness = await upgradeHarness();
     const accepted = nextSocket(harness.server);
     const client = await openClient(harness.url);
+
     try {
       const socket = await accepted;
       const stream = createWebSocketStream(socket);
@@ -110,6 +115,7 @@ test(
     const harness = await upgradeHarness();
     const accepted = nextSocket(harness.server);
     const raw = await openRawClient(harness.port);
+
     try {
       const socket = await accepted;
       const stream = createWebSocketStream(socket);

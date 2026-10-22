@@ -16,6 +16,7 @@ import { serverCodec } from "./codec-support";
 
 test("the caller's buffer is not modified", () => {
   const handle = serverCodec();
+
   try {
     // A masked frame is unmasked *somewhere*. If that somewhere is the caller's
     // memory, every byte of a masked payload comes back as plaintext, and a caller
@@ -38,8 +39,10 @@ test("the same bytes can be fed to two codecs", () => {
     { opcode: 0x9, payload: Buffer.from("beat") },
     { opcode: 0x1, payload: Buffer.from("hello") },
   ]);
+
   const first = serverCodec();
   const second = serverCodec();
+
   try {
     expect(feedCodec(first, frames).kind).toBe("consumed");
     expect(feedCodec(second, frames).kind).toBe("consumed");
@@ -54,6 +57,7 @@ test("a masked frame still decodes to its plaintext", () => {
   // decoder that stopped unmasking to avoid touching the caller's memory would pass
   // the two tests above and deliver the mask.
   const handle = serverCodec();
+
   try {
     const frames = clientFrames([{ opcode: 0x1, payload: Buffer.from("secret") }]);
     expect(feedCodec(handle, frames).kind).toBe("consumed");

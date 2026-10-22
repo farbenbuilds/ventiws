@@ -28,9 +28,11 @@ export function probeOf(target: TargetProcess): Promise<EchoProbe> {
 async function runSingle(mode: SuiteMode, target: TargetProcess): Promise<Execution> {
   const probe = await probeOf(target);
   const code = await runFuzzingClient(mode);
+
   if (!reportExists()) {
     return { probe, suiteRun: true, cases: [], failure: `wstest wrote no report (exit ${code})` };
   }
+
   return {
     probe,
     suiteRun: true,
@@ -42,11 +44,15 @@ async function runSingle(mode: SuiteMode, target: TargetProcess): Promise<Execut
 export function describeShardFailure(results: readonly ShardResult[]): string | null {
   if (results.every((result) => result.cases.length === 0)) return "no shard wrote a report";
   const silent = results.filter((result) => result.cases.length === 0);
+
   if (silent.length > 0) {
     return `shards ${namedWithCodes(silent)} wrote no report; the suite covers fewer cases than its mode selects`;
   }
+
   const failed = results.filter((result) => result.code !== 0);
+
   if (failed.length > 0) return `wstest exited non-zero for shards ${namedWithCodes(failed)}`;
+
   return null;
 }
 
@@ -68,6 +74,7 @@ export async function runShardedFor(
 ): Promise<Execution> {
   const probes = await Promise.all(targets.map((target) => probeOf(target)));
   const results = await runShards(shards);
+
   return {
     probe: probes[0] ?? null,
     suiteRun: true,
@@ -81,6 +88,7 @@ export async function runShardedFor(
 /// evidence.
 export function blockedByProbe(probe: EchoProbe, port: number, force: boolean): Execution | null {
   if (probe.echo || force) return null;
+
   return {
     probe,
     suiteRun: false,

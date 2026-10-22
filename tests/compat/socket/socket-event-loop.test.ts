@@ -13,10 +13,11 @@ test(
   "a deferred resume does not hold the event loop open",
   { timeout: TEST_TIMEOUT_MS },
   async () => {
-    const server = new WebSocketServer({ noServer: true, allowSynchronousEvents: false } as never);
+    const server = new WebSocketServer({ noServer: true, allowSynchronousEvents: false });
     const harness = await upgradeHarness(server);
     const accepted = nextSocket(server);
     const raw = await openRawClient(harness.port);
+
     try {
       const socket = await accepted;
       const seen: string[] = [];
@@ -40,6 +41,7 @@ test(
     const harness = await upgradeHarness(server);
     const accepted = nextSocket(server);
     const raw = await openRawClient(harness.port);
+
     try {
       const socket = await accepted;
       socket.on("error", () => undefined);

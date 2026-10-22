@@ -7,6 +7,7 @@
 
 import { expect, test } from "vitest";
 import { WebSocket } from "../../../src/index";
+import { boundPort } from "../address-support";
 import { TEST_TIMEOUT_MS } from "../../binding/support";
 import { scriptedPeer } from "./redirect-peer";
 import { CLOSE_DEADLINE_MS, settle } from "./handshake-support";
@@ -23,15 +24,17 @@ test(
     await new Promise<void>((resolve) => {
       probe.listen(0, "127.0.0.1", resolve);
     });
-    const port = (probe.address() as { port: number }).port;
+    const port = boundPort(probe.address());
     await new Promise<void>((resolve) => {
       probe.close(() => resolve());
     });
     const socket = new WebSocket(`ws://127.0.0.1:${port}`);
+
     const error = await new Promise<Error>((resolve) => {
       socket.on("error", resolve);
     });
-    expect((error as NodeJS.ErrnoException).code).toBe("ECONNREFUSED");
+
+    expect(error).toHaveProperty("code", "ECONNREFUSED");
     expect(socket.readyState).toBe(WebSocket.CLOSED);
   },
 );
@@ -43,23 +46,28 @@ test(
     // A plain HTTP server is not a WebSocket server, so the handshake is refused and the
     // client has to say why rather than open a socket nothing can speak to.
     const { createServer } = await import("node:http");
+
     const http = createServer((_request, response) => {
       response.writeHead(404);
       response.end();
     });
+
     await new Promise<void>((resolve) => {
       http.listen(0, "127.0.0.1", resolve);
     });
-    const port = (http.address() as { port: number }).port;
+    const port = boundPort(http.address());
     const socket = new WebSocket(`ws://127.0.0.1:${port}`);
+
     try {
       const events: string[] = [];
+
       const failure = new Promise<Error>((resolve) => {
         socket.on("error", (error) => {
           events.push("error");
           resolve(error);
         });
       });
+
       const error = await failure;
       // The status is in the message because `ws` puts it there, and a caller
       // distinguishing "wrong path" from "not a WebSocket server" has nothing else.
@@ -82,11 +90,13 @@ test(
     // all: a 401 is only useful with its challenge and its body, neither of which a
     // status code carries.
     const peer = await scriptedPeer({ first: 401, after: 101 });
+
     const socket = new WebSocket(
       peer.url,
       undefined,
       undeclared({ closeTimeout: CLOSE_DEADLINE_MS }),
     );
+
     try {
       const taken = new Promise<[string, number, string]>((resolve) => {
         socket.once("unexpected-response", (request, response) => {
@@ -98,6 +108,7 @@ test(
           );
         });
       });
+
       expect(await taken).toEqual(["/", 401, "token required\n"]);
     } finally {
       await settle(socket);

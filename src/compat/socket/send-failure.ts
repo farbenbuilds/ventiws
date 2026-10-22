@@ -1,5 +1,6 @@
 import type { SocketState } from "../../types/socket";
 import { createError } from "../errors";
+import type { SocketCallback } from "./argument-kind";
 import { defer } from "./payload";
 import { reportWithoutClosing } from "./lifecycle";
 
@@ -17,10 +18,16 @@ export function notAttachedError(): Error {
 /// On an open socket with no callback there is nothing to observe, so `error` is emitted, latched
 /// once, and deliberately **without** closing: the socket is not at fault and tearing it down
 /// would turn "this build cannot send" into "your connection died".
-export function reportFailure(state: SocketState, callback: unknown, error: Error): void {
-  if (typeof callback === "function") {
+export function reportFailure(
+  state: SocketState,
+  callback: SocketCallback | undefined,
+  error: Error,
+): void {
+  if (callback !== undefined) {
     defer(callback, error);
+
     return;
   }
+
   reportWithoutClosing(state, error);
 }

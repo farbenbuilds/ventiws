@@ -5,7 +5,6 @@
 // a test means anything: the `WebSocketServer` here is ventiws's own, so the sockets
 // are the facade's and the frames on them are the codec's.
 
-import type { AddressInfo } from "node:net";
 import { WebSocket as WsClient } from "ws";
 import { WebSocketServer, type WebSocket } from "../../../src/index";
 import { TEST_TIMEOUT_MS } from "../../binding/support";
@@ -27,7 +26,7 @@ export async function upgradeHarness(server?: WebSocketServer): Promise<Harness>
   const owned = new WebSocketServer({ noServer: true });
   const target = server ?? owned;
   const harness = await serve(target);
-  void (harness.httpServer.address() as AddressInfo | null);
+
   return {
     url: `ws://127.0.0.1:${harness.port}`,
     port: harness.port,
@@ -60,11 +59,14 @@ export function nextSocket(server: WebSocketServer): Promise<WebSocket> {
 export function waitFor(condition: () => boolean): Promise<void> {
   return new Promise((resolve, reject) => {
     const deadline = Date.now() + TEST_TIMEOUT_MS;
+
     const poll = (): void => {
       if (condition()) return resolve();
+
       if (Date.now() > deadline) return reject(new Error("condition unmet within the timeout"));
       setTimeout(poll, 5);
     };
+
     poll();
   });
 }

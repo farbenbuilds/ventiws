@@ -27,6 +27,7 @@ for (const size of SUITE_PAYLOAD_SIZES) {
     async () => {
       const echo = await startEcho();
       const client = connect(echo.port);
+
       try {
         await opened(client);
         const received = collect(client, 1);

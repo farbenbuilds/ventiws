@@ -43,6 +43,17 @@
           then pkgsMusl.callPackage ./nix/pnpm.nix {}
           else null;
 
+        # nixos-26.05 still carries 24.21.0, which predates the October 2026
+        # security release. Pin the fixed source until nixpkgs advances:
+        # https://nodejs.org/en/blog/vulnerability/october-2026-security-releases
+        nodejsFor = packagePkgs:
+          packagePkgs.nodejs_24.override {
+            nodejs-slim = packagePkgs.nodejs-slim_24.overrideAttrs (_: {
+              version = "24.22.1";
+              sha256 = "4f5379796280cdaeb0c2f358fd04b6a16cc4fb7dfa83b5a8c91a9d963b435231";
+            });
+          };
+
         hostPackages = [
           zig
           pkgs.zls
@@ -67,7 +78,7 @@
               packages =
                 hostPackages
                 ++ [
-                  packagePkgs.nodejs
+                  (nodejsFor packagePkgs)
                   pnpmPackage
                 ]
                 ++ lib.optional (zon2nixPackage != null) zon2nixPackage;

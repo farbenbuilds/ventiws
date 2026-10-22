@@ -13,7 +13,7 @@ import type { ClientRequest } from "node:http";
 import { expect, test } from "vitest";
 import { WebSocket } from "../../../src/index";
 import { TEST_TIMEOUT_MS } from "../../binding/support";
-import { redirectingPeer } from "./redirect-peer";
+import { redirectingPeer } from "./redirect-presets";
 import { CLOSE_DEADLINE_MS, settle } from "./handshake-support";
 import { undeclared } from "./undeclared";
 
@@ -48,12 +48,14 @@ test(
     // tell the two apart is by reading a header off it.
     const peer = await redirectingPeer("self/moved");
     const socket = following(peer.url);
+
     try {
       const hop = new Promise<[string, string | undefined]>((resolve) => {
         socket.once("redirect", (url, request: ClientRequest) => {
           resolve([url, String(request.getHeader(MARKER) ?? "")]);
         });
       });
+
       await opened(socket);
       const [url, marker] = await hop;
       expect(url).toContain("/moved");
@@ -77,6 +79,7 @@ test(
     // than a description of one.
     const peer = await redirectingPeer("self/hop");
     const socket = following(peer.url);
+
     try {
       const applied = new Promise<void>((resolve) => {
         socket.once("redirect", (_url, request) => {
@@ -84,6 +87,7 @@ test(
           resolve();
         });
       });
+
       await opened(socket);
       await applied;
       expect(peer.markers).toEqual([undefined, "second"]);
@@ -105,6 +109,7 @@ test(
     // A destroyed request reports `socket hang up` on the socket, and `ws` emits that as
     // an `error`; the listener is what keeps it from being thrown.
     socket.on("error", () => undefined);
+
     try {
       const stopped = new Promise<void>((resolve) => {
         socket.once("redirect", (_url, request) => {
@@ -112,6 +117,7 @@ test(
           resolve();
         });
       });
+
       await stopped;
       // The claim is that the hop did not go out, which is what the peer is for: a
       // destroyed request emits no `error` of its own, so there is nothing on the socket

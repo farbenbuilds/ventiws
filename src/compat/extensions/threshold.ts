@@ -8,5 +8,6 @@ import type { NormalizedPerMessageDeflate } from "../../types/options";
 /// site is `>=` and this value is never clamped.
 export function thresholdOf(options: NormalizedPerMessageDeflate | false): number {
   if (options === false) return 0;
+
   return options.threshold;
 }

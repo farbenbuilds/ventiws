@@ -4,7 +4,6 @@ import {
   SHARD_PORT_BASE,
   maxShardsFor,
   planShards,
-  resolveShardCount,
 } from "../autobahn/shard-plan.ts";
 import { shardContainerName, shardSpec } from "../autobahn/shard-plan.ts";
 import { MODE_COUNTS } from "../autobahn/expected-cases.ts";
@@ -28,12 +27,14 @@ describe("shard plan", () => {
     const plan = planShards(4, "full");
     const ports = plan.map((shard) => shard.port);
     expect(new Set(ports).size).toBe(ports.length);
+
     for (const port of ports) expect(port).toBeGreaterThan(9001);
     expect(ports[0]).toBe(SHARD_PORT_BASE);
   });
 
   it("only ever selects whole groups, so the union cannot miss a case", () => {
     const plan = planShards(4, "full");
+
     for (const shard of plan) {
       for (const pattern of shard.cases) expect(pattern).toMatch(/^\d+\.\*$/);
     }
@@ -58,6 +59,7 @@ describe("shard plan", () => {
     const heaviest = Math.max(...plan.map((shard) => shard.costSeconds));
     const total = plan.reduce((sum, shard) => sum + shard.costSeconds, 0);
     expect(heaviest / total).toBeGreaterThan(0.4);
+
     // And the ceiling is the same group whatever the shard count.
     for (const count of [2, 3, 4, 5, 8]) {
       const widest = Math.max(...planShards(count, "framing").map((s) => s.costSeconds));
@@ -126,23 +128,5 @@ describe("the CI default", () => {
     for (const mode of ["framing", "full"] as const) {
       expect(DEFAULT_SHARD_COUNT).toBeLessThanOrEqual(maxShardsFor(mode));
     }
-  });
-});
-
-describe("the shared shard-count resolver", () => {
-  it("accepts a positive integer as a string or a number", () => {
-    expect(resolveShardCount("4", "full")).toBe(4);
-    expect(resolveShardCount(1, "framing")).toBe(1);
-  });
-
-  it("applies the same ceiling the plan does", () => {
-    expect(() => resolveShardCount(String(maxShardsFor("framing") + 1), "framing")).toThrow(
-      RangeError,
-    );
-  });
-
-  it("rejects the empty and non-numeric strings the environment can hold", () => {
-    expect(() => resolveShardCount("", "full")).toThrow(RangeError);
-    expect(() => resolveShardCount("many", "full")).toThrow(RangeError);
   });
 });

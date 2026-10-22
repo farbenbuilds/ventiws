@@ -4,6 +4,7 @@ import { WebSocketServer } from "../../src/index";
 import type { WebSocket } from "../../src/index";
 import { TEST_TIMEOUT_MS } from "../binding/support";
 import { terminateClient } from "../compat/socket/socket-support";
+import { boundPort } from "./bound-port";
 
 /// A socket whose open and close can be driven, as both implementations expose it.
 type Closable = {
@@ -23,11 +24,8 @@ async function observe(socket: Closable): Promise<Observed> {
   socket.close(1000);
   socket.send("hello");
   await new Promise((resolve) => setImmediate(resolve));
-  return { errors: errors.length, closing: socket.readyState === socket.CLOSING };
-}
 
-function portOf(server: { address: () => unknown }): number {
-  return (server.address() as { port: number }).port;
+  return { errors: errors.length, closing: socket.readyState === socket.CLOSING };
 }
 
 /// A send on a socket that is not open is `sendAfterClose`, and it changes
@@ -37,10 +35,12 @@ function portOf(server: { address: () => unknown }): number {
 /// tell that apart from a real fault.
 test("a send after close matches ws", { timeout: TEST_TIMEOUT_MS }, async () => {
   const reference = new WsServer({ port: 0 });
+
   const taken = new Promise<WsClient>((resolve) => {
     reference.on("connection", (socket: WsClient) => resolve(socket));
   });
-  const client = new WsClient(`ws://127.0.0.1:${portOf(reference)}/`);
+
+  const client = new WsClient(`ws://127.0.0.1:${boundPort(reference)}/`);
   client.on("error", () => {});
   await new Promise<void>((resolve) => {
     reference.once("listening", resolve);
@@ -53,14 +53,17 @@ test("a send after close matches ws", { timeout: TEST_TIMEOUT_MS }, async () => 
   expect(expected).toEqual({ errors: 0, closing: true });
 
   const ours = new WebSocketServer({ port: 0 });
+
   const accepted = new Promise<WebSocket>((resolve) => {
     ours.on("connection", (socket) => resolve(socket));
   });
-  const ourClient = new WsClient(`ws://127.0.0.1:${portOf(ours)}/`);
+
+  const ourClient = new WsClient(`ws://127.0.0.1:${boundPort(ours)}/`);
   ourClient.on("error", () => {});
   await new Promise<void>((resolve) => {
     ours.once("listening", resolve);
   });
+
   try {
     expect(await observe(await accepted)).toEqual(expected);
   } finally {

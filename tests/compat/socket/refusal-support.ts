@@ -35,13 +35,16 @@ export async function refused(
   const harness = await upgradeHarness(server);
   const accepted = nextSocket(server);
   const raw = await openRawClient(harness.port);
+
   try {
     const socket = await accepted;
+
     const seen = new Promise<Seen>((resolve, reject) => {
       const timer = setTimeout(
         () => reject(new Error("no refusal within the timeout")),
         TEST_TIMEOUT_MS,
       );
+
       socket.on("error", (error: Error & { code?: string }) => {
         clearTimeout(timer);
         socket.on("close", (code: number) => {
@@ -54,7 +57,9 @@ export async function refused(
         });
       });
     });
+
     write((bytes) => raw.write(bytes));
+
     return await seen;
   } finally {
     raw.destroy();

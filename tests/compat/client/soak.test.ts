@@ -6,6 +6,7 @@
 import { expect, test } from "vitest";
 import { WebSocket, WebSocketServer } from "../../../src/index";
 import { codecLimits } from "../../../src/binding/codec";
+import { boundPort } from "../address-support";
 import { TEST_TIMEOUT_MS } from "../../binding/support";
 import { openWithPeer, waitFor } from "./client-support";
 
@@ -13,10 +14,12 @@ import { openWithPeer, waitFor } from "./client-support";
 /// test-only API, so the leak check is a round trip: with the table full, `createCodec` fails.
 function canStillCreateCodecs(count: number): boolean {
   const handles: bigint[] = [];
+
   try {
     for (let index = 0; index < count; index += 1) {
       handles.push(createOne());
     }
+
     return true;
   } catch {
     return false;
@@ -47,10 +50,12 @@ test(
     expect(before).toBe(true);
 
     const rounds = 60;
+
     for (let round = 0; round < rounds; round += 1) {
       const { socket, harness } = await openWithPeer((peer) => {
         peer.on("message", () => undefined);
       });
+
       try {
         socket.send("round");
         await waitFor(() => socket.readyState === WebSocket.OPEN);
@@ -74,7 +79,7 @@ test(
     await new Promise<void>((resolve) => {
       server.once("listening", () => resolve());
     });
-    const port = (server.address() as { port: number }).port;
+    const port = boundPort(server.address());
     const sockets: WebSocket[] = [];
     const accepted: WebSocket[] = [];
     server.on("connection", (socket) => {
@@ -82,6 +87,7 @@ test(
       // The echo is what makes the independence check meaningful.
       socket.on("message", (data) => socket.send(data));
     });
+
     try {
       for (let index = 0; index < 32; index += 1) {
         sockets.push(
@@ -92,16 +98,21 @@ test(
           }),
         );
       }
+
       await waitFor(() => accepted.length === sockets.length);
       // Every socket gets its own echo, which is what proves they are independent.
       const heard = new Set<string>();
+
       for (const socket of sockets) {
         socket.on("message", (data) => heard.add(data.toString()));
       }
+
       sockets[0]?.send("ping from the first");
       await waitFor(() => heard.size > 0);
       expect([...heard]).toEqual(["ping from the first"]);
+
       for (const socket of sockets) socket.close();
+
       for (const socket of accepted) socket.close();
     } finally {
       for (const socket of sockets) socket.terminate();

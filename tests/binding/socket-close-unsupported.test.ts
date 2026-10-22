@@ -10,7 +10,6 @@ import { attachNativeSocket } from "../../src/compat/socket/attach";
 import { closeFrameWritten } from "../../src/compat/socket/lifecycle";
 import { OPEN } from "../../src/compat/ready-state";
 import { WebSocket as VentiwsSocket } from "../../src/index";
-import type { CodedError } from "../../src/types/errors";
 import { startAndWait, TEST_TIMEOUT_MS } from "./support";
 
 test(
@@ -20,22 +19,23 @@ test(
     const { server, port } = await startAndWait({ host: "127.0.0.1", port: 0 });
     const client = new WebSocket(`ws://127.0.0.1:${port}/`);
     client.on("error", () => undefined);
+
     try {
       const open = await server.waitFor("connectionOpen");
       const connection = packConnectionHandle(open.index, open.generation);
       const socket = new VentiwsSocket(null);
       attachNativeSocket(socket, server.handle, connection);
 
-      const errors: CodedError[] = [];
+      const errors: Error[] = [];
       socket.on("error", (error: Error) => {
-        errors.push(error as CodedError);
+        errors.push(error);
       });
       socket.close(1000, "bye");
       socket.close(1000, "bye");
 
       // One report for the one unsupported condition, and no close frame was written.
       expect(errors).toHaveLength(1);
-      expect(errors[0]?.code).toBe("ERR_POLICY_VIOLATION");
+      expect(errors[0]).toHaveProperty("code", "ERR_POLICY_VIOLATION");
       expect(errors[0]?.message).toMatch(/app-initiated close is not implemented/);
       expect(socket.readyState).toBe(OPEN);
       expect(closeFrameWritten(socket)).toBe(false);

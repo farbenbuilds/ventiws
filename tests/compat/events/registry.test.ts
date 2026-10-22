@@ -10,9 +10,11 @@ type TestEventMap = {
 
 test("dispatches payloads to every subscriber", () => {
   const seen: string[] = [];
+
   const registry = subscribe(createRegistry<TestEventMap>(), "message", (value, repeat) => {
     seen.push(value.repeat(repeat));
   });
+
   expect(dispatch(registry, "message", "ab", 3)).toBe(1);
   expect(seen).toEqual(["ababab"]);
 });
@@ -24,6 +26,7 @@ test("dispatches nothing when no handler is subscribed", () => {
 
 test("propagates a handler exception and skips the remaining handlers", () => {
   const seen: string[] = [];
+
   const registry = subscribe(
     subscribe(createRegistry<TestEventMap>(), "open", () => {
       seen.push("first");
@@ -34,6 +37,7 @@ test("propagates a handler exception and skips the remaining handlers", () => {
       seen.push("second");
     },
   );
+
   expect(() => dispatch(registry, "open")).toThrow("boom");
   expect(seen).toEqual(["first"]);
 });
@@ -44,14 +48,17 @@ test("reports zero handlers for error instead of throwing, leaving policy to the
 
 test("keeps duplicate handlers, matching EventEmitter", () => {
   let calls = 0;
+
   const handler = (): void => {
     calls += 1;
   };
+
   const registry = subscribe(
     subscribe(createRegistry<TestEventMap>(), "open", handler),
     "open",
     handler,
   );
+
   expect(dispatch(registry, "open")).toBe(2);
   expect(calls).toBe(2);
 });
@@ -68,12 +75,15 @@ test("unsubscribing removes one occurrence without touching the previous registr
 
 test("removal drops the last occurrence, matching removeListener", () => {
   const calls: string[] = [];
+
   const duplicate = (): void => {
     calls.push("duplicate");
   };
+
   const marker = (): void => {
     calls.push("marker");
   };
+
   let registry = createRegistry<TestEventMap>();
   registry = subscribe(registry, "open", duplicate);
   registry = subscribe(registry, "open", marker);
@@ -89,13 +99,16 @@ test("removal drops the last occurrence, matching removeListener", () => {
 test("dispatching iterates the array captured at call time", () => {
   const calls: string[] = [];
   let registry = createRegistry<TestEventMap>();
+
   const second = (): void => {
     calls.push("second");
   };
+
   const first = (): void => {
     calls.push("first");
     registry = unsubscribe(registry, "open", second);
   };
+
   registry = subscribe(registry, "open", first);
   registry = subscribe(registry, "open", second);
   dispatch(registry, "open");

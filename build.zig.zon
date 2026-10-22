@@ -1,13 +1,14 @@
 .{
     .name = .ventiws,
-    .version = "1.0.0-rc.4",
+    .version = "1.0.0-rc.5",
     .fingerprint = 0x66c665792a0706f4, // Changing this has security and trust implications.
     .minimum_zig_version = "0.16.0",
     .dependencies = .{
-        // farbenbuilds/uWebZockets
+        // farbenbuilds/uWebZockets v2.0.0 plus the vendor-overlay packaging
+        // fix and the function/data-section build flags used by the size pass.
         .uWebZockets = .{
-            .url = "git+https://github.com/farbenbuilds/uWebZockets?ref=v1.8.0#d94b4e546000455f2ca680d07cb61d032034d5ec",
-            .hash = "uWebZockets-1.8.0-SD3SPCtoJgB2t5E5ldRsnhw2iSXJXaEU03GScHvbL_8s",
+            .url = "git+https://github.com/farbenbuilds/uWebZockets#389558b46f8596599fa87d1b0b2c49e6788a591a",
+            .hash = "uWebZockets-2.0.0-SD3SPPPFKQCVKGdvS6KdgvLfqmYJjxze0BwIwUFjC8Ae",
         },
 
         // farbenbuilds/zslay

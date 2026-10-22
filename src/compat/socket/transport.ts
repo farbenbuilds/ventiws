@@ -26,6 +26,7 @@ export function failTransport(state: SocketState, error: Error): void {
 /// is a second call's opportunity to send on a connection that is already gone.
 export function terminateConnection(state: SocketState): void {
   if (state.readyState === CLOSED) return;
+
   if (state.readyState === CONNECTING) {
     // The same in-flight request `close()` cancels: with no transport yet, it is the only
     // connection there is to abort.
@@ -37,12 +38,17 @@ export function terminateConnection(state: SocketState): void {
         "WebSocket was closed before the connection was established",
       ),
     );
+
     return;
   }
+
   state.readyState = CLOSING;
+
   if (state.transport !== null) {
     state.transport.destroy();
+
     return;
   }
+
   finishConnection(state, CLOSE_ABNORMAL, EMPTY);
 }

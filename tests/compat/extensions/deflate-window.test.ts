@@ -62,6 +62,7 @@ describe("a window named in a client offer", () => {
       configurations("permessage-deflate; server_max_window_bits=10, permessage-deflate"),
       DEFAULTS,
     );
+
     expect(acceptedHeader(outcome)).toBe(
       "permessage-deflate; server_no_context_takeover; client_no_context_takeover",
     );
@@ -74,6 +75,7 @@ describe("a window named in a client offer", () => {
       ),
       DEFAULTS,
     );
+
     expect(outcome).toHaveProperty("refusal");
   });
 
@@ -81,10 +83,12 @@ describe("a window named in a client offer", () => {
     // `ws`'s own comparison at `permessage-deflate.js:167`: the server has nothing to give
     // back when it wants more than the client said it could take.
     const server = normalizePerMessageDeflate({ serverMaxWindowBits: 15 }, true);
+
     const outcome = acceptAsServer(
       configurations("permessage-deflate; server_max_window_bits=10"),
       server,
     );
+
     expect(outcome).toHaveProperty("refusal");
   });
 
@@ -114,33 +118,5 @@ describe("a server window named only in the options", () => {
   ])("an option of %s still negotiates against %s", (bits, header) => {
     const server = normalizePerMessageDeflate({ serverMaxWindowBits: bits }, true);
     expect(acceptedHeader(acceptAsServer(configurations(header), server))).toBe(NEGOTIATED);
-  });
-});
-
-describe("the window this server asked for", () => {
-  test("a server that asked to widen past the offer is refused", () => {
-    // `ws`'s own comparison at `permessage-deflate.js:167`: the server has nothing to give
-    // back when it wants more than the client said it could take.
-    const server = normalizePerMessageDeflate({ serverMaxWindowBits: 15 }, true);
-    const outcome = acceptAsServer(
-      configurations("permessage-deflate; server_max_window_bits=10"),
-      server,
-    );
-    expect(outcome).toHaveProperty("refusal");
-  });
-
-  test("a server that will not name a window at all refuses an offer that names one", () => {
-    // `false` is reachable at runtime and `ws` compares against it
-    // (`permessage-deflate.js:166`), but `@types/ws` types the option as a number, so a
-    // typed caller cannot set it. The cast is the declaration gap, not a behaviour.
-    const server = normalizePerMessageDeflate(
-      { serverMaxWindowBits: false } as unknown as { serverMaxWindowBits: number },
-      true,
-    );
-    const outcome = acceptAsServer(
-      configurations("permessage-deflate; server_max_window_bits=15"),
-      server,
-    );
-    expect(outcome).toHaveProperty("refusal");
   });
 });

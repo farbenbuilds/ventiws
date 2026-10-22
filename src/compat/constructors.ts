@@ -8,40 +8,55 @@ import type {
 } from "../types/ws";
 import { createWebSocketServer, isServer } from "./server/server";
 import { createSocket, isSocket } from "./socket/socket";
+import { promoteOptions } from "./client/protocols";
 import { createWebSocketStream } from "./stream";
-import type { ServerSocketConstructor } from "../types/server";
 
 type SocketConstructor = typeof ws.WebSocket;
+
 type ServerConstructor = typeof ws.WebSocket.WebSocketServer;
 
-function buildSocket(address: unknown, protocols?: unknown, options?: unknown): WebSocketInstance {
+type ProtocolsArgument = string | string[] | ClientOptions | ServerOptions | undefined;
+
+type SocketOptions = ClientOptions | ServerOptions | undefined;
+
+function buildSocket(
+  address: string | URL | null,
+  protocols?: ProtocolsArgument,
+  options?: SocketOptions,
+): WebSocketInstance {
   if (new.target === undefined) {
     throw new TypeError("Class constructor WebSocket cannot be invoked without 'new'");
   }
-  return createSocket(
-    address as string | URL | null,
-    protocols as string | string[] | undefined,
-    options as ClientOptions | ServerOptions | undefined,
-  );
+
+  const promoted = promoteOptions(protocols, options);
+
+  return createSocket(address, promoted.protocols, promoted.options);
 }
 
-function buildServer(options?: unknown, callback?: unknown): WebSocketServerInstance {
+function buildServer(options?: ServerOptions, callback?: () => void): WebSocketServerInstance {
   if (new.target === undefined) {
     throw new TypeError("Class constructor WebSocketServer cannot be invoked without 'new'");
   }
-  return createWebSocketServer(
-    WebSocket as unknown as ServerSocketConstructor,
-    options as ServerOptions | undefined,
-    callback as (() => void) | undefined,
-  );
+
+  return createWebSocketServer(WebSocket, options, callback);
 }
 
 /// The `ws` classes' drop-in stand-ins: calling either with `new` returns the state record,
 /// and `Symbol.hasInstance` reads the record brand, so `instanceof` passes with no
 /// prototype chain.
-const WebSocket: SocketConstructor = buildSocket as unknown as SocketConstructor;
+
+// SAFETY: `buildSocket` is the new-only factory; no prototype exists to instantiate.
+const socketFactory = buildSocket as SocketConstructor & typeof buildSocket;
+
+const WebSocket: SocketConstructor = socketFactory;
+
 type WebSocket = WebSocketInstance;
-const WebSocketServer: ServerConstructor = buildServer as unknown as ServerConstructor;
+
+// SAFETY: `buildServer` is the matching new-only factory; `new.target` rejects a plain call.
+const serverFactory = buildServer as ServerConstructor & typeof buildServer;
+
+const WebSocketServer: ServerConstructor = serverFactory;
+
 type WebSocketServer = WebSocketServerInstance;
 
 /// Re-exports the qualified type surface (`WebSocket.RawData`, `WebSocket.ServerOptions`,
@@ -80,7 +95,9 @@ namespace WebSocket {
 }
 
 Object.defineProperty(WebSocket, Symbol.hasInstance, { value: isSocket });
+
 Object.defineProperty(WebSocketServer, Symbol.hasInstance, { value: isServer });
+
 // `ws` pins the ready-state constants; the remaining statics stay writable.
 Object.defineProperties(WebSocket, {
   CONNECTING: { value: 0, enumerable: true },
@@ -88,6 +105,7 @@ Object.defineProperties(WebSocket, {
   CLOSING: { value: 2, enumerable: true },
   CLOSED: { value: 3, enumerable: true },
 });
+
 Object.assign(WebSocket, {
   WebSocket,
   WebSocketServer,

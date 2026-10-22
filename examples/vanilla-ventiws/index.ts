@@ -14,7 +14,8 @@ server.on("connection", (socket) => {
 // The client connects once the server reports the port it actually bound.
 server.on("listening", () => {
   const address = server.address();
-  if (address === null || typeof address === "string") return;
+
+  if (!(address instanceof Object)) return;
 
   const client = new WebSocket(`ws://127.0.0.1:${address.port}`);
 

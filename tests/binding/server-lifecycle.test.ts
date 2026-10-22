@@ -9,6 +9,7 @@ test(
   },
   async () => {
     const server = fixture({ host: "127.0.0.1", port: 0 });
+
     try {
       closeServer(server.handle);
       await server.waitFor("serverClosed");
@@ -23,6 +24,7 @@ test(
 
 test("finalize before close is a typed error", { timeout: TEST_TIMEOUT_MS }, async () => {
   const server = fixture({ host: "127.0.0.1", port: 0 });
+
   try {
     expect(() => finalizeServer(server.handle)).toThrow(/ServerNotClosed/);
   } finally {
@@ -37,6 +39,7 @@ test(
   },
   async () => {
     const server = fixture({ host: "127.0.0.1", port: 0 });
+
     try {
       closeServer(server.handle);
       expect(() => finalizeServer(server.handle)).toThrow(/EventsPending/);
@@ -50,6 +53,7 @@ test(
 
 test("double close and re-listen are typed errors", { timeout: TEST_TIMEOUT_MS }, async () => {
   const server = start({ host: "127.0.0.1", port: 0 });
+
   try {
     await server.waitFor("listening");
     expect(() => listenServer(server.handle)).toThrow(/InvalidServerState/);

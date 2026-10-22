@@ -1,36 +1,53 @@
 import type { ReadyState } from "../../types/close";
-import type { BinaryTypeValue } from "../../types/socket";
+import type { BinaryTypeValue, SocketState } from "../../types/socket";
 import type { WebSocket } from "../../types/ws";
 import { createEmitter } from "../events/emitter";
 import {
   addEventListener,
-  defineDomAttributes,
   removeEventListener,
   type DomListenerOptions,
 } from "../events/dom-listeners";
+import { defineDomAttributes } from "../events/dom-attributes";
 import { CLOSED, CLOSING, CONNECTING, OPEN } from "../ready-state";
-import { closeConnection } from "./lifecycle";
+import { isBinaryTypeValue, type SocketCallback } from "./argument-kind";
+import { closeConnection } from "./close-flow";
+import { type CloseReasonInput } from "./close-reason";
 import { terminateConnection } from "./transport";
 import { pauseConnection, resumeConnection } from "./gating";
 import { controlFrame } from "./control";
-import { bufferedAmountOf } from "./payload";
+import { bufferedAmountOf, type SendInput } from "./payload";
 import { sendData } from "./send";
-import type { SocketState } from "../../types/socket";
+import type { SendOptions } from "./send-options";
 import { brandSocket } from "./state";
-
-/// One list, so the setter and the record's type cannot disagree about "binary".
-const BINARY_TYPE_VALUES: readonly BinaryTypeValue[] = [
-  "nodebuffer",
-  "arraybuffer",
-  "fragments",
-  "blob",
-];
 
 /// The `ws`-shaped socket record, built around a state the caller has filled in. The
 /// server path adopts a state and the client path fills one in mid-handshake, so the
 /// record is defined once rather than once per direction.
 export function buildSocketRecord(state: SocketState): WebSocket {
   const emitter = createEmitter(state);
+
+  const addDomListener = <K extends keyof WebSocket.WebSocketEventMap>(
+    type: K,
+    listener:
+      | ((event: WebSocket.WebSocketEventMap[K]) => void)
+      | { handleEvent(event: WebSocket.WebSocketEventMap[K]): void },
+    options?: DomListenerOptions,
+  ): void => {
+    addEventListener(state, type, listener, options);
+  };
+
+  const removeDomListener = <K extends keyof WebSocket.WebSocketEventMap>(
+    type: K,
+    listener:
+      | ((event: WebSocket.WebSocketEventMap[K]) => void)
+      | { handleEvent(event: WebSocket.WebSocketEventMap[K]): void },
+  ): void => {
+    removeEventListener(state, type, listener);
+  };
+
+  // SAFETY: DOM attributes are defined imperatively below and the emitter registrations
+  // return void where the vendored class declares `this`; both are runtime-visible gaps
+  // in `@types/ws` rather than a different record shape.
   const socket = {
     CONNECTING,
     OPEN,
@@ -42,11 +59,11 @@ export function buildSocketRecord(state: SocketState): WebSocket {
       return state.binaryType;
     },
     set binaryType(value: string) {
-      // `ws` accepts "blob" wherever the Blob global exists and silently ignores
-      // anything else, so this is a narrowing check, not an assertion that could be wrong.
-      const accepted = BINARY_TYPE_VALUES.includes(value as BinaryTypeValue);
-      if (!accepted) return;
-      state.binaryType = value as BinaryTypeValue;
+      // `ws` silently ignores anything else, so this is a narrowing check, not an
+      // assertion that could be wrong.
+      if (!isBinaryTypeValue(value)) return;
+
+      state.binaryType = value;
     },
     get bufferedAmount(): number {
       // Read live: the number a caller polls to decide whether to stop sending changes
@@ -70,16 +87,16 @@ export function buildSocketRecord(state: SocketState): WebSocket {
       return state.url;
     },
     ...emitter,
-    send: (data: unknown, sendOptions?: unknown, callback?: unknown): void => {
+    send: (data: SendInput, sendOptions?: SendOptions, callback?: SocketCallback): void => {
       sendData(state, data, sendOptions, callback);
     },
-    ping: (data?: unknown, mask?: unknown, callback?: unknown): void => {
+    ping: (data?: SendInput, mask?: boolean | SocketCallback, callback?: SocketCallback): void => {
       controlFrame(state, "ping", data, mask, callback);
     },
-    pong: (data?: unknown, mask?: unknown, callback?: unknown): void => {
+    pong: (data?: SendInput, mask?: boolean | SocketCallback, callback?: SocketCallback): void => {
       controlFrame(state, "pong", data, mask, callback);
     },
-    close: (code?: unknown, reason?: unknown): void => {
+    close: (code?: number, reason?: CloseReasonInput): void => {
       closeConnection(state, code, reason);
     },
     terminate: (): void => {
@@ -91,19 +108,13 @@ export function buildSocketRecord(state: SocketState): WebSocket {
     resume: (): void => {
       resumeConnection(state);
     },
-    addEventListener: (
-      type: string,
-      handler: unknown,
-      listenerOptions?: DomListenerOptions,
-    ): void => {
-      addEventListener(state, type, handler, listenerOptions);
-    },
-    removeEventListener: (type: string, handler: unknown): void => {
-      removeEventListener(state, type, handler);
-    },
-  };
+    addEventListener: addDomListener,
+    removeEventListener: removeDomListener,
+  } as WebSocket;
+
   state.target = socket;
   defineDomAttributes(socket, state);
   brandSocket(socket, state);
-  return socket as unknown as WebSocket;
+
+  return socket;
 }

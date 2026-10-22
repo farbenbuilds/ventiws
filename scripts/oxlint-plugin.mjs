@@ -10,7 +10,9 @@ const EMOJI_PATTERN = /\p{Extended_Pictographic}/u;
 
 function isMemberNamed(node, name) {
   if (node.type !== "MemberExpression") return false;
+
   if (node.property.type !== "Identifier") return false;
+
   return node.property.name === name;
 }
 
@@ -20,14 +22,19 @@ function isPrototypeReference(node) {
 
 function isPrototypeMutationTarget(node) {
   if (node.type !== "MemberExpression") return false;
+
   if (isMemberNamed(node, "__proto__")) return true;
+
   if (isPrototypeReference(node)) return true;
+
   if (node.object.type !== "MemberExpression") return false;
+
   return isPrototypeReference(node.object);
 }
 
 function isSetPrototypeOfCall(node) {
   if (node.type !== "CallExpression") return false;
+
   return isMemberNamed(node.callee, "setPrototypeOf");
 }
 
@@ -38,9 +45,11 @@ const noOop = {
   },
   create(context) {
     const report = (node, message) => context.report({ message, node });
+
     const reportMutation = (node) => {
       if (isPrototypeMutationTarget(node.left)) report(node, "Prototype mutation is banned.");
     };
+
     return {
       ClassDeclaration: (node) =>
         report(node, "Classes are banned; return a state record from a factory function."),

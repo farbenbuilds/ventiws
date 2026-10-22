@@ -26,23 +26,25 @@ export const SHARD_PORT_BASE = 9401;
 export const DEFAULT_SHARD_COUNT = 4;
 
 /// More shards than groups leaves an empty shard, so the effective ceiling is the group count.
-type Weights = {
+export type Weights = {
   /// Seconds of `wstest` time per case, per group.
   readonly groups: Readonly<Record<string, number>>;
   /// How many cases each group expands to in the pinned suite.
   readonly caseCounts: Readonly<Record<string, number>>;
 };
 
-const TABLE = weights as Weights;
+const TABLE: Weights = weights;
 
 /// Derived from the case count, so a corrected group count re-prices itself.
 function costOf(groups: readonly string[]): number {
   let total = 0;
+
   for (const group of groups) {
     const perCase = TABLE.groups[group] ?? 0;
     const count = TABLE.caseCounts[group] ?? 0;
     total += perCase * count;
   }
+
   return total;
 }
 
@@ -59,14 +61,18 @@ function pack(
   const bins: string[][] = Array.from({ length: shards }, () => []);
   const loads = Array.from<number>({ length: shards }).fill(0);
   const ordered = [...groupWeights].sort((left, right) => right.weight - left.weight);
+
   for (const entry of ordered) {
     let lightest = 0;
+
     for (let index = 1; index < shards; index += 1) {
       if (loads[index] < loads[lightest]) lightest = index;
     }
+
     bins[lightest].push(entry.group);
     loads[lightest] += entry.weight;
   }
+
   return bins;
 }
 
@@ -80,13 +86,15 @@ export function maxShardsFor(mode: SuiteMode): number {
 /// One resolver for the runner, the self-check, and the flag, so a value accepted in one place
 /// cannot be rejected in another.
 export function resolveShardCount(raw: string | number, mode: SuiteMode): number {
-  const parsed = typeof raw === "number" ? raw : Number(raw);
+  const parsed = Number(raw);
   const max = maxShardsFor(mode);
+
   if (!Number.isInteger(parsed) || parsed < 1 || parsed > max) {
     throw new RangeError(
       `shard count must be an integer in 1..${max} for the ${mode} selection, got ${String(raw)}`,
     );
   }
+
   return parsed;
 }
 
@@ -94,6 +102,7 @@ export function planShards(shardCount: number, mode: SuiteMode): readonly Shard[
   resolveShardCount(shardCount, mode);
   const groups = MODE_COUNTS[mode].groups;
   const priced = groups.map((group) => ({ group, weight: costOf([group]) }));
+
   return pack(priced, shardCount).map((owned, id) => ({
     id,
     port: SHARD_PORT_BASE + id,

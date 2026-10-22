@@ -4,11 +4,11 @@
 
 import { execFileSync } from "node:child_process";
 import { createServer as createHttps, type Server as HttpsServer } from "node:https";
-import type { Server as HttpServer } from "node:http";
 import { mkdtempSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { WebSocketServer } from "../../../src/index";
+import { boundPort } from "../address-support";
 import { TEST_TIMEOUT_MS } from "../../binding/support";
 
 export type Certificates = { readonly ca: Buffer; readonly key: Buffer; readonly cert: Buffer };
@@ -48,6 +48,7 @@ export function certificates(): Certificates {
     "subjectAltName=DNS:localhost",
   ]);
   cached = { ca: readFileSync(cert), key: readFileSync(key), cert: readFileSync(cert) };
+
   return cached;
 }
 
@@ -55,12 +56,13 @@ export function certificates(): Certificates {
 export async function tlsServer(): Promise<TlsHarness> {
   const { ca, key, cert } = certificates();
   const http: HttpsServer = createHttps({ key, cert });
-  const wss = new WebSocketServer({ server: http as unknown as HttpServer });
+  const wss = new WebSocketServer({ server: http });
   wss.on("connection", (socket) => {
     socket.on("message", (data) => socket.send(data));
   });
   await new Promise<void>((resolve) => http.listen(0, "127.0.0.1", () => resolve()));
-  const port = (http.address() as { port: number }).port;
+  const port = boundPort(http.address());
+
   return {
     url: `wss://localhost:${port}/`,
     ca,

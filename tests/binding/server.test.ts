@@ -8,6 +8,7 @@ function kinds(events: { kind: EngineEventKind }[]): EngineEventKind[] {
 
 test("runs the native server lifecycle", { timeout: TEST_TIMEOUT_MS }, async () => {
   const server = start({ host: "127.0.0.1", port: 0 });
+
   try {
     const listening = await server.waitFor("listening");
     expect(listening.server).toBe(server.handle);
@@ -27,6 +28,7 @@ test(
   async () => {
     const { server, port } = await startAndWait({ host: "127.0.0.1", port: 0 });
     let socket: WebSocket | undefined;
+
     try {
       socket = new WebSocket(`ws://127.0.0.1:${port}/`);
       const open = await server.waitFor("connectionOpen");
@@ -59,6 +61,7 @@ test(
     );
 
     const server = fixture({ port: 0 });
+
     try {
       expect(server.handle).toBeGreaterThanOrEqual(0);
       // The invalid attempts must not have claimed a registry slot, so the

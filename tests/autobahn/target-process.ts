@@ -18,6 +18,11 @@ export type TargetAddress = {
   readonly host: string;
 };
 
+type TargetEnvironment = {
+  readonly port: string;
+  readonly host: string;
+};
+
 const READY_TIMEOUT_MS = 30_000;
 const DEFAULT_ADDRESS: TargetAddress = { port: DEFAULT_TARGET_PORT, host: DEFAULT_TARGET_HOST };
 
@@ -27,22 +32,19 @@ const DEFAULT_ADDRESS: TargetAddress = { port: DEFAULT_TARGET_PORT, host: DEFAUL
 /// passes an explicit port per shard, and honouring one global override there
 /// would start every shard on the same port, so three of them would fail to bind
 /// and the plan would be discarded with no diagnostic.
-function environment(
-  address: TargetAddress,
-  explicit: boolean,
-): {
-  readonly port: string;
-  readonly host: string;
-} {
+function environment(address: TargetAddress, explicit: boolean): TargetEnvironment {
   const port = explicit
     ? address.port
     : Number(process.env["AUTOBAHN_TARGET_PORT"] ?? address.port);
+
   const host = explicit ? address.host : (process.env["AUTOBAHN_TARGET_HOST"] ?? address.host);
+
   return { port: String(port), host };
 }
 
 function launch(address: TargetAddress, explicit: boolean): TargetChild {
   const { port, host } = environment(address, explicit);
+
   return spawn(process.execPath, [TARGET_ENTRY_PATH], {
     env: { ...process.env, AUTOBAHN_TARGET_PORT: port, AUTOBAHN_TARGET_HOST: host },
     stdio: ["ignore", "pipe", "pipe"],
@@ -51,6 +53,7 @@ function launch(address: TargetAddress, explicit: boolean): TargetChild {
 
 function describeExit(code: number | null, signal: NodeJS.Signals | null, detail: string): string {
   const reason = `ventiws-target: exited before reporting a port (code=${String(code)} signal=${String(signal)})`;
+
   return detail === "" ? reason : `${reason}: ${detail}`;
 }
 
@@ -62,8 +65,10 @@ export function startTarget(address?: TargetAddress): Promise<TargetProcess> {
   const child = launch(address ?? DEFAULT_ADDRESS, explicit);
   trackTarget(child);
   const stderrLines = forwardStderr(child);
+
   return new Promise((resolve, reject) => {
     let settled = false;
+
     const fail = (error: Error): void => {
       if (settled) return;
       settled = true;
@@ -74,9 +79,11 @@ export function startTarget(address?: TargetAddress): Promise<TargetProcess> {
       void stopChild(child);
       reject(error);
     };
+
     const timer = setTimeout(() => {
       fail(new Error(`ventiws-target: no ready record within ${READY_TIMEOUT_MS} ms`));
     }, READY_TIMEOUT_MS);
+
     child.once("error", fail);
     child.once("exit", (code, signal) => {
       fail(new Error(describeExit(code, signal, stderrLines.join("; "))));
@@ -84,16 +91,20 @@ export function startTarget(address?: TargetAddress): Promise<TargetProcess> {
     readLines(child, (line) => {
       if (settled) return;
       const ready = decodeTargetReady(line);
+
       if (ready === null) {
         process.stderr.write(`ventiws-target: ${line}\n`);
+
         return;
       }
+
       settled = true;
       clearTimeout(timer);
       resolve({
         ready,
         stop: () => {
           releaseTarget(child);
+
           return stopChild(child);
         },
       });
@@ -111,12 +122,14 @@ export async function startTargets(
   addresses: readonly TargetAddress[],
 ): Promise<readonly TargetProcess[]> {
   const started: TargetProcess[] = [];
+
   try {
     for (const address of addresses) started.push(await startTarget(address));
   } catch (error) {
     await stopTargets(started);
     throw error;
   }
+
   return started;
 }
 

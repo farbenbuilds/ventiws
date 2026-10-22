@@ -20,15 +20,18 @@ test("upgrade reports the 101 before the socket opens", { timeout: TEST_TIMEOUT_
   // event would make the event unobservable on exactly the responses a caller most
   // wants to see.
   const peer = await scriptedPeer({ first: 101, after: 101 });
+
   const socket = new WebSocket(
     peer.url,
     undefined,
     undeclared({ closeTimeout: CLOSE_DEADLINE_MS }),
   );
+
   try {
     const seen = new Promise<IncomingMessage>((resolve) => {
       socket.once("upgrade", resolve);
     });
+
     await new Promise<void>((resolve) => socket.once("open", resolve));
     const response = await seen;
     expect(response.statusCode).toBe(101);
@@ -52,22 +55,26 @@ test(
     // emit -- which would abort the rest of this listener, including the `resolve` the
     // test is waiting on.
     const peer = await scriptedPeer({ first: 101, after: 101 });
+
     const socket = new WebSocket(
       peer.url,
       undefined,
       undeclared({ closeTimeout: CLOSE_DEADLINE_MS }),
     );
+
     try {
       // Attached before the close below, because closing a `CONNECTING` socket reports
       // the aborted handshake as an `error` and an `error` with no listener is thrown
       // from inside the listener that is running.
       const reported = new Promise<Error>((resolve) => socket.once("error", resolve));
+
       const seen = new Promise<void>((resolve) => {
         socket.once("upgrade", () => {
           socket.close();
           resolve();
         });
       });
+
       await seen;
       expect(socket.readyState).toBe(WebSocket.CLOSED);
       expect((await reported).message).toMatch(/closed before the connection was established/);

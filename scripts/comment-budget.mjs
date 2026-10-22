@@ -47,11 +47,13 @@ export function commentViolations(name, source, violations) {
   const comments = flags.filter((flag) => flag === true).length;
   const code = flags.filter((flag) => flag !== null).length - comments;
   const longest = longestRun(flags);
+
   if (longest > run) {
     violations.push(
       `${name}: ${longest} consecutive comment lines exceeds the ${run}-line run budget`,
     );
   }
+
   violations.push(...densityViolations(name, source, comments, code, density));
 }
 
@@ -64,13 +66,16 @@ export function commentViolations(name, source, violations) {
 function densityViolations(name, source, comments, code, density) {
   if (isDeclarationTable(name, source, code)) return [];
   const allowed = code >= RATIO_MIN_CODE ? Math.ceil(code * density) : smallFileBudget(code);
+
   if (comments > allowed) {
     const message =
       code >= RATIO_MIN_CODE
         ? `${name}: ${comments} comment lines for ${code} code lines exceeds the ${density} density`
         : `${name}: ${comments} comment lines in a ${code}-code-line file exceeds ${allowed}`;
+
     return [message];
   }
+
   return [];
 }
 
@@ -78,6 +83,7 @@ function densityViolations(name, source, comments, code, density) {
 /// copied a form the language does not have; `///` is what the source tree uses.
 function zigModuleDocInTypeScript(name, source, violations) {
   if (!/\.(?:ts|mts|cts)$/.test(name)) return;
+
   if (!source.split("\n").some((line) => line.startsWith("//!"))) return;
   violations.push(`${name}: uses Zig's //! module doc in TypeScript`);
 }
@@ -90,11 +96,14 @@ function zigModuleDocInTypeScript(name, source, violations) {
 /// special-cased.
 function isDeclarationTable(name, source, code) {
   if (!name.endsWith(".zig")) return false;
+
   const lines = source
     .split("\n")
     .map((line) => line.trim())
     .filter((line) => line !== "" && !line.startsWith("//") && !line.startsWith("///"));
+
   const declarations = lines.filter((line) => /^(pub )?const /.test(line));
+
   return declarations.length === code && declarations.length >= 4;
 }
 
@@ -108,13 +117,17 @@ function smallFileBudget(code) {
 function longestRun(flags) {
   let longest = 0;
   let run = 0;
+
   for (const flag of flags) {
     if (flag === null) {
       run = 0;
       continue;
     }
+
     run = flag ? run + 1 : 0;
+
     if (run > longest) longest = run;
   }
+
   return longest;
 }

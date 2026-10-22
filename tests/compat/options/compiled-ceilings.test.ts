@@ -5,65 +5,59 @@
 // normalization reads a compiled ceiling. What matters is that it reads it *only* when
 // a value has to be compared against it, because a normalizer that loads a binary to
 // compute a default is a normalizer that cannot be exercised without one.
-//
-// Every case here runs with the addon's loader poisoned, so a read that should not happen
-// fails rather than passing because a binary happened to be present.
+// Every case counts the loader rather than replacing it, so a read that should not happen
+// fails the test instead of passing because a binary happened to be present.
 
 import { afterEach, expect, test, vi } from "vitest";
-import type * as LoadModule from "../../../src/binding/load";
+import * as load from "../../../src/binding/load";
+import { codecLimits } from "../../../src/binding/codec";
+import { normalizeClientOptions } from "../../../src/compat/options/client";
+import { normalizeServerOptions } from "../../../src/compat/options/server";
 
-const load = vi.hoisted(() => ({ calls: 0, poison: false }));
+const realLoad = load.loadAddon;
+let calls = 0;
+let armed = false;
 
-vi.mock("../../../src/binding/load", async (importOriginal) => {
-  const original = await importOriginal<typeof LoadModule>();
-  return {
-    ...original,
-    loadAddon: (): unknown => {
-      if (load.poison) load.calls += 1;
-      return original.loadAddon();
-    },
-  };
+/// The spy forwards to the real loader, so the cached addon is still the process's own.
+vi.spyOn(load, "loadAddon").mockImplementation(() => {
+  if (armed) calls += 1;
+
+  return realLoad();
 });
 
 afterEach(() => {
-  load.calls = 0;
-  load.poison = false;
+  calls = 0;
+  armed = false;
 });
 
-test("defaults are computed without the addon", async () => {
-  const { normalizeServerOptions } = await import("../../../src/compat/options/server");
-  load.poison = true;
+test("defaults are computed without the addon", () => {
+  armed = true;
   const options = normalizeServerOptions({ noServer: true });
   // `ws`'s default, taken as a constant. It is below the codec's ceiling by
   // construction, so there is nothing to compare and nothing to read.
   expect(options.maxPayload).toBe(100 * 1024 * 1024);
   expect(options.maxFragments).toBe(16 * 1024);
-  expect(load.calls).toBe(0);
+  expect(calls).toBe(0);
 });
 
-test("client defaults are computed without the addon", async () => {
-  const { normalizeClientOptions } = await import("../../../src/compat/options/client");
-  load.poison = true;
+test("client defaults are computed without the addon", () => {
+  armed = true;
   const options = normalizeClientOptions();
   expect(options.maxPayload).toBe(100 * 1024 * 1024);
-  expect(load.calls).toBe(0);
+  expect(calls).toBe(0);
 });
 
-test("a maxPayload of zero reads the ceiling, because zero means the ceiling", async () => {
-  const { normalizeServerOptions } = await import("../../../src/compat/options/server");
-  const { codecLimits } = await import("../../../src/binding/codec");
-  load.poison = true;
+test("a maxPayload of zero reads the ceiling, because zero means the ceiling", () => {
+  armed = true;
   // `0` is not "no limit" here: `ws` guards its own checks with `> 0`, so zero has to
   // become the real ceiling rather than a value nothing can be compared against.
   expect(normalizeServerOptions({ noServer: true, maxPayload: 0 }).maxPayload).toBe(
     codecLimits().maxPayloadBytes,
   );
-  expect(load.calls).toBeGreaterThan(0);
+  expect(calls).toBeGreaterThan(0);
 });
 
-test("a maxPayload above the ceiling is refused by name", async () => {
-  const { normalizeServerOptions } = await import("../../../src/compat/options/server");
-  const { codecLimits } = await import("../../../src/binding/codec");
+test("a maxPayload above the ceiling is refused by name", () => {
   // The message names the option and the range, so a caller can fix it without reading
   // the source. A native ordinal at the first connection would not have named anything.
   expect(() =>
@@ -71,21 +65,19 @@ test("a maxPayload above the ceiling is refused by name", async () => {
   ).toThrow(/maxPayload option must be an integer in/);
 });
 
-test("a maxFragments above the ceiling is refused by name", async () => {
-  const { normalizeClientOptions } = await import("../../../src/compat/options/client");
-  const { codecLimits } = await import("../../../src/binding/codec");
-  // `maxFragments` is documented and defaulted by `ws` and absent from `@types/ws`, so a
-  // typed caller cannot set it without a cast. The cast is here rather than on the option
-  // type because the option *is* honoured.
-  const options = { maxFragments: codecLimits().maxFragments + 1 } as never;
+test("a maxFragments above the ceiling is refused by name", () => {
+  // `maxFragments` is documented and defaulted by `ws`, so the public options record is
+  // where a caller sets it; the ceiling is still the compiled one.
+  const options = { maxFragments: codecLimits().maxFragments + 1 };
   expect(() => normalizeClientOptions(options)).toThrow(
     /maxFragments option must be an integer in/,
   );
 });
 
-test("a non-integer or negative value is refused whatever the ceiling is", async () => {
-  const { normalizeServerOptions } = await import("../../../src/compat/options/server");
+test("a non-integer or negative value is refused whatever the ceiling is", () => {
   for (const value of [1.5, -1, Number.NaN, Number.POSITIVE_INFINITY, "1024", null]) {
+    // SAFETY: these are the out-of-type values the normalizer is required to name and
+    // refuse, so the fixture cannot satisfy the declared `number`.
     expect(() => normalizeServerOptions({ noServer: true, maxPayload: value as never })).toThrow(
       /maxPayload option must be an integer in/,
     );

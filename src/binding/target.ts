@@ -38,17 +38,23 @@ export function addonTarget(
   libc: HostLibc,
 ): AddonTarget | undefined {
   if (nodePlatform === "darwin") return darwinTarget(nodeArch);
+
   // Windows resolves to nothing: the pinned toolchain cannot link a Windows target.
   if (nodePlatform !== "linux") return undefined;
+
   if (nodeArch === "x64") return `linux-x64-${libc}`;
+
   // Alpine arm64 is not built, so musl arm64 resolves to nothing.
   if (nodeArch === "arm64" && libc === "gnu") return "linux-arm64-gnu";
+
   return undefined;
 }
 
 function darwinTarget(nodeArch: string): AddonTarget | undefined {
   if (nodeArch === "x64") return "darwin-x64";
+
   if (nodeArch === "arm64") return "darwin-arm64";
+
   return undefined;
 }
 

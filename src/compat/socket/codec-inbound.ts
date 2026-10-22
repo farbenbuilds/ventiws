@@ -1,5 +1,6 @@
 import type { Duplex } from "node:stream";
 import type { SocketState } from "../../types/socket";
+import { createError } from "../errors";
 import { codecOf } from "./codec-handle";
 import { isDeliveryPaused } from "./codec-deferral";
 import { drainReleased } from "./codec-events";
@@ -21,11 +22,15 @@ export function driveInbound(state: SocketState, transport: Duplex, pending?: Bu
 /// outrunning the application loses messages.
 export function ingest(state: SocketState, chunk: Buffer): void {
   const handle = codecOf(state);
+
   if (handle === null) return;
+
   if (state.pendingInput.length > 0) {
     enqueue(state, chunk);
+
     return;
   }
+
   consume(state, handle, chunk, () => {
     guardedResume(state);
   });
@@ -37,7 +42,7 @@ function guardedResume(state: SocketState): void {
   try {
     resume(state);
   } catch (error) {
-    failOnThrow(state, error);
+    failOnThrow(state, error instanceof Error ? error : createError("ERR_PROTOCOL", String(error)));
     throw error;
   }
 }
@@ -53,16 +58,20 @@ function resume(state: SocketState): void {
   // Cleared before the next read is fed, so a chunk arriving from that read's own delivery
   // is consumed in order rather than queued behind the tail it is draining.
   state.pendingInput = [];
+
   if (handle === null) return;
+
   for (const [index, chunk] of queued.entries()) {
     if (codecOf(state) === null) return;
     consume(state, handle, chunk, () => {
       guardedResume(state);
     });
+
     if (!isDeliveryPaused(state)) continue;
     // `consume` queued its own read's unread tail, so the reads behind go after that tail:
     // this order is what keeps the bytes in the order the peer sent them.
     state.pendingInput = state.pendingInput.concat(queued.slice(index + 1));
+
     return;
   }
 }

@@ -8,14 +8,15 @@
 
 import { expect, test } from "vitest";
 import { createServer } from "node:net";
-import { WebSocket } from "../../../src/index";
+import { WebSocket, type ClientOptions } from "../../../src/index";
+import { boundPort } from "../address-support";
 import { TEST_TIMEOUT_MS } from "../../binding/support";
 import { undeclared } from "./undeclared";
 
 /// The request head, as a lower-cased record. The casing is left out because `ws` preserves
 /// whatever Node derived and these assertions are about which value won.
 async function requestHead(
-  options: Record<string, unknown>,
+  options: ClientOptions,
   host = "127.0.0.1",
 ): Promise<Record<string, string>> {
   const head = await new Promise<string>((resolve) => {
@@ -26,8 +27,9 @@ async function requestHead(
         resolve(data.toString("latin1"));
       });
     });
+
     listener.listen(0, "127.0.0.1", () => {
-      const port = (listener.address() as { port: number }).port;
+      const port = boundPort(listener.address());
       // A raw peer never answers the upgrade, so the client is torn down once its head has
       // been read. The refusal it then reports is the expected end of this exchange.
       const socket = new WebSocket(`ws://${host}:${port}/`, undeclared(options));
@@ -37,15 +39,19 @@ async function requestHead(
       });
     });
   });
+
   return toRecord(head);
 }
 
-function toRecord(head: string): Record<string, string> {
+function toRecord(head: string) {
   const record: Record<string, string> = {};
+
   for (const line of head.split("\r\n")) {
     const at = line.indexOf(":");
+
     if (at > 0) record[line.slice(0, at).trim().toLowerCase()] = line.slice(at + 1).trim();
   }
+
   return record;
 }
 
@@ -56,6 +62,7 @@ test(
     const head = await requestHead({
       headers: { connection: "keep-alive", upgrade: "h2c" },
     });
+
     expect(head.connection).toBe("Upgrade");
     expect(head.upgrade).toBe("websocket");
   },
@@ -78,6 +85,7 @@ test(
       { headers: { Authorization: "Bearer tok" } },
       "user:pass@127.0.0.1",
     );
+
     expect(head.authorization).toBe("Bearer tok");
   },
 );

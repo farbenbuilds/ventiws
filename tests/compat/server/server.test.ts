@@ -2,6 +2,7 @@ import { get } from "node:http";
 import { WebSocket as WsClient } from "ws";
 import { expect, test } from "vitest";
 import { WebSocket, WebSocketServer } from "../../../src/index";
+import { boundPort } from "../address-support";
 
 function statusOf(port: number, path = "/"): Promise<number> {
   return new Promise((resolve, reject) => {
@@ -12,10 +13,16 @@ function statusOf(port: number, path = "/"): Promise<number> {
   });
 }
 
-function onceEvent<T>(target: unknown, event: string): Promise<T> {
-  return new Promise((resolve) => {
-    (target as { once(event: string, listener: (value: T) => void): void }).once(event, resolve);
-  });
+function listening(server: WebSocketServer): Promise<void> {
+  return new Promise((resolve) => server.once("listening", () => resolve()));
+}
+
+function closed(socket: WebSocket): Promise<void> {
+  return new Promise((resolve) => socket.once("close", () => resolve()));
+}
+
+function accepted(server: WebSocketServer): Promise<WebSocket> {
+  return new Promise((resolve) => server.once("connection", (socket) => resolve(socket)));
 }
 
 test("the constructor validates the listen target and passes instanceof", () => {
@@ -50,20 +57,21 @@ test("close emits once, calls back, and reports a stopped server", async () => {
     });
   });
   expect(closes).toHaveLength(1);
+
   const error = await new Promise<Error | undefined>((resolve) => {
     server.close((failure) => {
       resolve(failure);
     });
   });
+
   expect(error?.message).toBe("The server is not running");
   expect(closes).toHaveLength(2);
 });
 
 test("port mode answers 426 and accepts upgraded clients", async () => {
   const server = new WebSocketServer({ port: 0 });
-  await onceEvent<void>(server, "listening");
-  const address = server.address();
-  const port = typeof address === "object" && address !== null ? address.port : 0;
+  await listening(server);
+  const port = boundPort(server.address());
   expect(port).toBeGreaterThan(0);
   expect(await statusOf(port)).toBe(426);
 
@@ -72,6 +80,7 @@ test("port mode answers 426 and accepts upgraded clients", async () => {
       resolve({ socket, request });
     });
   });
+
   const client = new WsClient(`ws://127.0.0.1:${port}/`);
   await new Promise<void>((resolve, reject) => {
     client.once("open", () => {
@@ -85,9 +94,9 @@ test("port mode answers 426 and accepts upgraded clients", async () => {
   expect(request).toBeDefined();
   expect(server.clients.has(socket)).toBe(true);
 
-  const closed = onceEvent<void>(socket, "close");
+  const done = closed(socket);
   socket.terminate();
-  await closed;
+  await done;
   expect(server.clients.size).toBe(0);
 
   client.terminate();
@@ -106,10 +115,9 @@ test("server mode adopts a caller-owned HTTP server", async () => {
       resolve();
     });
   });
-  const address = httpServer.address();
-  const port = typeof address === "object" && address !== null ? address.port : 0;
+  const port = boundPort(httpServer.address());
   const server = new WebSocketServer({ server: httpServer });
-  const connection = onceEvent<WebSocket>(server, "connection");
+  const connection = accepted(server);
   const client = new WsClient(`ws://127.0.0.1:${port}/`);
   await new Promise<void>((resolve, reject) => {
     client.once("open", () => {
@@ -121,7 +129,7 @@ test("server mode adopts a caller-owned HTTP server", async () => {
   expect(socket).toBeInstanceOf(WebSocket);
 
   client.terminate();
-  await onceEvent<void>(socket, "close");
+  await closed(socket);
   await new Promise<void>((resolve) => {
     server.close(() => {
       resolve();

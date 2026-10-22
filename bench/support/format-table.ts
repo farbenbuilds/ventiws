@@ -16,13 +16,17 @@ const legCell = (value: number | null, render: (input: number) => string): strin
 export const ratioAgainstBaseline = (result: ConfigurationResult, id: ImplementationId): string => {
   const baseline = result.legs[BASELINE_ID].medianRoundTripsPerSecond;
   const leg = result.legs[id].medianRoundTripsPerSecond;
+
   if (baseline === null || leg === null) return MISSING;
+
   return (leg / baseline).toFixed(3);
 };
 
 const latencyCell = (result: ConfigurationResult, id: ImplementationId): string => {
   const seconds = result.legs[id].medianSeconds;
+
   if (seconds === null) return MISSING;
+
   return `${fixed((seconds / result.messages) * 1e6, 2)} µs`;
 };
 

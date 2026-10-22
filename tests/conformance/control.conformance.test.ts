@@ -14,6 +14,7 @@ test.each([
   const result = await parity((socket) => {
     socket.ping(new Uint8Array(length));
   });
+
   expect(result.threw).toBe(true);
 });
 
@@ -21,6 +22,7 @@ test("pong refuses an oversize payload", { timeout: TEST_TIMEOUT_MS }, async () 
   const result = await parity((socket) => {
     socket.pong(new Uint8Array(126));
   });
+
   expect(result.threw).toBe(true);
 });
 
@@ -31,5 +33,6 @@ test("ping accepts a payload of exactly 125 bytes", { timeout: TEST_TIMEOUT_MS }
   const result = await parity((socket) => {
     socket.ping(new Uint8Array(125));
   });
+
   expect(result.threw).toBe(false);
 });

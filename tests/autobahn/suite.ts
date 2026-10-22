@@ -18,7 +18,9 @@ export function resetReportDirectory(): void {
   mkdirSync(REPORTS_HOST_DIR, { recursive: true });
 }
 
-function currentUser(): { readonly uid: string; readonly gid: string } {
+type UserIds = { readonly uid: string; readonly gid: string };
+
+function currentUser(): UserIds {
   return { uid: String(process.getuid?.() ?? 1000), gid: String(process.getgid?.() ?? 1000) };
 }
 
@@ -33,20 +35,26 @@ export function runContainer(input: {
   readonly name: string;
 }): Promise<number> {
   const argv = dockerArgs({ ...currentUser(), ...input });
+
   return new Promise((resolve) => {
     const child = spawn("docker", argv, { stdio: "inherit" });
     registerContainer(child, input.name);
+
     const fail = (code: number, message: string): void => {
       process.stderr.write(`autobahn: ${message}\n`);
       resolve(code);
     };
+
     child.once("error", (error) => fail(127, `docker failed to start: ${error.message}`));
     child.once("exit", (code, signal) => {
       forgetContainer(child);
+
       if (signal !== null) {
         fail(128, `wstest terminated by ${signal}`);
+
         return;
       }
+
       resolve(code ?? 1);
     });
   });
@@ -70,6 +78,8 @@ export function readReportCases(): readonly CaseReport[] {
   if (!reportExists()) {
     throw new Error(`autobahn: ${REPORT_INDEX_HOST_PATH} was not written by the suite`);
   }
+
   const raw = readFileSync(REPORT_INDEX_HOST_PATH, "utf8");
+
   return toCaseReports(parseReportIndex(raw, AGENT), exceedsInboundLimit);
 }

@@ -9,6 +9,7 @@ import { expect, test } from "vitest";
 import { codecCeilings, codecLimits, destroyCodec } from "../../../src/binding/codec";
 import { serverCodec } from "../../binding/codec-support";
 import { WebSocket, WebSocketServer } from "../../../src/index";
+import { boundPort } from "../address-support";
 import { TEST_TIMEOUT_MS } from "../../binding/support";
 
 const SMALL = 1024;
@@ -25,8 +26,9 @@ test(
       server.once("listening", resolve);
       server.once("error", reject);
     });
-    const address = server.address() as { port: number };
-    const client = new WebSocket(`ws://127.0.0.1:${address.port}/`, { maxPayload: SMALL });
+    const port = boundPort(server.address());
+    const client = new WebSocket(`ws://127.0.0.1:${port}/`, { maxPayload: SMALL });
+
     try {
       await new Promise<void>((resolve, reject) => {
         client.once("open", resolve);
@@ -45,6 +47,7 @@ test(
           if (failures.length > 0) return resolve();
           setTimeout(poll, 5);
         };
+
         setTimeout(() => reject(new Error("the send was never refused")), TEST_TIMEOUT_MS).unref();
         poll();
       });
@@ -63,6 +66,7 @@ test("a maxPayload of 0 means no limit, as it does in ws", () => {
   // which is what `ws` reports, and the normalized record carries the ceiling, which
   // is what the codec enforces.
   const server = new WebSocketServer({ noServer: true, maxPayload: 0 });
+
   try {
     expect(server.options.maxPayload).toBe(0);
   } finally {
@@ -96,11 +100,13 @@ test("a codec reports the ceilings it was created with", () => {
   // option named and the number the codec enforces are the same thing, and the only
   // way to know that is to ask the codec.
   const handle = serverCodec({ maxPayload: 4096, maxFragments: 32 });
+
   try {
     expect(codecCeilings(handle)).toEqual({ maxPayload: 4096, maxFragments: 32 });
   } finally {
     destroyCodec(handle);
   }
+
   expect(codecCeilings(handle)).toBeNull();
 });
 
@@ -109,6 +115,7 @@ test("a maxPayload of 0 reaches the codec as the ceiling, not as zero", () => {
   // can enforce. Reading it back is how a caller confirms that translation happened
   // rather than assuming it.
   const handle = serverCodec({ maxPayload: 0, maxFragments: 0 });
+
   try {
     const limits = codecLimits();
     expect(codecCeilings(handle)).toEqual({

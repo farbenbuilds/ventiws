@@ -36,6 +36,7 @@ type ProbeState = {
 const PROBE_TIMEOUT_MS = 2000;
 const TEXT_PAYLOAD = "ventiws-autobahn-probe";
 const BINARY_PAYLOAD = Buffer.from([0x00, 0xff, 0x10, 0x7f, 0x80, 0xfe]);
+
 /// Whether an over-limit message comes back as a close rather than a silent hang, measured
 /// from outside. Both sizes derive from the compiled cap rather than restating it, so raising
 /// `message_capacity` moves the probe with it.
@@ -60,6 +61,7 @@ function probeSession(port: number, payload: Buffer | string): Promise<ProbeOutc
       binaryEcho: false,
       timer: undefined,
     };
+
     const finish = (closeCode: number | null, closeReason: string): void => {
       if (state.timer !== undefined) clearTimeout(state.timer);
       state.timer = undefined;
@@ -76,6 +78,7 @@ function probeSession(port: number, payload: Buffer | string): Promise<ProbeOutc
         closeReason,
       });
     };
+
     const client = new WsClient(`ws://127.0.0.1:${port}/`, { maxPayload: 8 * 1024 * 1024 });
     state.timer = setTimeout(() => {
       finish(null, "");
@@ -99,11 +102,14 @@ function probeSession(port: number, payload: Buffer | string): Promise<ProbeOutc
 
 async function measureOverLimit(port: number): Promise<ProbeOutcome> {
   let last: ProbeOutcome = NO_RESULT;
+
   for (const size of OVER_LIMIT_BYTES) {
     const result = await probeSession(port, Buffer.alloc(size, 0x61));
+
     if (result.closeCode !== null) return result;
     last = result;
   }
+
   return last;
 }
 
@@ -116,9 +122,11 @@ export async function probeTarget(input: {
   const binary = text.opened ? await probeSession(input.port, BINARY_PAYLOAD) : text;
   const overLimit = await measureOverLimit(input.port);
   const echo = text.textEcho && binary.binaryEcho;
+
   const detail = echo
     ? "target echoed a text and a binary payload"
     : `no echo: text=${String(text.textEcho)} binary=${String(binary.binaryEcho)} close=${String(text.closeCode)}`;
+
   return {
     port: input.port,
     engine: input.engine,

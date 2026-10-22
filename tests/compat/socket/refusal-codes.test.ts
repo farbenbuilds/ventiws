@@ -10,6 +10,7 @@ test("an unmasked frame is WS_ERR_EXPECTED_MASK", { timeout: TEST_TIMEOUT_MS }, 
   const seen = await refused(new WebSocketServer({ noServer: true }), (send) => {
     send(Buffer.from([0x81, 0x02, 0x68, 0x69]));
   });
+
   expect(seen.code).toBe("WS_ERR_EXPECTED_MASK");
   expect(seen.ctor).toBe("RangeError");
   expect(seen.message).toBe("Invalid WebSocket frame: MASK must be set");
@@ -23,6 +24,7 @@ test(
     const seen = await refused(new WebSocketServer({ noServer: true }), (send) => {
       send(rawFrame([0x09, 0x80 | 1, ...MASK, 0x78]));
     });
+
     expect(seen.code).toBe("WS_ERR_EXPECTED_FIN");
     expect(seen.message).toBe("Invalid WebSocket frame: FIN must be set");
     expect(seen.closeCode).toBe(1002);
@@ -45,6 +47,7 @@ test(
         ]),
       );
     });
+
     expect(seen.code).toBe("WS_ERR_INVALID_CONTROL_PAYLOAD_LENGTH");
     expect(seen.closeCode).toBe(1002);
   },

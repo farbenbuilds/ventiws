@@ -9,7 +9,8 @@ import { MASK, rawFrame, refused } from "./refusal-support";
 /// A masked frame with a reserved bit set, which the encoder will not emit either.
 function withReservedBit(bit: number): Buffer {
   const frame = Buffer.from(clientFrames([{ opcode: 0x1, payload: Buffer.from("hi") }]));
-  frame[0] = (frame[0] as number) | bit;
+  frame[0] = frame.readUInt8(0) | bit;
+
   return frame;
 }
 
@@ -17,6 +18,7 @@ test("RSV2 is WS_ERR_UNEXPECTED_RSV_2_3", { timeout: TEST_TIMEOUT_MS }, async ()
   const seen = await refused(new WebSocketServer({ noServer: true }), (send) => {
     send(withReservedBit(0x20));
   });
+
   expect(seen.code).toBe("WS_ERR_UNEXPECTED_RSV_2_3");
   expect(seen.message).toBe("Invalid WebSocket frame: RSV2 and RSV3 must be clear");
   expect(seen.closeCode).toBe(1002);
@@ -26,6 +28,7 @@ test("RSV3 is WS_ERR_UNEXPECTED_RSV_2_3", { timeout: TEST_TIMEOUT_MS }, async ()
   const seen = await refused(new WebSocketServer({ noServer: true }), (send) => {
     send(withReservedBit(0x10));
   });
+
   expect(seen.code).toBe("WS_ERR_UNEXPECTED_RSV_2_3");
 });
 
@@ -36,6 +39,7 @@ test(
     const seen = await refused(new WebSocketServer({ noServer: true }), (send) => {
       send(withReservedBit(0x40));
     });
+
     expect(seen.code).toBe("WS_ERR_UNEXPECTED_RSV_1");
     expect(seen.closeCode).toBe(1002);
   },
@@ -47,6 +51,7 @@ test("RSV2 with RSV1 set is still RSV2", { timeout: TEST_TIMEOUT_MS }, async () 
   const seen = await refused(new WebSocketServer({ noServer: true }), (send) => {
     send(withReservedBit(0x40 | 0x20));
   });
+
   expect(seen.code).toBe("WS_ERR_UNEXPECTED_RSV_2_3");
 });
 
@@ -54,6 +59,7 @@ test("a reserved opcode is WS_ERR_INVALID_OPCODE", { timeout: TEST_TIMEOUT_MS },
   const seen = await refused(new WebSocketServer({ noServer: true }), (send) => {
     send(rawFrame([0x83, 0x80 | 1, ...MASK, 0x78]));
   });
+
   expect(seen.code).toBe("WS_ERR_INVALID_OPCODE");
   expect(seen.closeCode).toBe(1002);
 });
@@ -69,6 +75,7 @@ test(
       const seen = await refused(new WebSocketServer({ noServer: true }), (send) => {
         send(rawFrame([first, 0x80 | 1, ...MASK, 0x78]));
       });
+
       expect(seen.code).toBe("WS_ERR_INVALID_OPCODE");
       expect(seen.closeCode).toBe(1002);
     }
@@ -82,6 +89,7 @@ test(
     const seen = await refused(new WebSocketServer({ noServer: true }), (send) => {
       send(rawFrame([0x80, 0x80 | 1, ...MASK, 0x78]));
     });
+
     expect(seen.code).toBe("WS_ERR_INVALID_OPCODE");
     expect(seen.closeCode).toBe(1002);
   },
@@ -99,6 +107,7 @@ test(
         ]),
       );
     });
+
     expect(seen.code).toBe("WS_ERR_INVALID_OPCODE");
   },
 );

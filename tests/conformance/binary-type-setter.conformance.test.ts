@@ -12,14 +12,18 @@ import { openClient, upgradeHarness } from "../compat/socket/codec-upgrade-suppo
 test("an unknown binaryType is ignored", { timeout: TEST_TIMEOUT_MS }, async () => {
   const server = new WebSocketServer({ noServer: true });
   const harness = await upgradeHarness(server);
+
   const accepted = new Promise<WebSocket>((resolve) => {
     server.once("connection", resolve);
   });
+
   const client = await openClient(harness.url);
+
   try {
     const socket = await accepted;
     socket.binaryType = "nodebuffer";
-    // Out of type on purpose: `ws` ignores an unrecognised value rather than throwing.
+    // SAFETY: `nonsense` is the out-of-type runtime value the case exists to check;
+    // `ws` ignores an unrecognised value rather than throwing.
     socket.binaryType = "nonsense" as WebSocket["binaryType"];
     expect(socket.binaryType).toBe("nodebuffer");
   } finally {

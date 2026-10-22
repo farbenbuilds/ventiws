@@ -10,6 +10,7 @@ const spreadCell = (leg: Leg): string =>
 
 const header = (report: BenchmarkReport): readonly string[] => {
   const { provenance: p, parameters: a } = report;
+
   return [
     `ventiws echo benchmark (${p.schemaVersion})`,
     `commit    ${p.gitCommit}${p.gitDirty ? " (dirty tree)" : ""}`,
@@ -31,10 +32,13 @@ const header = (report: BenchmarkReport): readonly string[] => {
 
 const notes = (report: BenchmarkReport): readonly string[] => {
   const lines: string[] = [];
+
   for (const result of report.configurations) {
     for (const id of report.parameters.implementations) {
       const leg = result.legs[id];
+
       if (leg.reason !== null) lines.push(`- ${result.configuration}: ${id} ${leg.reason}`);
+
       if (leg.spread !== null && leg.spread > 0.1) {
         lines.push(
           `- ${result.configuration}: ${id} sample spread ${spreadCell(leg)} exceeds 10 percent; the host was not quiet`,
@@ -42,7 +46,9 @@ const notes = (report: BenchmarkReport): readonly string[] => {
       }
     }
   }
+
   if (lines.length === 0) return [];
+
   return ["", "notes", ...lines];
 };
 

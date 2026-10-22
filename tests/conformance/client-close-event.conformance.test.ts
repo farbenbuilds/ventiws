@@ -7,6 +7,7 @@ import { WebSocket as WsClient } from "ws";
 import { expect, test } from "vitest";
 import { WebSocket } from "../../src/index";
 import { TEST_TIMEOUT_MS } from "../binding/support";
+import { boundPort } from "./bound-port";
 
 /// What a caller awaiting a refused handshake sees.
 type Observed = {
@@ -16,7 +17,14 @@ type Observed = {
   readonly code: number;
 };
 
-async function refused(dial: () => Promise<WebSocket>): Promise<Observed> {
+/// The event surface both clients expose to this observation.
+type ObservedSocket = {
+  on(event: "error", listener: () => void): void;
+  on(event: "close", listener: (code: number, reason: Buffer) => void): void;
+  readonly readyState: number;
+};
+
+async function refused(dial: () => Promise<ObservedSocket>): Promise<Observed> {
   const errors: Error[] = [];
   let stateDuringError = -1;
   let closed = false;
@@ -26,6 +34,7 @@ async function refused(dial: () => Promise<WebSocket>): Promise<Observed> {
     errors.push(new Error("failed"));
     stateDuringError = socket.readyState;
   });
+
   const finished = new Promise<void>((resolve) => {
     socket.on("close", (closeCode: number) => {
       code = closeCode;
@@ -33,7 +42,9 @@ async function refused(dial: () => Promise<WebSocket>): Promise<Observed> {
       resolve();
     });
   });
+
   await Promise.race([finished, new Promise<void>((resolve) => setTimeout(resolve, 250))]);
+
   return { errors: errors.length, closed, stateDuringError, code };
 }
 
@@ -43,11 +54,14 @@ test(
   async () => {
     // Nothing is listening, so the kernel refuses the dial: the ordinary first-run failure.
     const port = await closedPort();
+
     const result = await refused(async () => {
       const socket = new WebSocket(`ws://127.0.0.1:${port}/`);
       socket.on("error", () => undefined);
+
       return socket;
     });
+
     expect(result.errors).toBe(1);
     expect(result.closed).toBe(true);
     expect(result.code).toBe(1006);
@@ -62,19 +76,24 @@ test(
   async () => {
     // No `unexpected-response` listener, so nothing takes the refusal over and the client aborts.
     const { createServer } = await import("node:http");
+
     const http = createServer((_request, response) => {
       response.writeHead(404).end();
     });
+
     await new Promise<void>((resolve) => {
       http.listen(0, "127.0.0.1", resolve);
     });
-    const { port } = http.address() as { port: number };
+    const port = boundPort(http);
+
     try {
       const result = await refused(async () => {
         const socket = new WebSocket(`ws://127.0.0.1:${port}/`);
         socket.on("error", () => undefined);
+
         return socket;
       });
+
       expect(result.errors).toBe(1);
       expect(result.closed).toBe(true);
       expect(result.code).toBe(1006);
@@ -93,11 +112,14 @@ test(
   async () => {
     // The ready state during `error` is the only part a caller reads that tells "failing" from "failed".
     const port = await closedPort();
+
     const result = await refused(async () => {
-      const socket = new WsClient(`ws://127.0.0.1:${port}/`) as unknown as WebSocket;
+      const socket = new WsClient(`ws://127.0.0.1:${port}/`);
       socket.on("error", () => undefined);
+
       return socket;
     });
+
     expect(result.errors).toBe(1);
     expect(result.closed).toBe(true);
     expect(result.code).toBe(1006);
@@ -112,9 +134,10 @@ async function closedPort(): Promise<number> {
   await new Promise<void>((resolve) => {
     probe.listen(0, "127.0.0.1", resolve);
   });
-  const { port } = probe.address() as { port: number };
+  const port = boundPort(probe);
   await new Promise<void>((resolve) => {
     probe.close(() => resolve());
   });
+
   return port;
 }

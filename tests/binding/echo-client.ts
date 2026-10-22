@@ -18,6 +18,7 @@ export function collect(client: WebSocket, expected: number): Promise<Reply[]> {
     const received: Reply[] = [];
     client.on("message", (bytes: Buffer, isBinary: boolean) => {
       received.push({ bytes, isBinary });
+
       if (received.length === expected) resolve(received);
     });
     client.on("error", reject);
@@ -37,6 +38,7 @@ export function connect(port: number): WebSocket {
 /// way to reach the overflow.
 export function blockEventLoop(ms: number): void {
   const deadline = Date.now() + ms;
+
   while (Date.now() < deadline) {
     // Intentionally empty: the point is to not yield.
   }

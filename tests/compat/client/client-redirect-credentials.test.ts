@@ -9,7 +9,7 @@
 import { expect, test } from "vitest";
 import { WebSocket } from "../../../src/index";
 import { TEST_TIMEOUT_MS } from "../../binding/support";
-import { handshakePeer, redirectingPeer, selfRedirectPeer } from "./redirect-peer";
+import { handshakePeer, redirectingPeer, selfRedirectPeer } from "./redirect-presets";
 import { undeclared } from "./undeclared";
 
 function opened(socket: WebSocket): Promise<void> {
@@ -31,11 +31,13 @@ test(
     // Credentials in the URL become an `Authorization` header on the first hop, which is
     // the form a redirect has to be careful with.
     const port = new URL(first.url).port;
+
     const socket = new WebSocket(
       `ws://user:pass@127.0.0.1:${port}`,
       undefined,
       undeclared({ followRedirects: true }),
     );
+
     try {
       await opened(socket);
       // The first hop carried them and the second did not.
@@ -55,11 +57,13 @@ test("credentials survive a redirect to the same host", { timeout: TEST_TIMEOUT_
   // origin, and a caller who authenticated expects to still be authenticated.
   const peer = await selfRedirectPeer("/same-host-path");
   const port = new URL(peer.url).port;
+
   const socket = new WebSocket(
     `ws://user:pass@127.0.0.1:${port}`,
     undefined,
     undeclared({ followRedirects: true }),
   );
+
   try {
     await opened(socket);
     // Both hops went to the same host and port, so both carried the credentials.
@@ -79,6 +83,7 @@ test(
     // puts `authorization` and `cookie` back on the wire at the next authority.
     const final = await handshakePeer();
     const first = await redirectingPeer(final.url);
+
     const socket = new WebSocket(
       first.url,
       undefined,
@@ -87,6 +92,7 @@ test(
         headers: { authorization: "Bearer first-hop", cookie: "session=1" },
       }),
     );
+
     try {
       await opened(socket);
       // The first hop carried them and the second did not.
@@ -109,6 +115,7 @@ test(
     // The complement: another path on the same authority is the same server, and a caller
     // that sent credentials expects the next hop to arrive with them.
     const peer = await selfRedirectPeer("/caller-headers");
+
     const socket = new WebSocket(
       peer.url,
       undefined,
@@ -117,6 +124,7 @@ test(
         headers: { authorization: "Bearer first-hop", cookie: "session=1" },
       }),
     );
+
     try {
       await opened(socket);
       expect(peer.authorizations).toEqual(["Bearer first-hop", "Bearer first-hop"]);

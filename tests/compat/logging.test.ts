@@ -2,11 +2,11 @@
 // and client, and read the lifecycle off stdout: the splash, both opens, both closes,
 // the server's own close, and the error records. The test never calls the logger.
 
-import type { AddressInfo } from "node:net";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { version } from "../../package.json" with { type: "json" };
 import { WebSocket, WebSocketServer } from "../../src/index";
 import { setLoggerEnabled } from "../../src/logging/logger";
+import { boundPort } from "./address-support";
 import { TEST_TIMEOUT_MS } from "../binding/support";
 
 const ANSI = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, "g");
@@ -15,8 +15,10 @@ const records = (text: string): string[] => text.split("\n").filter((line) => li
 
 async function capture(run: () => Promise<void>): Promise<string> {
   const spy = vi.spyOn(process.stdout, "write").mockReturnValue(true);
+
   try {
     await run();
+
     return spy.mock.calls.map((call) => String(call[0] ?? "")).join("");
   } finally {
     spy.mockRestore();
@@ -25,7 +27,7 @@ async function capture(run: () => Promise<void>): Promise<string> {
 
 function listeningPort(server: WebSocketServer): Promise<number> {
   return new Promise<number>((resolve, reject) => {
-    server.once("listening", () => resolve((server.address() as AddressInfo).port));
+    server.once("listening", () => resolve(boundPort(server.address())));
     server.once("error", reject);
   });
 }
@@ -46,6 +48,7 @@ function stop(server: WebSocketServer): Promise<void> {
 }
 
 beforeEach(() => setLoggerEnabled(true));
+
 afterEach(() => setLoggerEnabled(false));
 
 test(
@@ -53,14 +56,17 @@ test(
   { timeout: TEST_TIMEOUT_MS },
   async () => {
     let port = 0;
+
     const output = await capture(async () => {
       const server = new WebSocketServer({ port: 0 });
       port = await listeningPort(server);
+
       const received = new Promise<string>((resolve) => {
         server.on("connection", (socket) => {
           socket.on("message", (data) => resolve(data.toString()));
         });
       });
+
       const client = new WebSocket(`ws://127.0.0.1:${port}/`);
       await opened(client);
       client.send("hello");
@@ -69,6 +75,7 @@ test(
       await closed(client);
       await stop(server);
     });
+
     const text = visible(output);
     expect(text).toMatch(new RegExp(`ventiws ${version} ready in \\d+`));
     expect(text).toContain(`➜  Local: localhost:${port}/`);
@@ -90,6 +97,7 @@ test(
   { timeout: TEST_TIMEOUT_MS },
   async () => {
     setLoggerEnabled(false);
+
     const output = await capture(async () => {
       const server = new WebSocketServer({ port: 0 });
       const port = await listeningPort(server);
@@ -99,6 +107,7 @@ test(
       await closed(client);
       await stop(server);
     });
+
     expect(output).toBe("");
   },
 );
@@ -111,6 +120,7 @@ test("a refused client logs its own fatal record", { timeout: TEST_TIMEOUT_MS },
     await failed;
     await done;
   });
+
   expect(records(visible(output))[0]).toMatch(/^\d{2}:\d{2}:\d{2} \| client : .+$/);
 });
 
@@ -120,11 +130,13 @@ test("a refused bind logs the server error record", { timeout: TEST_TIMEOUT_MS }
   const first = new WebSocketServer({ port: 0 });
   const port = await listeningPort(first);
   setLoggerEnabled(true);
+
   const output = await capture(async () => {
     const second = new WebSocketServer({ port });
     await new Promise<void>((resolve) => second.once("error", () => resolve()));
     await stop(second);
   });
+
   setLoggerEnabled(false);
   await stop(first);
   expect(records(visible(output))[0]).toMatch(/^\d{2}:\d{2}:\d{2} \| server : .+$/);

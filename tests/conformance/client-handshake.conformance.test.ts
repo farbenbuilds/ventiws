@@ -6,6 +6,7 @@ import { expect, test } from "vitest";
 import { WebSocket } from "../../src/index";
 import { TEST_TIMEOUT_MS } from "../binding/support";
 import { startRawPeer } from "../binding/codec-peer";
+import { boundPort } from "./bound-port";
 
 /// The `new WebSocket(address, options)` overload. `ws` promotes a non-array object out of
 /// the subprotocol slot, so the two arguments must be told apart rather than passed through.
@@ -14,12 +15,14 @@ test(
   { timeout: TEST_TIMEOUT_MS },
   async () => {
     const peer = await startRawPeer();
+
     try {
       const socket = new WebSocket(
         `ws://127.0.0.1:${peer.port}/`,
         // The declared shape, not a cast: this is what a TypeScript consumer writes.
         { handshakeTimeout: 5_000 },
       );
+
       socket.on("error", () => undefined);
       await new Promise<void>((resolve) => {
         socket.once("open", () => resolve());
@@ -45,15 +48,18 @@ test("a subprotocol list is not promoted", { timeout: TEST_TIMEOUT_MS }, async (
 /// statement about a connection that ended by exactly the agreed handshake.
 test("a code-less close reports 1005, not 1006", { timeout: TEST_TIMEOUT_MS }, async () => {
   const peer = await startRawPeer();
+
   try {
     const socket = new WebSocket(`ws://127.0.0.1:${peer.port}/`);
     socket.on("error", () => undefined);
     await new Promise<void>((resolve) => {
       socket.once("open", () => resolve());
     });
+
     const closed = new Promise<{ code: number; reason: Buffer }>((resolve) => {
       socket.once("close", (code: number, reason: Buffer) => resolve({ code, reason }));
     });
+
     // A close frame with an empty body, which is what `close()` with no argument writes.
     await peer.send(Buffer.from([0x88, 0x00]));
     expect(await closed).toEqual({ code: 1005, reason: Buffer.alloc(0) });
@@ -68,17 +74,21 @@ test("a code-less close reports 1005, not 1006", { timeout: TEST_TIMEOUT_MS }, a
 test("close() with no code writes an empty close frame", { timeout: TEST_TIMEOUT_MS }, async () => {
   const { WebSocketServer } = await import("../../src/index");
   const server = new WebSocketServer({ port: 0 });
+
   const accepted = new Promise<WebSocket>((resolve) => {
     server.on("connection", (socket) => resolve(socket));
   });
-  const client = new WsClient(`ws://127.0.0.1:${(server.address() as { port: number }).port}/`);
+
+  const client = new WsClient(`ws://127.0.0.1:${boundPort(server)}/`);
   client.on("error", () => undefined);
   await new Promise<void>((resolve) => {
     server.once("listening", resolve);
   });
+
   const closed = new Promise<{ code: number; reason: Buffer }>((resolve) => {
     client.once("close", (code: number, reason: Buffer) => resolve({ code, reason }));
   });
+
   try {
     (await accepted).close();
     expect(await closed).toEqual({ code: 1005, reason: Buffer.alloc(0) });

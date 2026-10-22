@@ -41,6 +41,7 @@ export function buildRequest(
   carriedAuth?: string,
 ): Handshake {
   const built = buildHeaders(options, protocols, key, address.auth ?? carriedAuth);
+
   return {
     key: built.key,
     headers: built.headers,
@@ -65,5 +66,6 @@ export function buildRequest(
 function hostHeader(address: ClientAddress): string {
   if (address.socketPath !== undefined) return address.socketPath;
   const bracketed = address.host.includes(":") ? `[${address.host}]` : address.host;
+
   return `${bracketed}:${address.port}`;
 }

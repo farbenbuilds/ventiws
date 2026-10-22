@@ -53,6 +53,7 @@ describe("a server reading a client offer", () => {
     // can honestly state both.
     const outcome = acceptAsServer(configurations("permessage-deflate"), DEFAULTS);
     expect(outcome).not.toBeNull();
+
     if (outcome !== null && "accepted" in outcome) {
       expect(Object.keys(outcome.accepted.parameters)).toEqual([
         "server_no_context_takeover",
@@ -88,10 +89,12 @@ describe("a server reading a client offer", () => {
 
   test("a server that asks for no context takeover declines an offer granting it", () => {
     const server = normalizePerMessageDeflate({ serverNoContextTakeover: false }, true);
+
     const outcome = acceptAsServer(
       configurations("permessage-deflate; server_no_context_takeover"),
       server,
     );
+
     expect(outcome).toHaveProperty("refusal");
   });
 });
@@ -107,7 +110,9 @@ describe("window options outside RFC 7692's range", () => {
   });
 
   test.each([null, true, "12"])("a non-number value of %s is refused at construction", (bits) => {
-    const raw = bits as unknown as number;
+    // SAFETY: a non-number window is the fixture, and `never` keeps the runtime value while
+    // satisfying the declared number.
+    const raw = bits as never;
     expect(() => normalizePerMessageDeflate({ serverMaxWindowBits: raw }, true)).toThrow(
       RangeError,
     );
@@ -125,11 +130,12 @@ describe("window options outside RFC 7692's range", () => {
   test("false stays the runtime's name-no-window form", () => {
     // `ws` compares the option against `false` at `permessage-deflate.js:166`, and
     // `@types/ws` types it as a number, so the cast is the declaration gap, not a value.
-    const server = normalizePerMessageDeflate(
-      { serverMaxWindowBits: false } as unknown as { serverMaxWindowBits: number },
-      true,
-    );
+    // SAFETY: `false` is the runtime form under test; `never` keeps it while satisfying the
+    // declared number.
+    const server = normalizePerMessageDeflate({ serverMaxWindowBits: false as never }, true);
+
     expect(server).not.toBe(false);
+
     if (server !== false) expect(server.serverMaxWindowBits).toBe(false);
   });
 });

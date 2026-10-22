@@ -6,6 +6,7 @@ import { WebSocketServer as WsServer } from "ws";
 import { expect, test } from "vitest";
 import { WebSocketServer } from "../../src/index";
 import type { ServerOptions } from "../../src/index";
+import { boundPort } from "./bound-port";
 
 const KEY = "dGhlIHNhbXBsZSBub25jZQ==";
 
@@ -21,8 +22,10 @@ type ServerLike = {
 
 function request(path: string, headers: Record<string, string> = {}, method = "GET"): string {
   const lines = [`${method} ${path} HTTP/1.1`, "Host: 127.0.0.1"];
+
   for (const [name, value] of Object.entries(headers)) lines.push(`${name}: ${value}`);
   lines.push("", "");
+
   return lines.join("\r\n");
 }
 
@@ -37,10 +40,14 @@ const UPGRADE_HEADERS = {
 /// all arrived, so a rejection keeps the full body `ws` writes.
 function responseComplete(data: string): boolean {
   const headerEnd = data.indexOf("\r\n\r\n");
+
   if (headerEnd === -1 || !data.startsWith("HTTP/1.1 ")) return false;
+
   if (data.startsWith("HTTP/1.1 101")) return true;
   const length = /^content-length:\s*(\d+)$/im.exec(data.slice(0, headerEnd));
+
   if (length === null) return true;
+
   return data.length >= headerEnd + 4 + Number(length[1]);
 }
 
@@ -49,19 +56,23 @@ function rawUpgrade(port: number, raw: string, waitMs = 200): Promise<string> {
     const socket = connect(port, "127.0.0.1", () => {
       socket.write(raw);
     });
+
     let data = "";
     let settled = false;
+
     const finish = (): void => {
       if (settled) return;
       settled = true;
       socket.destroy();
       resolve(data);
     };
+
     socket.setTimeout(waitMs, finish);
     socket.on("end", finish);
     socket.on("close", finish);
     socket.on("data", (chunk) => {
       data += chunk.toString("latin1");
+
       if (responseComplete(data)) finish();
     });
     socket.on("error", (error) => {
@@ -78,8 +89,8 @@ async function capture(server: ServerLike, raw: string): Promise<string> {
   await new Promise<void>((resolve) => {
     httpServer.listen(0, "127.0.0.1", resolve);
   });
-  const address = httpServer.address();
-  const port = typeof address === "object" && address !== null ? address.port : 0;
+  const port = boundPort(httpServer);
+
   try {
     return await rawUpgrade(port, raw);
   } finally {
@@ -125,7 +136,10 @@ const SCENARIOS: ReadonlyArray<readonly [string, string, ServerOptions]> = [
 ];
 
 test.each(SCENARIOS)("%s matches ws byte for byte", async (_name, raw, options) => {
-  const expected = await capture(new WsServer(options) as never, raw);
-  const actual = await capture(new WebSocketServer(options) as never, raw);
+  // SAFETY: The scenario record is intentionally shared by both libraries; their option
+  // types differ only in callback aliases, and each constructor validates the record.
+  const expected = await capture(new WsServer(options as never), raw);
+  // SAFETY: The same record through the ventiws constructor, which must answer byte for byte.
+  const actual = await capture(new WebSocketServer(options as never), raw);
   expect(actual).toBe(expected);
 });

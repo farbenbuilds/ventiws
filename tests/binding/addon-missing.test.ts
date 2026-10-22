@@ -15,6 +15,7 @@ test("the message names the platform", () => {
     "linux-x64-gnu",
     PUBLISHED_TARGETS,
   );
+
   // The platform is the overwhelmingly common cause, and a message that omits it sends the reader to rebuild for the wrong machine.
   expect(message).toContain("linux-x64-gnu");
   expect(message).toContain("/opt/app/node_modules/ventiws");
@@ -29,6 +30,7 @@ test("the advice is reachable by whoever hits it", () => {
     "linux-x64-gnu",
     PUBLISHED_TARGETS,
   );
+
   // It says what has to be true, not only what a maintainer would do.
   expect(message).toContain("optional dependency");
   expect(message).toContain("pnpm build:binding");
@@ -43,6 +45,7 @@ test("a broken layout is described differently from a platform mismatch", () => 
     "linux-x64-gnu",
     PUBLISHED_TARGETS,
   );
+
   expect(message).toContain("Reinstalling");
   expect(message).not.toContain("pnpm build:binding");
 });
@@ -58,6 +61,7 @@ test("an unpublished platform lists what a published ventiws does ship", () => {
     undefined,
     PUBLISHED_TARGETS,
   );
+
   expect(message).toContain("freebsd-x64");
   expect(message).toContain("linux-x64-gnu");
   expect(message).toContain("pnpm build:binding");
@@ -69,6 +73,7 @@ test("an unpublished platform lists what a published ventiws does ship", () => {
     undefined,
     PUBLISHED_TARGETS,
   );
+
   expect(onWindows).toContain("win32-x64");
   expect(onWindows).toContain("darwin-arm64");
 });
@@ -76,6 +81,7 @@ test("an unpublished platform lists what a published ventiws does ship", () => {
 test("the server constructor performs the load", () => {
   // A test that could tell the difference would have to break the tree; this pins that a present addon still loads.
   const server = new WebSocketServer({ noServer: true });
+
   try {
     expect("clients" in server).toBe(true);
     expect(server.options.maxPayload).toBe(104857600);
@@ -95,6 +101,7 @@ test("a Deno host is told what Deno needs", () => {
     PUBLISHED_TARGETS,
     "deno",
   );
+
   expect(message).toContain("--allow-ffi");
   expect(message).toContain("node_modules");
 });
@@ -116,5 +123,6 @@ test("a Bun host is pointed at bun install", () => {
     PUBLISHED_TARGETS,
     "bun",
   );
+
   expect(message).toContain("bun install");
 });

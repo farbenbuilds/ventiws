@@ -9,6 +9,7 @@ import { emitEvent } from "../events/emitter";
 import { reportUnexpected } from "./unexpected";
 import { createError } from "../errors";
 import { parseAddress, type ClientAddress } from "./address";
+import { stripCredentials } from "./credentials";
 import { abort, create, finish } from "./hop";
 import { onUpgrade } from "./open";
 import { buildRequest, newKey } from "./request";
@@ -27,26 +28,14 @@ export function onResponse(
   response: IncomingMessage,
 ): void {
   const location = response.headers.location;
+
   if (isRedirect(response.statusCode ?? 0, location) && attempt.options.followRedirects) {
     follow(attempt, request, response, location ?? "");
+
     return;
   }
+
   reportUnexpected(attempt, request, response);
-}
-
-/// Credentials across a redirect. A security property rather than a step in a flow, and the
-/// one part of a hop whose failure is silent: a header that was not dropped produces no
-/// error and only a password on a server the caller did not name.
-
-/// In place, because `request.ts` hands `http.request` the *same* header object it stores on
-/// the handshake, so two copies would mean stripping one and sending the other.
-export function stripCredentials(headers: unknown): void {
-  if (typeof headers !== "object" || headers === null) return;
-  const map = headers as Record<string, string | string[]>;
-  for (const name of Object.keys(map)) {
-    const lower = name.toLowerCase();
-    if (lower === "authorization" || lower === "cookie") delete map[name];
-  }
 }
 
 /// The four refusals each end the chain, and each reports before it does, so a caller
@@ -60,10 +49,13 @@ function follow(
   if (attempt.redirects + 1 > attempt.options.maxRedirects) {
     request.abort();
     abort(attempt, createError("ERR_PROTOCOL", "Maximum redirects exceeded"));
+
     return;
   }
+
   const target = resolve(location, attempt.state.url);
   let next: ClientAddress;
+
   try {
     next = parseAddress(target);
   } catch (error) {
@@ -75,13 +67,17 @@ function follow(
         error instanceof Error ? error.message : `Invalid URL: ${target}`,
       ),
     );
+
     return;
   }
+
   if (attempt.address.secure && !next.secure) {
     request.abort();
     abort(attempt, createError("ERR_PROTOCOL", "Cannot follow a redirect from wss: to ws:"));
+
     return;
   }
+
   if (next.authority !== attempt.address.authority && listenerCount(attempt) === 0) {
     // A different host must not see this one's credentials, and the URL a redirect names
     // carries none, so both the header and the carried value go. curl 7.77's rule, and a
@@ -94,6 +90,7 @@ function follow(
     stripCredentials(attempt.options.headers);
     attempt.auth = undefined;
   }
+
   request.abort();
   attempt.state.url = next.url;
   attempt.address = next;
@@ -108,6 +105,7 @@ function follow(
     attempt.auth,
   );
   const hop = create(attempt, { upgrade: onUpgrade, response: onResponse });
+
   if (hop === null) return;
   // Before the hop goes out, the only order in which a listener can still change it.
   emitEvent(attempt.state, "redirect", next.url, hop);

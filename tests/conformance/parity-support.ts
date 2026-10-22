@@ -3,7 +3,8 @@ import { adopted, wsAccepted } from "./parity-fixtures";
 import type { Closable, Compared, Outcome } from "./parity-fixtures";
 
 export { adopted, wsAccepted } from "./parity-fixtures";
-export type { Closable, Compared, Fixture, Outcome } from "./parity-fixtures";
+
+export type { Closable, Compared, CloseReason, Fixture, Outcome } from "./parity-fixtures";
 
 /// Runs one operation and reduces it to what two implementations can be compared
 /// on.
@@ -15,14 +16,14 @@ function measure(scenario: (socket: Closable) => void): (socket: Closable) => Ou
   return (socket) => {
     try {
       scenario(socket);
+
       return { threw: false, readyState: socket.readyState, name: "", message: "" };
     } catch (error) {
-      const failure = error as Error;
       return {
         threw: true,
         readyState: socket.readyState,
-        name: failure.constructor.name,
-        message: failure.message,
+        name: error instanceof Error ? error.constructor.name : "Thrown",
+        message: error instanceof Error ? error.message : String(error),
       };
     }
   };
@@ -40,12 +41,15 @@ function measure(scenario: (socket: Closable) => void): (socket: Closable) => Ou
 export async function parity(scenario: (socket: Closable) => void): Promise<Outcome> {
   const { expected, actual } = await compare(scenario, scenario);
   expect(actual.threw).toBe(expected.threw);
+
   if (expected.threw && !actual.threw) {
     throw new Error(`expected a throw like ws: ${expected.message}`);
   }
+
   expect(actual.name).toBe(expected.name);
   expect(actual.message).toBe(expected.message);
   expect(actual.readyState).toBe(expected.readyState);
+
   return actual;
 }
 
@@ -59,17 +63,21 @@ export async function compare(
   const run = measure(reference);
   const live = await wsAccepted();
   let expected: Outcome;
+
   try {
     expected = run(live.socket);
   } finally {
     await live.dispose();
   }
+
   const attached = await adopted();
   let actual: Outcome;
+
   try {
     actual = measure(ours)(attached.socket);
   } finally {
     await attached.dispose();
   }
+
   return { expected, actual };
 }

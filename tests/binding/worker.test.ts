@@ -21,12 +21,17 @@ parentPort.once("message", (message) => {
 
 async function startWorker(): Promise<{ readonly worker: Worker; readonly handle: number }> {
   const worker = new Worker(WORKER_SOURCE, { eval: true });
-  const [handle] = (await once(worker, "message")) as [number];
+  const [message] = await once(worker, "message");
+  const handle = Number(message);
+
+  if (!Number.isInteger(handle)) throw new Error("worker did not report a handle");
+
   return { worker, handle };
 }
 
 test("a handle from another worker is rejected", { timeout: TEST_TIMEOUT_MS }, async () => {
   const { worker, handle } = await startWorker();
+
   try {
     expect(() => closeServer(handle)).toThrow(/UnknownServer/);
   } finally {
@@ -43,6 +48,7 @@ test("environment teardown retires the worker's server", { timeout: TEST_TIMEOUT
   // Slot 0 is only free if the cleanup hook retired the worker's server; a
   // leaked instance would hand this one slot 1.
   const fresh = fixture({ host: "127.0.0.1", port: 0 });
+
   try {
     expect(fresh.handle & 0xff).toBe(0);
   } finally {

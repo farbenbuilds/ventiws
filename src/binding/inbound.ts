@@ -16,7 +16,9 @@ export function takeSocketMessage(
   assertConnectionHandle(connection);
   const addon = loadAddon();
   const taken = callNative(() => addon.takeSocketMessage(server, connection));
+
   if (taken === null) return null;
+
   return { bytes: taken[0], isBinary: taken[1] };
 }
 
@@ -32,5 +34,6 @@ export function purgeSocketMessage(
 ): number {
   assertServerHandle(server);
   const addon = loadAddon();
+
   return Number(callNative(() => addon.purgeSocketMessage(server, index, generation)));
 }

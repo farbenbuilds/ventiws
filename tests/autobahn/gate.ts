@@ -48,15 +48,19 @@ export type GateResult = {
 /// a regression. Anything else is new and fails the run.
 function caseViolations(cases: readonly CaseReport[]): readonly Violation[] {
   const violations: Violation[] = [];
+
   for (const entry of cases) {
     if (entry.outcome === "skipped-capacity") continue;
+
     if (isTolerated(entry.behavior) && isTolerated(entry.behaviorClose)) continue;
+
     if (KNOWN_FAILURES.has(entry.id)) continue;
     violations.push({
       kind: "case-regressed",
       detail: `${entry.id} behavior=${entry.behavior} behaviorClose=${entry.behaviorClose}`,
     });
   }
+
   return violations;
 }
 
@@ -79,12 +83,14 @@ function driftViolations(drift: {
 export function evaluateGate(cases: readonly CaseReport[], mode: SuiteMode = "full"): GateResult {
   const counts = countOutcomes(cases);
   const drift = baselineDrift(cases, MODE_COUNTS[mode]);
+
   const violations = [
     ...countViolations(counts, mode),
     ...closeBehaviorViolations(cases),
     ...caseViolations(cases),
     ...driftViolations(drift),
   ];
+
   return {
     ok: violations.length === 0,
     mode,

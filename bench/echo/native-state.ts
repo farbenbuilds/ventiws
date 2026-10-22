@@ -35,6 +35,7 @@ export function onEngineEvent(a: VentiAddon, state: EchoState, event: EngineEven
     case "listening":
       state.listening = event.code;
       state.onListening?.(event.code);
+
       return;
     case "connectionOpen":
       state.connection = pack(event.index, event.generation);
@@ -43,16 +44,21 @@ export function onEngineEvent(a: VentiAddon, state: EchoState, event: EngineEven
       // deferred until the engine has actually accepted a connection.
       state.onAccepted?.(nativeConnection(a, state));
       state.onAccepted = null;
+
       return;
     case "connectionMessage":
       deliver(a, state);
+
       return;
     case "engineError": {
       const error = new Error(`engine error ${event.code}`);
       state.onEngineError?.(error);
+
       for (const listener of state.errors) listener(error);
+
       return;
     }
+
     default:
       return;
   }
@@ -65,11 +71,15 @@ export function onEngineEvent(a: VentiAddon, state: EchoState, event: EngineEven
 /// otherwise leave messages waiting for an event that never comes.
 function deliver(a: VentiAddon, state: EchoState): void {
   const connection = state.connection;
+
   if (connection === null) return;
+
   for (;;) {
     const taken = a.takeSocketMessage(state.server, connection);
+
     if (taken === null) return;
     const bytes = taken[0];
+
     for (const listener of state.listeners) listener(bytes);
   }
 }
@@ -78,7 +88,9 @@ export function nativeConnection(a: VentiAddon, state: EchoState): EchoConnectio
   return {
     send: (payload: Buffer) => {
       const connection = state.connection;
+
       if (connection === null) return;
+
       // The measured workload is binary, so the reply is staged as binary. A
       // send the engine refuses is not retried here; the next inbound message
       // pumps the ring again.

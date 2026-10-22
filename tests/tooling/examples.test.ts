@@ -15,7 +15,8 @@ type Manifest = {
 
 const read = (path: string) => readFileSync(new URL(path, ROOT), "utf8");
 const example = (runtime: string, file: string) => read(`examples/${runtime}-ventiws/${file}`);
-const manifest = (runtime: string) => JSON.parse(example(runtime, "package.json")) as Manifest;
+
+const manifest = (runtime: string): Manifest => JSON.parse(example(runtime, "package.json"));
 
 test("each runtime example names its own host API", () => {
   expect(example("vanilla", "index.ts")).toContain("process.env");
@@ -44,6 +45,7 @@ test("only the Node examples declare @types/node", () => {
   const carriers = EXAMPLES.filter(
     (runtime) => manifest(runtime).devDependencies?.["@types/node"] !== undefined,
   );
+
   expect(carriers).toEqual(["vanilla", "effect-rpc", "express-session"]);
 });
 

@@ -15,6 +15,7 @@ test(
   { timeout: TEST_TIMEOUT_MS },
   async () => {
     const { socket, peer, harness } = await openWithPeer(() => undefined);
+
     try {
       expect(peer).toBeDefined();
       expect(socket.readyState).toBe(WebSocket.OPEN);
@@ -31,6 +32,7 @@ test(
 
 test("a message from a ws server reaches the client", { timeout: TEST_TIMEOUT_MS }, async () => {
   const messages: string[] = [];
+
   const { socket, harness } = await openWithPeer(
     (peer) => {
       peer.send("from the server");
@@ -39,6 +41,7 @@ test("a message from a ws server reaches the client", { timeout: TEST_TIMEOUT_MS
       client.on("message", (data) => messages.push(data.toString()));
     },
   );
+
   try {
     // The peer sends on connection, so the frame arrives before this client's `open`
     // resolves and waits in the codec until the queue drains.
@@ -52,9 +55,11 @@ test("a message from a ws server reaches the client", { timeout: TEST_TIMEOUT_MS
 
 test("a message from the client reaches a ws server", { timeout: TEST_TIMEOUT_MS }, async () => {
   const received: string[] = [];
+
   const { socket, harness } = await openWithPeer((peer) => {
     peer.on("message", (data) => received.push(data.toString()));
   });
+
   try {
     socket.send("from the client");
     await waitFor(() => received.length === 1);
@@ -68,6 +73,7 @@ test("a message from the client reaches a ws server", { timeout: TEST_TIMEOUT_MS
 test("a ping from the client is answered and reported", { timeout: TEST_TIMEOUT_MS }, async () => {
   const peerPings: string[] = [];
   const clientPongs: string[] = [];
+
   const { socket, harness } = await openWithPeer(
     (peer) => {
       peer.on("ping", (data) => peerPings.push(data.toString()));
@@ -76,6 +82,7 @@ test("a ping from the client is answered and reported", { timeout: TEST_TIMEOUT_
       client.on("pong", (data) => clientPongs.push(data.toString()));
     },
   );
+
   try {
     // The peer reports the ping and this client reports the pong, and neither side
     // reports its own automatic reply: `ws` answers a ping without emitting `pong` for
@@ -99,6 +106,7 @@ test(
   { timeout: TEST_TIMEOUT_MS },
   async () => {
     const { socket, harness } = await openWithPeer(() => undefined, undefined, ["chat"]);
+
     try {
       expect(socket.protocol).toBe("chat");
       socket.close();
@@ -116,6 +124,7 @@ test("a server that picks no subprotocol is refused", { timeout: TEST_TIMEOUT_MS
   // connect.
   const { rawAcceptServer } = await import("./raw-peer");
   const peer = await rawAcceptServer();
+
   try {
     await expect(open(peer.url, undefined, ["chat"])).rejects.toThrow(/no subprotocol/);
   } finally {

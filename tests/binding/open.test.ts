@@ -4,28 +4,34 @@
 import process from "node:process";
 import { afterEach, expect, test, vi } from "vitest";
 import { openAddon } from "../../src/binding/open";
-import type { VentiAddon } from "../../src/binding/native";
 
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
 
-function caughtCode(call: () => unknown): string | undefined {
+function caughtCode(call: () => void): string | undefined {
   try {
     call();
+
     return undefined;
   } catch (error) {
-    return (error as NodeJS.ErrnoException).code;
+    if (!(error instanceof Error) || !("code" in error) || error.code === undefined) {
+      return undefined;
+    }
+
+    return String(error.code);
   }
 }
 
 test("a Deno host opens through process.dlopen", () => {
   vi.stubGlobal("Deno", { version: { deno: "2.8.0" }, build: { env: "gnu" } });
-  const addon = { engineVersion: () => "stub" } as unknown as VentiAddon;
+  const addon = { engineVersion: (): string => "stub" };
+
   const dlopen = vi.spyOn(process, "dlopen").mockImplementation((module) => {
-    (module as { exports: VentiAddon }).exports = addon;
+    Object.assign(module, { exports: addon });
   });
+
   expect(openAddon("/opt/app/ventiws.node")).toBe(addon);
   expect(dlopen).toHaveBeenCalledWith(expect.anything(), "/opt/app/ventiws.node", 0);
 });

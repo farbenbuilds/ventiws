@@ -15,6 +15,7 @@ const CLOSE = CODEC_KINDS.indexOf("close");
 /// A server-role codec on the compiled capacity, released afterwards.
 test("masked frames decode to the events a server owes a peer", () => {
   const handle = serverCodec();
+
   try {
     const ping = clientFrames([{ opcode: 0x9, payload: Buffer.from("beat") }]);
     const text = clientFrames([{ opcode: 0x1, payload: Buffer.from("hello") }]);
@@ -43,14 +44,17 @@ test("masked frames decode to the events a server owes a peer", () => {
 
 test("a frame split across reads decodes once the last byte arrives", () => {
   const handle = serverCodec();
+
   try {
     const frames = clientFrames([{ opcode: 0x1, payload: Buffer.from("split me") }]);
+
     // Every byte is consumed as it arrives, including the last: the frame is emitted
     // on a turn after the payload, and that turn reports no further input.
     for (let index = 0; index < frames.length; index += 1) {
       const piece = frames.subarray(index, index + 1);
       expect(feedCodec(handle, piece)).toEqual({ kind: "consumed", bytes: 1 });
     }
+
     expect(drain(handle).map((event) => event.payload.toString())).toEqual(["split me"]);
   } finally {
     destroyCodec(handle);
@@ -62,6 +66,7 @@ test("a text frame and a binary frame are two different events", () => {
   // a text frame are refused. Two codecs, because a refusal ends a connection.
   const bytes = [0xff, 0xfe];
   const refused = serverCodec();
+
   try {
     const text = clientFrames([{ opcode: 0x1, payload: Buffer.from(bytes) }]);
     expect(feedCodec(refused, text)).toEqual({ kind: "failed" });
@@ -70,6 +75,7 @@ test("a text frame and a binary frame are two different events", () => {
   }
 
   const accepted = serverCodec();
+
   try {
     const binary = clientFrames([{ opcode: 0x2, payload: Buffer.from(bytes) }]);
     expect(feedCodec(accepted, binary)).toEqual({ kind: "consumed", bytes: binary.length });
@@ -84,6 +90,7 @@ test("a text frame and a binary frame are two different events", () => {
 
 test("a control frame is not a message", () => {
   const handle = serverCodec();
+
   try {
     const frames = clientFrames([{ opcode: 0x9, payload: Buffer.from("beat") }]);
     expect(feedCodec(handle, frames)).toEqual({ kind: "consumed", bytes: frames.length });
@@ -95,6 +102,7 @@ test("a control frame is not a message", () => {
 
 test("an empty close payload is a close with no code", () => {
   const handle = serverCodec();
+
   try {
     const frames = clientFrames([{ opcode: 0x8, payload: Buffer.alloc(0) }]);
     expect(feedCodec(handle, frames)).toEqual({ kind: "consumed", bytes: frames.length });

@@ -1,17 +1,27 @@
-import { createServer as createNetServer } from "node:net";
+import { createServer as createNetServer, type AddressInfo } from "node:net";
+
+/// Node reports a pipe path as a string; these suites bind TCP, so an object-shaped
+/// address is the `AddressInfo` the caller needs.
+export function addressPort(address: AddressInfo | string | null): number | undefined {
+  if (address === null) return undefined;
+
+  return address instanceof Object ? address.port : undefined;
+}
 
 function probePort(): Promise<number | undefined> {
   return new Promise((resolve, reject) => {
     const probe = createNetServer();
     probe.once("error", reject);
     probe.listen(0, "127.0.0.1", () => {
-      const address = probe.address();
-      if (address === null || typeof address === "string") {
+      const port = addressPort(probe.address());
+
+      if (port === undefined) {
         probe.close();
         resolve(undefined);
+
         return;
       }
-      const port = address.port;
+
       probe.close(() => resolve(port));
     });
   });
@@ -22,8 +32,10 @@ function probePort(): Promise<number | undefined> {
 export async function freePort(): Promise<number> {
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const port = await probePort();
+
     if (port !== undefined) return port;
   }
+
   throw new Error("failed to probe a free port");
 }
 
@@ -34,13 +46,16 @@ export function occupyPort(): Promise<{ readonly port: number; close(): Promise<
     const blocker = createNetServer();
     blocker.once("error", reject);
     blocker.listen(0, "127.0.0.1", () => {
-      const address = blocker.address();
-      if (address === null || typeof address === "string") {
+      const port = addressPort(blocker.address());
+
+      if (port === undefined) {
         blocker.close(() => reject(new Error("failed to occupy a port")));
+
         return;
       }
+
       resolve({
-        port: address.port,
+        port,
         close: () =>
           new Promise((done) => {
             blocker.close(() => done());

@@ -22,6 +22,7 @@ const ask = (args) => spawnSync("git", ["-C", ROOT, ...args], { encoding: "utf8"
 
 function push(args) {
   const run = spawnSync("git", ["-C", ROOT, ...args], { stdio: "inherit" });
+
   if (run.status !== 0) throw new Error(`tag-release: git ${args.join(" ")} failed`);
 }
 
@@ -32,7 +33,9 @@ function main() {
   if (ask(["status", "--porcelain"]) !== "")
     throw new Error("tag-release: the working tree is dirty");
   const branch = ask(["rev-parse", "--abbrev-ref", "HEAD"]);
+
   if (branch === "" || branch === "HEAD") throw new Error("tag-release: HEAD is not on a branch");
+
   if (ask(["rev-parse", "--verify", "--quiet", `refs/tags/${tag}`]) !== "")
     throw new Error(`tag-release: ${tag} already exists`);
 
@@ -43,12 +46,14 @@ function main() {
   spawnSync("git", ["fetch", "--quiet", "origin", branch], { stdio: "ignore" });
   const local = ask(["rev-parse", "HEAD"]);
   const remote = ask(["rev-parse", `origin/${branch}`]);
+
   if (local !== "" && remote !== "" && local !== remote)
     throw new Error(
       `tag-release: ${branch} differs from origin/${branch}; run \`git pull --ff-only\` first`,
     );
 
   push(["tag", tag]);
+
   try {
     // The tag ref is pushed explicitly: `--follow-tags` carries annotated tags, and this
     // lightweight tag on a branch that is already up to date is exactly what it leaves
@@ -61,6 +66,7 @@ function main() {
     push(["tag", "--delete", tag]);
     throw error;
   }
+
   console.log(`tag-release: pushed ${tag} from ${branch}`);
 }
 

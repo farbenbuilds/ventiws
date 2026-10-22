@@ -12,6 +12,10 @@ import { build, publishInput, reportOf } from "./bench-fixtures";
 
 const historyOf = (): string => mkdtempSync(join(tmpdir(), "ventiws-bench-history-"));
 
+type IndexRecord = { readonly record_id: string };
+
+type HistoryIndex = { readonly records: readonly IndexRecord[] };
+
 test("a contract-conforming report becomes a record with its provenance", () => {
   const record = build(reportOf());
   expect(record.record_id).toBe(`123-1-${"a".repeat(12)}`);
@@ -36,9 +40,9 @@ test("publishing writes the record, its raw report, and the branch scaffolding",
   ).toBe(true);
   expect(existsSync(join(history, "schema", "echo_throughput_v2.schema.json"))).toBe(true);
   expect(existsSync(join(history, ".nojekyll"))).toBe(true);
-  const index = JSON.parse(readFileSync(join(history, "index.json"), "utf8")) as {
-    records: { record_id: string }[];
-  };
+
+  const index: HistoryIndex = JSON.parse(readFileSync(join(history, "index.json"), "utf8"));
+
   expect(index.records).toHaveLength(1);
   expect(index.records[0].record_id).toBe(id);
   const readme = readFileSync(join(history, "README.md"), "utf8");
@@ -51,11 +55,13 @@ test("different contract documents get separate immutable snapshots", () => {
   const history = historyOf();
   const input = publishInput(build(reportOf()), history);
   publishRecord(input);
+
   const nextRecord = {
     ...input.record,
     record_id: `124-1-${"b".repeat(12)}`,
     recorded_at: "2026-10-04T00:00:00.000Z",
   };
+
   publishRecord({
     ...input,
     record: nextRecord,

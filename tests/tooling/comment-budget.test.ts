@@ -2,25 +2,7 @@
 /// everyone to ignore it, and it misses a file that is not. Both are decided here.
 
 import { expect, test } from "vitest";
-import { commentViolations } from "../../scripts/comment-budget.mjs";
-
-function violationsOf(source: string, name = "sample.ts"): string[] {
-  const violations: string[] = [];
-  commentViolations(name, source, violations);
-  return violations;
-}
-
-/// `code` code lines, each preceded by a burst of `per` comment lines. Bursts stay
-/// under the run cap on purpose, so a test can exercise the ratio without also tripping
-/// the run check and passing for the wrong reason.
-function burst(code: number, per: number): string {
-  const lines: string[] = [];
-  for (let i = 0; i < code; i += 1) {
-    for (let c = 0; c < per; c += 1) lines.push(`// why ${i}.${c}`);
-    lines.push(`const v${i} = ${i};`);
-  }
-  return lines.join("\n");
-}
+import { burst, violationsOf } from "./comment-budget-fixtures";
 
 test("a file inside the budget is not flagged", () => {
   expect(violationsOf(burst(60, 0))).toEqual([]);
@@ -38,6 +20,7 @@ test("a run of comment lines is capped", () => {
     ...Array.from({ length: 12 }, (_, i) => `// ${i}`),
     ...Array.from({ length: 40 }, (_, i) => `const v${i} = ${i};`),
   ].join("\n");
+
   expect(violationsOf(source)).toHaveLength(1);
   expect(violationsOf(source)[0]).toContain("consecutive comment lines");
 });
@@ -78,6 +61,7 @@ test("a small file still gets a module doc", () => {
     "const a = 1;",
     "const b = 2;",
   ].join("\n");
+
   expect(violationsOf(source)).toEqual([]);
 });
 
@@ -91,8 +75,10 @@ test("a Zig capacity table is judged by shape, not by ratio", () => {
   ])
     .flat()
     .join("\n");
+
   expect(violationsOf(table, "capacities.zig")).toEqual([]);
   expect(violationsOf("/// one\npub const a = 1;", "capacities.zig")).toEqual([]);
+
   const mixed = [
     "/// why",
     "pub const a = 1;",
@@ -100,6 +86,7 @@ test("a Zig capacity table is judged by shape, not by ratio", () => {
     "pub fn f() void {}",
     ...Array.from({ length: 6 }, (_, i) => `/// more ${i}`),
   ].join("\n");
+
   expect(violationsOf(mixed, "capacities.zig").length).toBeGreaterThan(0);
   expect(violationsOf(table, "table.ts").length).toBeGreaterThan(0);
 });
@@ -111,6 +98,7 @@ test("a block comment counts as a run", () => {
     " */",
     "let a = 1;",
   ].join("\n");
+
   expect(violationsOf(source).some((v) => v.includes("consecutive comment lines"))).toBe(true);
 });
 
@@ -121,6 +109,7 @@ test("a trailing comment is counted", () => {
     ...Array.from({ length: 30 }, (_, i) => `const v${i} = ${i}; // index ${i}`),
     ...Array.from({ length: 40 }, (_, i) => `const w${i} = ${i};`),
   ].join("\n");
+
   // The 30 commented lines are also 30 consecutive, so the run budget fires as well; the
   // assertion names the ratio message so it cannot pass on the run check having fired.
   expect(violationsOf(source).some((v) => v.includes("comment lines for"))).toBe(true);
@@ -134,6 +123,7 @@ test("a comment marker inside a string is not a comment", () => {
     'const URL = "wss://example.invalid/ws";',
     ...Array.from({ length: 40 }, (_, i) => `const v${i} = ${i};`),
   ].join("\n");
+
   expect(violationsOf(source)).toEqual([]);
 });
 
@@ -146,5 +136,6 @@ test("a blank line ends a run", () => {
     ...Array.from({ length: 8 }, (_, i) => `// ${i}\n`),
     ...Array.from({ length: 40 }, (_, i) => `const v${i} = ${i};`),
   ].join("\n");
+
   expect(violationsOf(spaced)).toEqual([]);
 });

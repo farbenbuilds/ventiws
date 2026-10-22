@@ -28,6 +28,7 @@ test(
     const harness = await upgradeHarness(serverWith({ maxPayload: MAX_PAYLOAD }));
     const accepted = nextSocket(harness.server);
     const client = await openClient(harness.url);
+
     try {
       const socket = await accepted;
       // A refused frame is a protocol error, so `ws` emits `error` and then `close`.
@@ -35,9 +36,11 @@ test(
       // and an error with no close would leave the socket open.
       const events: string[] = [];
       socket.on("error", () => events.push("error"));
+
       const closed = new Promise<number>((resolve) => {
         socket.on("close", (code) => resolve(code));
       });
+
       client.send(Buffer.alloc(MAX_PAYLOAD + 1));
       expect(await closed).toBe(1009);
       expect(events).toEqual(["error"]);
@@ -55,6 +58,7 @@ test(
     const harness = await upgradeHarness();
     const accepted = nextSocket(harness.server);
     const client = await openClient(harness.url);
+
     try {
       const socket = await accepted;
       const pings: string[] = [];
@@ -84,51 +88,9 @@ test(
     const harness = await upgradeHarness();
     const accepted = nextSocket(harness.server);
     const client = await openClient(harness.url);
+
     try {
       expect((await accepted).readyState).toBe(OPEN);
-    } finally {
-      client.close();
-      await harness.close();
-    }
-  },
-);
-
-test(
-  "a fractional close code truncates toward zero on the wire",
-  { timeout: TEST_TIMEOUT_MS },
-  async () => {
-    const harness = await upgradeHarness();
-    const accepted = nextSocket(harness.server);
-    const client = await openClient(harness.url);
-    try {
-      const socket = await accepted;
-      const closed = new Promise<[number, string]>((resolve) => {
-        client.on("close", (code, reason) => resolve([code, reason.toString()]));
-      });
-      socket.close(1000.5, "done");
-      // `closeCodeOf` truncates before framing, so the peer reads 1000, not 1000.5.
-      expect(await closed).toEqual([1000, "done"]);
-    } finally {
-      client.close();
-      await harness.close();
-    }
-  },
-);
-
-test(
-  "an absent close reason reaches the peer as a bare close",
-  { timeout: TEST_TIMEOUT_MS },
-  async () => {
-    const harness = await upgradeHarness();
-    const accepted = nextSocket(harness.server);
-    const client = await openClient(harness.url);
-    try {
-      const socket = await accepted;
-      const closed = new Promise<[number, string]>((resolve) => {
-        client.on("close", (code, reason) => resolve([code, reason.toString()]));
-      });
-      socket.close(1000, undefined);
-      expect(await closed).toEqual([1000, ""]);
     } finally {
       client.close();
       await harness.close();

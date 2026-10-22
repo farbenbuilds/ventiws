@@ -17,7 +17,8 @@ pnpm install
 
 `nix develop` pins Node.js, pnpm, and Zig 0.16.0. On musl hosts use
 `nix develop .#musl`; the checked-in `.envrc` selects it under `direnv`. Without
-Nix, install Node.js 22.12 or newer, pnpm, and Zig 0.16.0. The first
+Nix, install Node.js 22.23.4 or newer (24.22.1 and 26.12.1 are the fixed
+patches in those release lines), pnpm, and Zig 0.16.0. The first
 `pnpm build:binding` compiles the engine's vendored C dependencies into
 `.zig-cache/`, which takes minutes and about a gigabyte; later builds are
 incremental, so leave `.zig-cache` and `zig-pkg` alone. Cross-compile with
@@ -71,10 +72,9 @@ pnpm exec lefthook run pre-commit --all-files
 fixes with `pnpm lint:fix` and `pnpm format`, never with `--no-verify`.
 
 `pnpm lint` also loads the vendored anti-slop plugin under
-`tools/oxlint/anti-slop/`. Its evidence rules are staged at `warn` while the
-repository-wide cleanup lands, so the command exits zero with warnings. Treat a
-new warning in code you touched as work to fix; do not delete the plugin or
-silence a rule to get to green.
+`tools/oxlint/anti-slop/`. Every evidence rule is enforced at `error`, so a
+finding fails the gate; fix the code or split the module. Do not delete the
+plugin or silence a rule to get to green.
 
 ## Requirements
 

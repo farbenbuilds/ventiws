@@ -17,6 +17,7 @@ export type SampleJob = {
 export const buildPlan = (options: BenchOptions): readonly SampleJob[] => {
   const jobs: SampleJob[] = [];
   const total = options.warmups + options.repeats;
+
   for (let repeat = 1; repeat <= total; repeat += 1) {
     for (const payloadBytes of options.payloadSizes) {
       for (const implementation of options.implementations) {
@@ -30,5 +31,6 @@ export const buildPlan = (options: BenchOptions): readonly SampleJob[] => {
       }
     }
   }
+
   return jobs;
 };

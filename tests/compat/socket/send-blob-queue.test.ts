@@ -19,6 +19,7 @@ type DeferredBlob = {
 /// assertions run.
 function deferredBlob(size: number): DeferredBlob {
   let release: (buffer: ArrayBuffer) => void = () => undefined;
+
   return {
     blob: {
       size,
@@ -35,11 +36,14 @@ test("an invalid payload throws from send even behind a pending blob read", asyn
   const state = createSocketState();
   state.readyState = OPEN;
   const rejections: unknown[] = [];
-  const record = (reason: unknown): void => {
+
+  const record: NodeJS.UnhandledRejectionListener = (reason) => {
     rejections.push(reason);
   };
+
   process.on("unhandledRejection", record);
   const reading = deferredBlob(4);
+
   try {
     sendData(state, reading.blob, undefined, undefined);
     expect(state.pendingSend).not.toBeNull();
@@ -62,32 +66,41 @@ test("a synchronous throw from queued work is routed to the callback", async () 
   state.pendingSend = Promise.resolve();
   let failure: unknown;
   let reads = 0;
+
   const blob = {
     size: 1,
     get arrayBuffer(): () => Promise<ArrayBuffer> {
       reads += 1;
+
       if (reads > 1) throw new Error("read failed");
+
       return () => Promise.resolve(new ArrayBuffer(0));
     },
   };
-  sendData(state, blob, undefined, (error?: unknown) => {
-    failure = error;
-  });
+
+  const record = (cause: unknown): void => {
+    failure = cause;
+  };
+
+  sendData(state, blob, undefined, record);
   await new Promise((resolve) => setImmediate(resolve));
-  expect((failure as Error | undefined)?.message).toBe("read failed");
+  expect(failure).toMatchObject({ message: "read failed" });
 });
 
 test("a blob sent while not open is accounted without being read", () => {
   const state = createSocketState();
   state.readyState = CLOSED;
   let reads = 0;
+
   const blob = {
     size: 7,
     arrayBuffer: (): Promise<ArrayBuffer> => {
       reads += 1;
+
       return Promise.resolve(new ArrayBuffer(0));
     },
   };
+
   sendData(state, blob, undefined, undefined);
   // `ws`'s `sendAfterClose` adds `data.size` and never reads the blob.
   expect(reads).toBe(0);

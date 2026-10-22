@@ -2,8 +2,9 @@ import { expect, test } from "vitest";
 import { CLOSING, OPEN } from "../../src/compat/ready-state";
 import { TEST_TIMEOUT_MS } from "../binding/support";
 import { compare } from "./parity-support";
+import type { CloseReason } from "./parity-support";
 
-const REASONS: ReadonlyArray<readonly [string, unknown]> = [
+const REASONS: ReadonlyArray<readonly [string, CloseReason]> = [
   ["undefined", undefined],
   ["an empty string", ""],
   ["a plain string", "done"],
@@ -43,6 +44,7 @@ test.each(REASONS)(
         socket.close(1000, reason);
       },
     );
+
     if (!expected.threw) {
       // A valid reason reaches the engine, which cannot frame an app-initiated close yet:
       // ventiws reports the missing implementation and stays OPEN where `ws` latches CLOSING.
@@ -50,13 +52,17 @@ test.each(REASONS)(
       expect(actual.threw).toBe(true);
       expect(actual.message).toMatch(/app-initiated close is not implemented/);
       expect(actual.readyState).toBe(OPEN);
+
       return;
     }
+
     expect(actual.threw).toBe(true);
     expect(actual.name).toBe(expected.name);
+
     if (expected.name !== "TypeError" || expected.message.startsWith("Second argument")) {
       expect(actual.message).toBe(expected.message);
     }
+
     expect(actual.readyState).toBe(expected.readyState);
   },
 );

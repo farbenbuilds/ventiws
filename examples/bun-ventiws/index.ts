@@ -14,7 +14,8 @@ server.on("connection", (socket) => {
 // Bun's built-in WebSocket is the client; ventiws only has to serve it.
 server.on("listening", () => {
   const address = server.address();
-  if (address === null || typeof address === "string") return;
+
+  if (!(address instanceof Object)) return;
 
   const client = new WebSocket(`ws://127.0.0.1:${address.port}`);
 
@@ -23,6 +24,7 @@ server.on("listening", () => {
     console.log(`client received: ${event.data}`);
     client.close();
   };
+
   client.onclose = () => server.close();
   client.onerror = (event) => console.error(event);
 });

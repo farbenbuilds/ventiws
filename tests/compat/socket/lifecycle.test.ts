@@ -20,6 +20,7 @@ test.each(["close", "terminate"])("%s while connecting reports the aborted hands
     closes.push([code, reason]);
   });
   expect(() => socket.send("hello")).toThrow(/readyState 0 \(CONNECTING\)/);
+
   if (op === "close") socket.close();
   else socket.terminate();
   expect(errors.map((error) => error.message)).toEqual([
@@ -39,6 +40,7 @@ test.each(["close", "terminate"])("%s while connecting reports the aborted hands
 test("terminate latches CLOSING while the transport is still closing", () => {
   const socket = new WebSocket(null);
   const state = socketStateOf(socket);
+
   if (state === undefined) throw new Error("expected a ventiws socket record");
   const transport = new PassThrough();
   transport.on("close", () => {
@@ -56,13 +58,16 @@ test("terminate latches CLOSING while the transport is still closing", () => {
   const finished = new Promise<void>((resolve) => {
     socket.on("close", () => resolve());
   });
+
   transport.emit("close");
+
   return expect(finished).resolves.toBeUndefined();
 });
 
 test("terminate on a socket with no transport finishes it immediately", () => {
   const socket = new WebSocket(null);
   const state = socketStateOf(socket);
+
   if (state === undefined) throw new Error("expected a ventiws socket record");
   state.readyState = OPEN;
   socket.terminate();

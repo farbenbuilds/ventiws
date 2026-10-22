@@ -25,6 +25,7 @@ function pongFor(readyState: ReadyState): Buffer {
   transport.on("data", (chunk: Buffer) => written.push(chunk));
   state.transport = transport;
   dispatch(state, 1n, "ping", 0, PING, null);
+
   return Buffer.concat(written);
 }
 

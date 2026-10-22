@@ -27,6 +27,7 @@ test(
   async () => {
     const echo = await startEcho();
     const socket = connect(echo.port, "127.0.0.1");
+
     try {
       await new Promise<void>((resolve, reject) => {
         socket.once("connect", resolve);
@@ -53,6 +54,7 @@ test(
   async () => {
     const echo = await startEcho();
     const first = connect(echo.port, "127.0.0.1");
+
     try {
       await new Promise<void>((resolve, reject) => {
         first.once("connect", resolve);
@@ -64,6 +66,7 @@ test(
       await new Promise((resolve) => setTimeout(resolve, 200));
 
       const second = connect(echo.port, "127.0.0.1");
+
       try {
         await new Promise<void>((resolve, reject) => {
           second.once("connect", resolve);

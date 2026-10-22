@@ -18,6 +18,7 @@ import { serverCodec } from "./codec-support";
 
 test("a queue with nothing in it selects nothing", () => {
   const handle = serverCodec();
+
   try {
     expect(pendingCodecEvents(handle)).toBe(0);
     expect(selectCodecEvent(handle)).toBe(false);
@@ -31,11 +32,14 @@ test("every control event in one read keeps its own payload", () => {
   // into it would hand the caller the newest frame's bytes for every event. One read
   // of four pings is the order that exposes it.
   const handle = serverCodec();
+
   try {
     const payloads = ["one", "two", "three", "four"];
+
     const frames = clientFrames(
       payloads.map((payload) => ({ opcode: 0x9, payload: Buffer.from(payload) })),
     );
+
     expect(feedCodec(handle, frames)).toEqual({ kind: "consumed", bytes: frames.length });
     expect(pendingCodecEvents(handle)).toBe(payloads.length);
     expect(drain(handle).map((event) => event.payload.toString())).toEqual(payloads);
@@ -46,6 +50,7 @@ test("every control event in one read keeps its own payload", () => {
 
 test("one data message at a time, and the offset a second one waits at", () => {
   const handle = serverCodec();
+
   try {
     const first = clientFrames([{ opcode: 0x1, payload: Buffer.from("one") }]);
     const second = clientFrames([{ opcode: 0x1, payload: Buffer.from("two") }]);

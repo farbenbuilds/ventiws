@@ -3,6 +3,7 @@ import { describe, it } from "vitest";
 import plugin from "../../scripts/oxlint-plugin.mjs";
 
 RuleTester.describe = describe;
+
 RuleTester.it = it;
 
 const ruleTester = new RuleTester({ languageOptions: { parserOptions: { lang: "ts" } } });

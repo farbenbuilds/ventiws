@@ -5,10 +5,13 @@ export {
   CODEC_OUTCOME,
   CODEC_ROLE,
 } from "./codec-status";
+
 export { createCodec, type CodecOptions } from "./codec-create";
 
 export { codecOutbound, codecOutboundMasked, encodeCodecFrame } from "./codec-encode";
+
 export { codecLimits } from "./codec-limits";
+
 export {
   codecCeilings,
   codecFailure,
@@ -16,6 +19,7 @@ export {
   codecRole,
   resetCodec,
 } from "./codec-state";
+
 export type {
   CodecEncodeFailure,
   CodecFailureName,
@@ -26,7 +30,7 @@ export type {
 
 import { CODEC_KINDS, decodeOutcome, type CodecKindName, type FeedOutcome } from "./codec-status";
 import type { NativeCodecEvent, NativeCodecNext } from "./native";
-import { callNative, nativeError } from "./errors";
+import { callNative } from "./errors";
 import { loadAddon } from "./load";
 
 export { materializeCodec, processCodecInto, type CodecFirst } from "./codec-process";
@@ -53,6 +57,7 @@ export function destroyCodec(handle: bigint): void {
 /// store stops the decoder before it finishes the frame.
 export function feedCodec(handle: bigint, bytes: Uint8Array): FeedOutcome {
   const addon = loadAddon();
+
   return decodeOutcome(callNative(() => addon.codecFeed(handle, bytes)));
 }
 
@@ -61,28 +66,27 @@ export function feedCodec(handle: bigint, bytes: Uint8Array): FeedOutcome {
 /// `decodeOutcome` allocates; a caller that wants names uses `feedCodec`.
 export function feedCodecCount(handle: bigint, bytes: Uint8Array): number {
   const addon = loadAddon();
-  try {
-    return addon.codecFeed(handle, bytes);
-  } catch (error) {
-    throw nativeError(error);
-  }
+
+  return callNative(() => addon.codecFeed(handle, bytes));
 }
 
-/// Where the last fold stopped, for a caller resuming an input it could not finish.
 export function codecFeedResume(handle: bigint): number {
   const addon = loadAddon();
+
   return callNative(() => addon.codecResume(handle));
 }
 
 /// Events waiting to be taken, including one already selected.
 export function pendingCodecEvents(handle: bigint): number {
   const addon = loadAddon();
+
   return callNative(() => addon.codecPending(handle));
 }
 
 /// Selects the oldest event, control frames ahead of data messages.
 export function selectCodecEvent(handle: bigint): boolean {
   const addon = loadAddon();
+
   return callNative(() => addon.codecSelect(handle));
 }
 
@@ -92,7 +96,9 @@ export function selectCodecEvent(handle: bigint): boolean {
 export function selectedCodecEvent(handle: bigint): CodecEvent | null {
   const addon = loadAddon();
   const event: NativeCodecEvent | null = callNative(() => addon.codecEvent(handle));
+
   if (event === null) return null;
+
   return { kind: CODEC_KINDS[event[0]] ?? "rejected", code: event[1], payload: event[2] };
 }
 
@@ -101,14 +107,10 @@ export function selectedCodecEvent(handle: bigint): CodecEvent | null {
 /// boundaries, which only `binaryType: "fragments"` consumes.
 export function nextCodecEvent(handle: bigint, wantEnds: boolean): NativeCodecNext | null {
   const addon = loadAddon();
-  try {
-    return addon.codecNext(handle, wantEnds ? 1 : 0);
-  } catch (error) {
-    throw nativeError(error);
-  }
+
+  return callNative(() => addon.codecNext(handle, wantEnds ? 1 : 0));
 }
 
-/// Retires the selected event and frees its slot.
 export function takeCodecEvent(handle: bigint): void {
   const addon = loadAddon();
   callNative(() => addon.codecTake(handle));
@@ -119,5 +121,6 @@ export function takeCodecEvent(handle: bigint): void {
 /// boundaries borrow the same reassembly buffer the payload does.
 export function codecFragmentEnds(handle: bigint): number[] | null {
   const addon = loadAddon();
+
   return callNative(() => addon.codecFragments(handle));
 }

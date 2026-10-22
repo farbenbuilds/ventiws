@@ -70,6 +70,7 @@ test("a host outside the published set still names a package it will not find", 
   // that would throw at first socket. A developer on such a host still runs the suite,
   // because the loader prefers the checkout artifact over any installed package.
   const target = hostAddonTarget();
+
   if (target !== undefined) expect(PUBLISHED_TARGETS).toContain(target);
   expect(PUBLISHED_TARGETS).toHaveLength(5);
 });

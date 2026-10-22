@@ -69,11 +69,13 @@ export const parseOptions = (argv: readonly string[]): BenchOptions => {
   let reportPath = DEFAULT_REPORT_PATH;
   let gate = false;
   let help = false;
+
   for (const argument of argv) {
     if (!argument.startsWith("--")) throw new Error(`unexpected argument "${argument}"`);
     const separator = argument.indexOf("=");
     const flag = separator === -1 ? argument : argument.slice(0, separator);
     const value = separator === -1 ? undefined : argument.slice(separator + 1);
+
     switch (flag) {
       case "--implementations":
         implementations = readImplementations(flag, value, implementations);
@@ -104,14 +106,18 @@ export const parseOptions = (argv: readonly string[]): BenchOptions => {
         throw new Error(`unknown flag "${flag}"`);
     }
   }
+
   if (repeats < 2) {
     throw new Error(`--repeats must be at least 2, because a median of one sample is not a median`);
   }
+
   for (const size of payloadSizes) assertWithinCeiling(size);
+
   if (gate) {
     for (const id of GATE_IMPLEMENTATION_IDS) {
       if (!implementations.includes(id)) throw new Error(`--gate requires the ${id} leg`);
     }
   }
+
   return { implementations, payloadSizes, repeats, warmups, messages, gate, reportPath, help };
 };

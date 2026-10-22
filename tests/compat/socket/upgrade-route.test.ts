@@ -21,6 +21,7 @@ type TestTransport = Duplex & {
 
 function loopbackFreeTransport(): TestTransport {
   const written: Buffer[] = [];
+
   const transport = new Duplex({
     read: () => undefined,
     write: (chunk: Buffer, _encoding: string, done: (error?: Error) => void) => {
@@ -28,6 +29,7 @@ function loopbackFreeTransport(): TestTransport {
       done();
     },
   });
+
   return Object.assign(transport, {
     frames: () => Buffer.concat(written),
     receive: (bytes: Buffer) => {
@@ -39,10 +41,13 @@ function loopbackFreeTransport(): TestTransport {
 /// A socket from the Node upgrade path, open, with a live transport and no native
 /// attachment. This is the shape `WebSocketServer` produces, and the one every
 /// regression below is about: the facade reaches it, the engine does not.
-function upgradedSocket(): { socket: WebSocket; transport: TestTransport } {
+type UpgradedSocket = { readonly socket: WebSocket; readonly transport: TestTransport };
+
+function upgradedSocket(): UpgradedSocket {
   const socket = new WebSocket(null);
   const transport = loopbackFreeTransport();
   attachSocket(socket, transport);
+
   return { socket, transport };
 }
 

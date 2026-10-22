@@ -2,12 +2,15 @@ import type { NormalizedPerMessageDeflate, WindowBitsOption } from "../../types/
 import type { PerMessageDeflateOptions } from "../../types/ws";
 import { MAX_WINDOW_BITS, MIN_WINDOW_BITS } from "../extensions/params";
 import { createError } from "../errors";
+import { isStringValue } from "../scalars";
 
 export const DEFAULT_MAX_PAYLOAD = 100 * 1024 * 1024;
+
 /// `ws` defaults this to 16 KiB fragments. Documented and defaulted by `ws` and
 /// absent from `@types/ws`, so it is read rather than declared.
 export const DEFAULT_MAX_FRAGMENTS = 16 * 1024;
 export const DEFAULT_MAX_REDIRECTS = 10;
+
 /// `ws` defaults this to 256 KiB in both constructors and coerces it with `| 0`, so it is
 /// read rather than declared. It bounds reads queued behind a paused parse; see `codec-inbound.ts`.
 export const DEFAULT_MAX_BUFFERED_CHUNKS = 256 * 1024;
@@ -24,7 +27,7 @@ const SUBPROTOCOL_PATTERN = /^[!#$%&'*+\-.0-9A-Z^_`|a-z~]+$/;
 
 /// Anything that is not a token (notably CR/LF) must never reach a response header.
 export function isProtocolToken(value: unknown): value is string {
-  return typeof value === "string" && SUBPROTOCOL_PATTERN.test(value);
+  return isStringValue(value) && SUBPROTOCOL_PATTERN.test(value);
 }
 
 export function invalidOption(message: string, constructor: ErrorConstructor = TypeError): never {
@@ -35,17 +38,19 @@ export function normalizeProtocols(protocols: string | string[] | undefined): re
   if (protocols === undefined) return [];
   // `ws` wraps a non-array value into a one-element list and validates it, so an
   // out-of-type number or null reports the SyntaxError rather than a TypeError.
-  const list = typeof protocols === "string" ? [protocols] : protocols;
-  const candidates: readonly unknown[] = Array.isArray(list) ? list : [list];
+  const candidates = Array.isArray(protocols) ? protocols : [protocols];
   const seen = new Set<string>();
   const result: string[] = [];
+
   for (const protocol of candidates) {
-    if (typeof protocol !== "string" || !SUBPROTOCOL_PATTERN.test(protocol) || seen.has(protocol)) {
+    if (!isProtocolToken(protocol) || seen.has(protocol)) {
       invalidOption("An invalid or duplicated subprotocol was specified", SyntaxError);
     }
+
     seen.add(protocol);
     result.push(protocol);
   }
+
   return result;
 }
 
@@ -58,16 +63,13 @@ export function parseProtocolHeader(header: string): readonly string[] {
 
 /// The RFC 7692 window range, enforced at construction. `ws` writes an out-of-range option
 /// into a header and lets the peer fail; `false` is the runtime's name-no-window form.
-function windowBitsOf(name: string, raw: unknown): WindowBitsOption {
+function windowBitsOf(name: string, raw: WindowBitsOption): WindowBitsOption {
   if (raw === undefined || raw === false) return raw;
-  if (
-    typeof raw === "number" &&
-    Number.isInteger(raw) &&
-    raw >= MIN_WINDOW_BITS &&
-    raw <= MAX_WINDOW_BITS
-  ) {
+
+  if (Number.isInteger(raw) && raw >= MIN_WINDOW_BITS && raw <= MAX_WINDOW_BITS) {
     return raw;
   }
+
   return invalidOption(
     `The ${name} option must be an integer in [${MIN_WINDOW_BITS}, ${MAX_WINDOW_BITS}] (received ${String(raw)})`,
     RangeError,
@@ -81,8 +83,10 @@ export function normalizePerMessageDeflate(
   // `ws` gates on truthiness: an out-of-type falsy value disables the extension.
   if (value !== undefined && !value) return false;
   const resolved = value ?? fallback;
+
   if (!resolved) return false;
   const options: PerMessageDeflateOptions = resolved === true ? {} : resolved;
+
   return {
     serverNoContextTakeover: options.serverNoContextTakeover,
     clientNoContextTakeover: options.clientNoContextTakeover,
@@ -100,14 +104,15 @@ export function normalizePerMessageDeflate(
 /// reads a string as a delay and a negative as zero, giving a caller one socket that
 /// closes instantly and another that never closes. A deliberate hardening over `ws`,
 /// which coerces; see `COMPATIBILITY.md`.
-export function closeTimeoutOf(source: unknown): number {
-  const raw = (source as { readonly closeTimeout?: unknown }).closeTimeout;
+export function closeTimeoutOf(raw: number | undefined): number {
   if (raw === undefined) return DEFAULT_CLOSE_TIMEOUT;
-  if (typeof raw !== "number" || !Number.isFinite(raw) || raw < 0) {
+
+  if (!Number.isFinite(raw) || raw < 0) {
     invalidOption(
       `The closeTimeout option must be a non-negative number (received ${String(raw)})`,
       RangeError,
     );
   }
+
   return raw;
 }

@@ -27,6 +27,7 @@ test("preserves explicit falsy and zero client values", () => {
     autoPong: false,
     perMessageDeflate: false,
   });
+
   expect(options.followRedirects).toBe(true);
   expect(options.maxRedirects).toBe(0);
   // Zero is `ws`'s "no limit" rather than "refuse everything": it guards

@@ -26,7 +26,9 @@ test("round trips the maximum handle", () => {
 });
 
 test("asserts connection handles before a native call", () => {
-  expect(() => assertConnectionHandle(1 as unknown as bigint)).toThrow(RangeError);
+  // A JavaScript caller can pass a number for a handle; the guard has to refuse it.
+  // @ts-expect-error a number is not a bigint handle
+  expect(() => assertConnectionHandle(1)).toThrow(RangeError);
   expect(() => assertConnectionHandle(-1n)).toThrow(RangeError);
   expect(() => assertConnectionHandle(1n << 64n)).toThrow(RangeError);
   expect(() => assertConnectionHandle(0n)).not.toThrow();

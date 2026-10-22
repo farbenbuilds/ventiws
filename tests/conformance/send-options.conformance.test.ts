@@ -19,6 +19,7 @@ function observe(target: {
 }): Observed[] {
   const seen: Observed[] = [];
   target.on("message", (data, isBinary) => seen.push({ text: data.toString(), binary: isBinary }));
+
   return seen;
 }
 
@@ -26,6 +27,7 @@ test("the binary option chooses the opcode", { timeout: TEST_TIMEOUT_MS }, async
   const harness = await upgradeHarness();
   const accepted = nextSocket(harness.server);
   const client = await openClient(harness.url);
+
   try {
     const socket = await accepted;
     const seen = observe(client);
@@ -53,6 +55,7 @@ test("the fin option fragments an outbound message", { timeout: TEST_TIMEOUT_MS 
   const harness = await upgradeHarness();
   const accepted = nextSocket(harness.server);
   const client = await openClient(harness.url);
+
   try {
     const socket = await accepted;
     const seen = observe(client);
@@ -75,6 +78,7 @@ test("a send with no options is a complete message", { timeout: TEST_TIMEOUT_MS 
   const harness = await upgradeHarness();
   const accepted = nextSocket(harness.server);
   const client = await openClient(harness.url);
+
   try {
     const socket = await accepted;
     const seen = observe(client);

@@ -1,9 +1,8 @@
 // The `commit-msg` hook is the only thing standing between a squash merge and a push
-// GitHub reads as "skip all CI". It cannot be tested through CI, because a skipped push
-// starts no workflow -- so the check is a script, and a script that has never been run is
-// a rule nobody has.
+// GitHub reads as "skip all CI", and a skipped push starts no workflow -- so the check
+// is a script, and a script that has never been run is a rule nobody has.
 
-import { execFileSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -12,24 +11,21 @@ import { expect, test } from "vitest";
 
 const SCRIPT = fileURLToPath(new URL("../../scripts/check-commit-msg.mjs", import.meta.url));
 
+type RunResult = { readonly code: number; readonly out: string };
+
 /// The message file git hands a `commit-msg` hook: the message, then comment lines
 /// git has not stripped yet. Comments have to be ignored, or every commit fails.
-function run(message: string): { readonly code: number; readonly out: string } {
+function run(message: string): RunResult {
   const dir = mkdtempSync(join(tmpdir(), "ventiws-msg-"));
   const file = join(dir, "COMMIT_EDITMSG");
   writeFileSync(
     file,
     `${message}\n# Please enter the commit message for your changes.\n# On branch main\n`,
   );
-  try {
-    return {
-      code: 0,
-      out: execFileSync(process.execPath, [SCRIPT, file], { encoding: "utf8", stdio: "pipe" }),
-    };
-  } catch (error) {
-    const failed = error as { status?: number; stdout?: string; stderr?: string };
-    return { code: failed.status ?? 1, out: `${failed.stdout ?? ""}${failed.stderr ?? ""}` };
-  }
+
+  const result = spawnSync(process.execPath, [SCRIPT, file], { encoding: "utf8", stdio: "pipe" });
+
+  return { code: result.status ?? 1, out: `${result.stdout}${result.stderr}` };
 }
 
 test("a conventional message passes", () => {
@@ -59,9 +55,7 @@ test("a refusal says how to recover", () => {
 });
 
 test("a body that describes the marker is refused as well, because GitHub cannot tell", () => {
-  // GitHub matches the literal string anywhere in a message, so neither GitHub nor this
-  // hook can distinguish a commit that *uses* the marker from one that writes about it. A
-  // commit that genuinely has to quote it breaks the brackets: `[skip ci`. Asserting the
-  // limitation is the point, since a hook that claimed to be cleverer would be wrong.
+  // GitHub matches the literal string anywhere in a message, so a commit that quotes the
+  // marker is refused too; a genuinely necessary quote breaks the brackets instead.
   expect(run("docs: a note on [skip ci] markers\n\nThis commit carries none.").code).not.toBe(0);
 });

@@ -22,6 +22,7 @@ const require = createRequire(import.meta.url);
 
 // The pinned tag's ESM wrapper imports a file the tarball does not ship, so the
 // addon is reached through require; only the type import uses the package entry.
+// SAFETY: that package entry resolves to the addon module `UwsModule` declares.
 const loadUws = (): Uws => require("uWebSockets.js") as Uws;
 
 /// The uWS message ArrayBuffer is detached when its callback returns, and the
@@ -36,10 +37,12 @@ export const uwebSocketsServer = (options: EchoServerOptions): EchoServer => {
 
   const stateOf = (socket: UwsSocket<unknown>): UwsState => {
     let state = states.get(socket);
+
     if (state === undefined) {
       state = { onMessage: null, onError: null };
       states.set(socket, state);
     }
+
     return state;
   };
 
@@ -58,6 +61,7 @@ export const uwebSocketsServer = (options: EchoServerOptions): EchoServer => {
           stateOf(socket).onError = listener;
         },
       };
+
       onConnection?.(connection);
       onConnection = null;
     },
@@ -81,8 +85,10 @@ export const uwebSocketsServer = (options: EchoServerOptions): EchoServer => {
           app.listen(options.host, options.port, (token) => {
             if (token === false) {
               reject(new Error(`uWebSockets.js cannot listen on ${options.host}:${options.port}`));
+
               return;
             }
+
             resolve(uws.us_socket_local_port(token));
           });
         } catch (error) {

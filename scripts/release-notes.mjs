@@ -22,6 +22,7 @@ export function previousRelease() {
   const found = execFileSync("git", ["describe", "--tags", "--abbrev=0", "HEAD^"], {
     encoding: "utf8",
   });
+
   return found.trim().replace(/^v/, "");
 }
 
@@ -33,8 +34,10 @@ export function previousRelease() {
 /// chose for a section. The changelog is the record and the release page quotes it.
 function sections(changelog) {
   const heads = [...changelog.matchAll(/^## \[([^\]]+)\]/gm)];
+
   return heads.map((head, index) => {
     const end = heads[index + 1]?.index ?? changelog.length;
+
     return [head[1], changelog.slice(head.index, end)];
   });
 }
@@ -46,14 +49,17 @@ function sections(changelog) {
 /// rewritten, where dropping notes silently is worse than showing old ones.
 export function notesBetween(changelog, previous) {
   const found = sections(changelog);
+
   const end =
     previous === null ? found.length : found.findIndex(([version]) => version === previous);
+
   return end === -1 ? found : found.slice(0, end);
 }
 
 function main() {
   const version = JSON.parse(readFileSync("package.json", "utf8")).version;
   let previous = null;
+
   try {
     previous = previousRelease();
   } catch {
@@ -66,10 +72,12 @@ function main() {
   // Trimmed and rejoined with one blank line between sections: the slice carries the
   // trailing blank line of the section before it, which would otherwise double up.
   const body = notes.map(([, text]) => text.trim()).join("\n\n");
+
   const text =
     body === "" ? `No changelog entries between ${previous} and ${version}.\n` : `${body}\n`;
 
   const out = argv[2];
+
   if (out === undefined) process.stdout.write(text);
   else writeFileSync(out, text);
   console.error(`release-notes: ${notes.length} sections, up to ${notes[0]?.[0] ?? "none"}`);

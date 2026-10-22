@@ -1,3 +1,5 @@
+import type { RequestOptions } from "node:https";
+import type { ConnectionOptions } from "node:tls";
 import type {
   ClientOptions,
   FinishRequestCallback,
@@ -52,6 +54,22 @@ export type NormalizedServerOptions = {
   readonly WebSocket: ServerOptions["WebSocket"];
 };
 
+/// The request keys `ws` forwards without declaring them on `ClientOptions`, added to the
+/// caller's own option record.
+export type ForwardedRequestOptions = Readonly<
+  ClientOptions &
+    Pick<
+      ConnectionOptions & RequestOptions,
+      | "secureContext"
+      | "servername"
+      | "lookup"
+      | "insecureHTTPParser"
+      | "maxHeaderSize"
+      | "joinDuplicateHeaders"
+      | "signal"
+    >
+>;
+
 export type NormalizedClientOptions = {
   readonly protocolVersion: 8 | 13;
   readonly followRedirects: boolean;
@@ -75,7 +93,7 @@ export type NormalizedClientOptions = {
   readonly headers: Readonly<Record<string, string>> | undefined;
   /// The caller's own options, forwarded to `http.request` as `ws` forwards them; a copy
   /// of the source, because `@types/ws` types them as the request and TLS options.
-  readonly requestOptions: Readonly<Record<string, unknown>>;
+  readonly requestOptions: ForwardedRequestOptions;
   /// `ws`'s `finishRequest`: the caller owns the `end()`. Declared by `@types/ws`, so
   /// unlike `maxFragments` a typed caller reaches it without a cast.
   readonly finishRequest: FinishRequestCallback | undefined;

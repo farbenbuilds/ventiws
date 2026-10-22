@@ -1,4 +1,5 @@
 import type { SocketEventMap, SocketState } from "../../types/socket";
+import type { WebSocket } from "../../types/ws";
 import {
   DEFAULT_CLOSE_TIMEOUT,
   DEFAULT_MAX_BUFFERED_CHUNKS,
@@ -8,29 +9,18 @@ import {
 import { createRegistry } from "../events/registry";
 import { CONNECTING } from "../ready-state";
 
-const SOCKET_BRAND = Symbol("ventiws.socket");
-const SOCKET_STATE = Symbol("ventiws.socket.state");
+const SOCKET_STATES = new WeakMap<object, SocketState>();
 
-type BrandedSocket = {
-  [SOCKET_BRAND]?: true;
-  [SOCKET_STATE]?: SocketState;
-};
-
-export function brandSocket(socket: object, state: SocketState): void {
-  Object.defineProperties(socket, {
-    [SOCKET_BRAND]: { value: true },
-    [SOCKET_STATE]: { value: state },
-  });
+export function brandSocket(socket: WebSocket, state: SocketState): void {
+  SOCKET_STATES.set(socket, state);
 }
 
-export function isSocket(value: unknown): boolean {
-  if (typeof value !== "object" || value === null) return false;
-  return (value as BrandedSocket)[SOCKET_BRAND] === true;
+export function isSocket(value: unknown): value is WebSocket {
+  return value instanceof Object && SOCKET_STATES.has(value);
 }
 
-export function socketStateOf(socket: unknown): SocketState | undefined {
-  if (typeof socket !== "object" || socket === null) return undefined;
-  return (socket as BrandedSocket)[SOCKET_STATE];
+export function socketStateOf(socket: WebSocket): SocketState | undefined {
+  return SOCKET_STATES.get(socket);
 }
 
 /// Defaults mirror `ws`: a server-side socket starts CONNECTING with the abnormal close

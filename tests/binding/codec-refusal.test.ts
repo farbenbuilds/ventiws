@@ -26,6 +26,7 @@ function codecAt(role: number): bigint {
 
 test("a server refuses an unmasked frame with 1002", () => {
   const handle = codecAt(CODEC_ROLE.server);
+
   try {
     // A `ws` client always masks, so this is the discipline a server exists to
     // enforce, and the code is the RFC's "protocol error".
@@ -42,6 +43,7 @@ test("a server refuses an unmasked frame with 1002", () => {
 
 test("a client refuses a masked frame with 1002", () => {
   const handle = codecAt(CODEC_ROLE.client);
+
   try {
     // The mirror of the case above: the same bytes a server accepts are the ones a
     // client must reject, so the two roles are not interchangeable.
@@ -55,6 +57,7 @@ test("a client refuses a masked frame with 1002", () => {
 
 test("a client accepts an unmasked frame a server would refuse", () => {
   const handle = codecAt(CODEC_ROLE.client);
+
   try {
     const unmasked = Buffer.from([0x81, 0x02, 0x68, 0x69]);
     expect(feedCodec(handle, unmasked)).toEqual({ kind: "consumed", bytes: 4 });
@@ -67,6 +70,7 @@ test("a client accepts an unmasked frame a server would refuse", () => {
 
 test("an invalid text payload is refused with 1007", () => {
   const handle = codecAt(CODEC_ROLE.server);
+
   try {
     // 0xc3 announces a two-byte sequence and 0x28 is not a continuation byte.
     const frames = clientFrames([{ opcode: 0x1, payload: Buffer.from([0xc3, 0x28]) }]);
@@ -83,6 +87,7 @@ test("a message over the capacity is refused with 1009", () => {
   // the engine's is a startup slab this route does not use.
   const capacity = DEFAULT_MAX_PAYLOAD;
   const handle = codecAt(CODEC_ROLE.server);
+
   try {
     const at = clientFrames([{ opcode: 0x1, payload: Buffer.alloc(capacity) }]);
     expect(feedCodec(handle, at)).toEqual({ kind: "consumed", bytes: at.length });
@@ -98,6 +103,7 @@ test("a message over the capacity is refused with 1009", () => {
 
 test("a refusal is reported once and stays reported", () => {
   const handle = codecAt(CODEC_ROLE.server);
+
   try {
     const unmasked = Buffer.from([0x81, 0x02, 0x68, 0x69]);
     expect(feedCodec(handle, unmasked)).toEqual({ kind: "failed" });

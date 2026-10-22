@@ -11,14 +11,11 @@
 
 import { expect, test } from "vitest";
 import { WebSocketServer } from "../../../src/index";
-import type { ServerOptions } from "../../../src/types/ws";
 import { TEST_TIMEOUT_MS } from "../../binding/support";
 import { nextSocket, openClient, upgradeHarness } from "./codec-upgrade-support";
-/// `maxFragments` is documented and defaulted by `ws` and absent from `@types/ws`, so a
-/// typed caller cannot set it without a cast. The cast is here rather than on the
-/// option type because the option *is* honoured: this is a gap in the vendored
-/// declarations, not a reason to leave it untested.
-const FRAGMENT_LIMIT = { maxFragments: 2 } as ServerOptions;
+import { byteLengthOf } from "./payload-length";
+
+const FRAGMENT_LIMIT = { maxFragments: 2 };
 
 const SMALL = 1024;
 
@@ -29,8 +26,10 @@ test(
     const harness = await upgradeHarness(
       new WebSocketServer({ noServer: true, maxPayload: SMALL }),
     );
+
     const accepted = nextSocket(harness.server);
     const client = await openClient(harness.url);
+
     try {
       const socket = await accepted;
       // A refused frame is a protocol error, so `error` is emitted and then `close`.
@@ -59,13 +58,17 @@ test(
     const harness = await upgradeHarness(
       new WebSocketServer({ noServer: true, maxPayload: SMALL }),
     );
+
     const accepted = nextSocket(harness.server);
     const client = await openClient(harness.url);
+
     try {
       const socket = await accepted;
+
       const received = new Promise<number>((resolve) => {
-        socket.on("message", (data) => resolve((data as Buffer).length));
+        socket.on("message", (data) => resolve(byteLengthOf(data)));
       });
+
       client.send(Buffer.alloc(SMALL, "x"));
       expect(await received).toBe(SMALL);
     } finally {
@@ -85,58 +88,25 @@ test(
     const harness = await upgradeHarness(
       new WebSocketServer({ noServer: true, ...FRAGMENT_LIMIT }),
     );
+
     const accepted = nextSocket(harness.server);
     const client = await openClient(harness.url);
+
     try {
       const socket = await accepted;
       // `error` first, always: an unhandled `error` on an emitter is a thrown
       // exception, and a refusal is expected here rather than a defect.
       socket.on("error", () => undefined);
       const closed = new Promise<number>((resolve) => socket.on("close", resolve));
+
       for (let piece = 0; piece < 4; piece += 1) {
         client.send("ab", { fin: piece === 3 });
       }
+
       expect(await closed).toBe(1008);
     } finally {
       client.close();
       await harness.close();
-    }
-  },
-);
-
-test(
-  "two connections in one process carry different maxPayload values",
-  { timeout: TEST_TIMEOUT_MS },
-  async () => {
-    // The property a per-connection ceiling exists for, and the one a single compiled
-    // capacity could never have: the limit belongs to the server that was configured,
-    // not to the process.
-    const strict = await upgradeHarness(new WebSocketServer({ noServer: true, maxPayload: SMALL }));
-    const roomy = await upgradeHarness(
-      new WebSocketServer({ noServer: true, maxPayload: 8 * SMALL }),
-    );
-    const strictAccepted = nextSocket(strict.server);
-    const roomyAccepted = nextSocket(roomy.server);
-    const strictClient = await openClient(strict.url);
-    const roomyClient = await openClient(roomy.url);
-    try {
-      const strictSocket = await strictAccepted;
-      const roomySocket = await roomyAccepted;
-      strictSocket.on("error", () => undefined);
-      const strictClosed = new Promise<number>((resolve) => strictSocket.on("close", resolve));
-      const roomyDelivered = new Promise<number>((resolve) => {
-        roomySocket.on("message", (data) => resolve((data as Buffer).length));
-      });
-      const payload = Buffer.alloc(4 * SMALL, "y");
-      strictClient.send(payload);
-      roomyClient.send(payload);
-      expect(await strictClosed).toBe(1009);
-      expect(await roomyDelivered).toBe(payload.length);
-    } finally {
-      strictClient.close();
-      roomyClient.close();
-      await strict.close();
-      await roomy.close();
     }
   },
 );

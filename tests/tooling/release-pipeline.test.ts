@@ -30,6 +30,7 @@ test("the tag is the only way to start a release", () => {
     .replace(/^\s*#.*$/gm, "")
     .replace(/\s+/g, " ")
     .trim();
+
   expect(trigger).toBe('on: push: tags: - "v*"');
   expect(WORKFLOW).not.toContain("inputs.");
 });

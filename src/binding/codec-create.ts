@@ -25,6 +25,7 @@ export function createCodec(role: number, options: CodecOptions): bigint {
   assertCeiling("maxPayload", options.maxPayload, limits.maxPayloadBytes);
   assertCeiling("maxFragments", options.maxFragments, limits.maxFragments);
   const addon = loadAddon();
+
   return callNative(() =>
     addon.codecCreate(
       role,

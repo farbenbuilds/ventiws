@@ -7,13 +7,13 @@
 //
 // Both implementations read the same bytes, so the expectation is `ws`'s own answer.
 
-import type { AddressInfo } from "node:net";
 import { expect, test } from "vitest";
 import { WebSocketServer as WsServer, type WebSocket as WsSocket } from "ws";
 import { TEST_TIMEOUT_MS } from "../binding/support";
 import { clientFrames, type ClientFrame } from "../binding/codec-frames";
 import { openRawClient } from "../binding/codec-net";
 import { nextSocket, upgradeHarness, waitFor } from "../compat/socket/codec-upgrade-support";
+import { boundPort } from "./bound-port";
 
 /// One binary message in `count` frames: the interior ends are the boundaries.
 function piecesOf(count: number): ClientFrame[] {
@@ -29,19 +29,22 @@ async function wsPieces(frames: readonly ClientFrame[]): Promise<string[]> {
   const server = new WsServer({ port: 0 });
   const accepted = new Promise<WsSocket>((resolve) => server.once("connection", resolve));
   await new Promise<void>((resolve) => server.once("listening", resolve));
-  const port = (server.address() as AddressInfo).port;
+  const port = boundPort(server);
   // Dial before awaiting the connection: a promise nobody has connected to never settles.
   const raw = await openRawClient(port);
   const socket = await accepted;
+
   try {
     const seen: string[][] = [];
     socket.on("message", (data) => {
       if (Array.isArray(data)) seen.push(data.map((piece) => piece.toString()));
     });
     socket.binaryType = "fragments";
+
     try {
       raw.write(clientFrames(frames));
       await waitFor(() => seen.length === 1);
+
       return seen[0] ?? [];
     } finally {
       raw.destroy();
@@ -57,6 +60,7 @@ async function ventiwsPieces(frames: readonly ClientFrame[]): Promise<string[]> 
   const harness = await upgradeHarness();
   const accepted = nextSocket(harness.server);
   const raw = await openRawClient(harness.port);
+
   try {
     const socket = await accepted;
     const seen: string[][] = [];
@@ -66,6 +70,7 @@ async function ventiwsPieces(frames: readonly ClientFrame[]): Promise<string[]> 
     socket.binaryType = "fragments";
     raw.write(clientFrames(frames));
     await waitFor(() => seen.length === 1);
+
     return seen[0] ?? [];
   } finally {
     raw.destroy();

@@ -4,7 +4,7 @@ import { emitEvent } from "../events/emitter";
 import { createError } from "../errors";
 import { CLOSED, CLOSING } from "../ready-state";
 import { closeCodec } from "./codec-handle";
-import { writeCloseFrame } from "./codec-outbound";
+import { writeCloseFrame } from "./codec-control";
 import type { Refusal } from "./refusal-table";
 import { finishConnection } from "./lifecycle";
 
@@ -24,6 +24,7 @@ export function refuseFramed(state: SocketState, refusal: Refusal): void {
   if (state.readyState === CLOSED) return;
   state.readyState = CLOSING;
   writeCloseFrame(state, refusal.closeCode, Buffer.from(refusal.reason, "utf8"));
+
   try {
     if (!state.errorEmitted) {
       state.errorEmitted = true;
@@ -48,6 +49,7 @@ export function armCloseTimeout(state: SocketState, milliseconds: number): void 
   state.closeTimer = setTimeout(
     () => {
       state.closeTimer = null;
+
       if (state.readyState !== CLOSING) return;
       state.transport?.destroy();
       finishConnection(state, CLOSE_ABNORMAL, Buffer.alloc(0));

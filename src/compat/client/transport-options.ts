@@ -7,6 +7,7 @@
 
 import type { RequestOptions } from "node:https";
 import type { NormalizedClientOptions } from "../../types/options";
+import { isStringValue } from "../scalars";
 import type { ClientAddress } from "./address";
 
 /// A list rather than the whole object, because it is the normalized copy of the caller's
@@ -33,18 +34,19 @@ const FORWARDED = [
   "signal",
 ] as const;
 
+type ForwardedSource = NormalizedClientOptions["requestOptions"];
+
 export function transportOptions(
   address: ClientAddress,
   options: NormalizedClientOptions,
 ): RequestOptions {
-  const carried: Record<string, unknown> = {};
-  for (const key of FORWARDED) {
-    const value = options.requestOptions[key];
-    if (value !== undefined) carried[key] = value;
-  }
+  const carried = forwardedOptions(options.requestOptions);
+
   if (address.socketPath !== undefined) return { ...carried, socketPath: address.socketPath };
+
   // Not `secure`, so the TLS keys do not apply: a plain `ws:` request has no TLS fields.
   if (!address.secure) return carried;
+
   return {
     ...carried,
     // Stated rather than inherited, because the default has moved between Node majors and
@@ -55,10 +57,26 @@ export function transportOptions(
   };
 }
 
-function stringOr(value: unknown, fallback: string): string {
-  return typeof value === "string" ? value : fallback;
+/// The caller's values for the forwarded keys. Filtering before Node sees the record is
+/// what keeps an unrelated option from replacing the handshake's own request fields.
+function forwardedOptions(source: ForwardedSource): RequestOptions {
+  const carried = new Map<string, unknown>();
+
+  for (const key of FORWARDED) {
+    const value = source[key];
+
+    if (value !== undefined) carried.set(key, value);
+  }
+
+  return Object.fromEntries(carried);
 }
 
-function booleanOr(value: unknown, fallback: boolean): boolean {
-  return typeof value === "boolean" ? value : fallback;
+function stringOr(value: string | undefined, fallback: string): string {
+  return isStringValue(value) ? value : fallback;
+}
+
+function booleanOr(value: boolean | undefined, fallback: boolean): boolean {
+  if (value === true || value === false) return value;
+
+  return fallback;
 }

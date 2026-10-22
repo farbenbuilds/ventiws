@@ -29,13 +29,19 @@ let addon: VentiAddon | undefined;
 
 function loadAddon(): VentiAddon {
   if (addon !== undefined) return addon;
+
   for (const parts of CANDIDATE_PATHS) {
     const candidate = join(PACKAGE_ROOT, ...parts);
+
     if (existsSync(candidate)) {
+      // SAFETY: the resolved artifact is the addon compiled from this tree, whose ABI
+      // `src/binding/native.ts` declares and the binding tests exercise.
       addon = require(candidate) as VentiAddon;
+
       return addon;
     }
   }
+
   throw new Error(
     `ventiws: native addon not found under ${PACKAGE_ROOT}; run "pnpm build:binding" first`,
   );
@@ -77,12 +83,15 @@ function close(a: VentiAddon, server: number): void {
   } catch {
     // Already closing or closed; the retry loop below still frees the instance.
   }
+
   const finish = (attempt: number): void => {
     try {
       a.finalizeServer(server);
     } catch (error) {
       const name = error instanceof Error ? error.message : String(error);
+
       if (name === "UnknownServer") return;
+
       if (attempt > 0 && (name === "EventsPending" || name === "ServerNotClosed")) {
         setTimeout(() => {
           finish(attempt - 1);
@@ -90,5 +99,6 @@ function close(a: VentiAddon, server: number): void {
       }
     }
   };
+
   finish(FINALIZE_ATTEMPTS);
 }

@@ -1,4 +1,5 @@
 import { performance } from "node:perf_hooks";
+import { errorText } from "../support/error-text.ts";
 import type {
   EchoClient,
   EchoConfig,
@@ -8,6 +9,8 @@ import type {
   EchoServer,
   EchoServerOptions,
 } from "./echo-types.ts";
+import type { Failure } from "./echo-failure.ts";
+import { failureOf, waitForOpen } from "./echo-failure.ts";
 import { ECHO_PAYLOAD_CEILING_BYTES } from "./echo-limits.ts";
 import { measured, unavailable } from "./echo-sample.ts";
 
@@ -18,33 +21,6 @@ const SERVER_OPTIONS: EchoServerOptions = {
   perMessageDeflate: false,
   maxPayloadBytes: ECHO_PAYLOAD_CEILING_BYTES,
 };
-
-type Failure = {
-  readonly promise: Promise<never>;
-  readonly reject: (error: Error) => void;
-};
-
-const describeError = (error: unknown): string => {
-  if (error instanceof Error) return error.message;
-  return String(error);
-};
-
-// `Promise.race` needs a pending promise that any wired error source can settle.
-const failureOf = (): Failure => {
-  let reject: (error: Error) => void = () => undefined;
-  const promise = new Promise<never>((_resolve, fail) => {
-    reject = fail;
-  });
-  return { promise, reject };
-};
-
-// A client error during connect rejects this promise; a server or connection
-// error reaches the same run through the shared failure channel.
-const waitForOpen = (client: EchoClient): Promise<void> =>
-  new Promise<void>((resolve, reject) => {
-    client.onError(reject);
-    client.onOpen(resolve);
-  });
 
 // Lock-step ping-pong. The pump re-enters itself from the message listener
 // instead of chaining a promise per round trip: a promise per echo would put
@@ -59,10 +35,13 @@ const pumpRoundTrips = (client: EchoClient, payload: Buffer, messages: number): 
     client.onError(reject);
     client.onMessage(() => {
       received += 1;
+
       if (received < messages) {
         client.send(payload);
+
         return;
       }
+
       resolve((performance.now() - startedAt) / 1000);
     });
     client.send(payload);
@@ -98,9 +77,11 @@ export const runEcho = async (
   let client: EchoClient | null = null;
   let timer: ReturnType<typeof setTimeout> | undefined;
   let rssTimer: ReturnType<typeof setInterval> | undefined;
+
   try {
     server.onError(failure.reject);
     server.onConnection((connection) => echoBack(connection, failure));
+
     // Every phase is bounded by the same deadline, and a client or server
     // error settles the run through `failure` rather than its own promise.
     const guard = async <T>(work: Promise<T>): Promise<T> => {
@@ -110,8 +91,10 @@ export const runEcho = async (
           config.timeoutMs,
         );
       });
+
       return await Promise.race([work, expiry, failure.promise]);
     };
+
     const port = await guard(server.listen());
     client = implementation.connect(`ws://127.0.0.1:${port}/`);
     await guard(waitForOpen(client));
@@ -122,6 +105,7 @@ export const runEcho = async (
     let peakRssBytes = process.memoryUsage().rss;
     rssTimer = setInterval(() => {
       const rss = process.memoryUsage().rss;
+
       if (rss > peakRssBytes) peakRssBytes = rss;
     }, 20);
     const cpuBefore = process.cpuUsage();
@@ -130,14 +114,16 @@ export const runEcho = async (
     clearInterval(rssTimer);
     rssTimer = undefined;
     const finalRss = process.memoryUsage().rss;
+
     return measured(config, seconds, {
       cpuSeconds: (cpu.user + cpu.system) / 1e6,
       peakRssBytes: Math.max(peakRssBytes, finalRss),
     });
   } catch (error) {
-    return unavailable(config, describeError(error));
+    return unavailable(config, errorText(error));
   } finally {
     if (timer !== undefined) clearTimeout(timer);
+
     if (rssTimer !== undefined) clearInterval(rssTimer);
     teardown(client, server);
   }

@@ -21,6 +21,7 @@ test(
   { timeout: TEST_TIMEOUT_MS },
   async () => {
     const { server, connection, socket } = await connectedSocket();
+
     try {
       expect(sendSocket(server.handle, connection, new Uint8Array([1, 2, 3]), true)).toBe("ok");
       expect(socketBufferedAmount(server.handle, connection)).toBe(3);
@@ -38,6 +39,7 @@ test(
   { timeout: TEST_TIMEOUT_MS },
   async () => {
     const { server, connection, socket } = await connectedSocket();
+
     try {
       const exact = new Uint8Array(MESSAGE_BYTES);
       expect(sendSocket(server.handle, connection, exact, true)).toBe("ok");
@@ -48,6 +50,7 @@ test(
       for (let staged = 0; staged < 7; staged += 1) {
         expect(sendSocket(server.handle, connection, new Uint8Array([staged]))).toBe("ok");
       }
+
       expect(sendSocket(server.handle, connection, new Uint8Array([0xff]))).toBe("backpressure");
       expect(socketBufferedAmount(server.handle, connection)).toBe(MESSAGE_BYTES + 7);
     } finally {
@@ -62,6 +65,7 @@ test(
   { timeout: TEST_TIMEOUT_MS },
   async () => {
     const { server, connection, socket } = await connectedSocket();
+
     try {
       expect(closeSocket(server.handle, connection, 1000, new Uint8Array())).toBe(
         "policy-violation",
@@ -83,6 +87,7 @@ test(
 
 test("pause and resume are idempotent", { timeout: TEST_TIMEOUT_MS }, async () => {
   const { server, connection, socket } = await connectedSocket();
+
   try {
     expect(pauseSocket(server.handle, connection)).toBe("ok");
     expect(pauseSocket(server.handle, connection)).toBe("ok");

@@ -18,7 +18,9 @@ export type ShardResult = {
 /// names the loss instead of a stack trace that says nothing about which shard went missing.
 export function readShardCases(id: number): readonly CaseReport[] {
   const path = shardReportIndexPath(id);
+
   if (!existsSync(path)) return [];
+
   return toCaseReports(parseReportIndex(readFileSync(path, "utf8"), AGENT), exceedsInboundLimit);
 }
 
@@ -26,7 +28,9 @@ export function readShardCases(id: number): readonly CaseReport[] {
 /// so an overlapping case surfaces as a `count-total` violation, not a silent dedupe.
 export function unionCases(results: readonly ShardResult[]): readonly CaseReport[] {
   const union: CaseReport[] = [];
+
   for (const result of results) union.push(...result.cases);
+
   return union;
 }
 
@@ -34,18 +38,20 @@ export function unionCases(results: readonly ShardResult[]): readonly CaseReport
 export function duplicateCaseIds(results: readonly ShardResult[]): readonly string[] {
   const seen = new Set<string>();
   const duplicates = new Set<string>();
+
   for (const result of results) {
     for (const entry of result.cases) {
       if (seen.has(entry.id)) duplicates.add(entry.id);
       seen.add(entry.id);
     }
   }
+
   return [...duplicates].sort();
 }
 
 /// Shards that produced no report, so the failure names the shard and not only a short total.
 export function silentShards(results: readonly ShardResult[]): readonly number[] {
-  return results.filter((result) => result.cases.length === 0).map((result) => result.shard.id);
+  return results.flatMap((result) => (result.cases.length === 0 ? [result.shard.id] : []));
 }
 
 /// Writes each shard's `fuzzingclient.json` before anything is started.
@@ -68,24 +74,28 @@ async function runBatch(shards: readonly Shard[]): Promise<readonly ShardResult[
   const settled = await Promise.allSettled(
     shards.map(async (shard) => {
       const name = shardContainerName(shard.id);
+
       try {
         const code = await runContainer({
           configHostPath: shardSpecPath(shard.id),
           reportsHostDir: shardReportsDir(shard.id),
           name,
         });
+
         return { shard, code, cases: readShardCases(shard.id) };
       } finally {
         removeContainer(name);
       }
     }),
   );
+
   return settled.map((entry, index) => {
     if (entry.status === "fulfilled") return entry.value;
     const shard = shards[index];
     process.stderr.write(
       `autobahn: shard ${shard.id} report unreadable: ${String(entry.reason)}\n`,
     );
+
     return { shard, code: 127, cases: [] };
   });
 }
@@ -101,13 +111,17 @@ export async function runShards(shards: readonly Shard[]): Promise<readonly Shar
   for (const shard of shards) prepare(shard);
   const first = await runBatch(shards);
   const silent = first.filter((result) => result.cases.length === 0);
+
   if (silent.length === 0) return first;
+
   for (const result of silent) {
     process.stderr.write(
       `autobahn: shard ${result.shard.id} wrote no report (exit ${result.code}); retrying once\n`,
     );
   }
+
   const retried = await runBatch(silent.map((result) => result.shard));
   const replacements = new Map(retried.map((result) => [result.shard.id, result]));
+
   return first.map((result) => replacements.get(result.shard.id) ?? result);
 }

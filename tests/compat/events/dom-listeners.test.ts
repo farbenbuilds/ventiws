@@ -25,9 +25,11 @@ test("binary messages stay binary in the DOM event", () => {
 test("addEventListener deduplicates and removeEventListener detaches", () => {
   const socket = new WebSocket(null);
   let calls = 0;
+
   const handler = (): void => {
     calls += 1;
   };
+
   socket.addEventListener("message", handler);
   socket.addEventListener("message", handler);
   socket.emit("message", Buffer.from("x"), false);
@@ -55,11 +57,13 @@ test("the once option removes the listener after the first event", () => {
 test("object listeners receive handleEvent with themselves as this", () => {
   const socket = new WebSocket(null);
   const seen: unknown[] = [];
+
   const listener = {
     handleEvent(event: { type: string }): void {
       seen.push(event.type);
     },
   };
+
   socket.addEventListener("open", listener);
   socket.emit("open");
   expect(seen).toEqual(["open"]);
@@ -68,9 +72,11 @@ test("object listeners receive handleEvent with themselves as this", () => {
 test("onopen attributes install and clear attribute listeners", () => {
   const socket = new WebSocket(null);
   const seen: string[] = [];
+
   const handler = (event: { type: string }): void => {
     seen.push(event.type);
   };
+
   expect(socket.onopen).toBeNull();
   socket.onopen = handler;
   expect(socket.onopen).toBe(handler);
@@ -89,9 +95,11 @@ test("onclose and onerror build the ws event shapes", () => {
   socket.onclose = (event) => {
     close = { code: event.code, reason: event.reason, wasClean: event.wasClean };
   };
+
   socket.onerror = (event) => {
     failure = { message: event.message, error: event.error };
   };
+
   socket.emit("close", 1000, Buffer.from("done"));
   const error = new Error("broken");
   socket.emit("error", error);
@@ -102,6 +110,8 @@ test("onclose and onerror build the ws event shapes", () => {
 test("unknown DOM event types are ignored like ws", () => {
   const socket = new WebSocket(null);
   let calls = 0;
+  // SAFETY: `ping` is not a DOM event; the cast supplies the name the fixture needs the
+  // listener to be registered under, and the assertion is that nothing is delivered for it.
   socket.addEventListener("ping" as never, () => {
     calls += 1;
   });

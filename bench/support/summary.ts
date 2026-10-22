@@ -22,7 +22,7 @@ export type ConfigurationResult = {
   readonly legs: Readonly<Record<ImplementationId, Leg>>;
 };
 
-type Shape = {
+type Workload = {
   readonly messages: number;
   readonly payloadBytes: number;
 };
@@ -39,19 +39,22 @@ const emptyLeg = (reason: string): Leg => ({
 });
 
 const legOf = (
-  shape: Shape,
+  workload: Workload,
   implementation: ImplementationId,
   samples: readonly EchoSample[],
 ): Leg => {
   const gathered = samples.filter((sample) => sample.implementation === implementation);
   const reason = gathered.map((sample) => sample.reason).find((value) => value !== null) ?? null;
   const seconds = gathered.flatMap((sample) => (sample.seconds === null ? [] : [sample.seconds]));
+
   if (seconds.length === 0) return emptyLeg(reason ?? "no sample produced a timing");
   const center = median(seconds);
   const cpu = gathered.flatMap((sample) => (sample.cpuSeconds === null ? [] : [sample.cpuSeconds]));
+
   const rss = gathered.flatMap((sample) =>
     sample.peakRssBytes === null ? [] : [sample.peakRssBytes],
   );
+
   // Reciprocating the median seconds gives the median of the per-sample rates,
   // because every sample sends the same payload the same number of times.
   return {
@@ -59,8 +62,8 @@ const legOf = (
     medianSeconds: center,
     // Rates are rounded because no reader needs fifteen significant digits of
     // them; the raw seconds above stay exact so every rate can be recomputed.
-    medianRoundTripsPerSecond: Math.round(shape.messages / center),
-    medianWireBytesPerSecond: Math.round((shape.payloadBytes * 2 * shape.messages) / center),
+    medianRoundTripsPerSecond: Math.round(workload.messages / center),
+    medianWireBytesPerSecond: Math.round((workload.payloadBytes * 2 * workload.messages) / center),
     medianCpuSeconds: cpu.length === 0 ? null : median(cpu),
     medianPeakRssBytes: rss.length === 0 ? null : median(rss),
     spread: spread(seconds),
@@ -87,12 +90,14 @@ export const summarize = (
   samples: readonly EchoSample[],
 ): readonly ConfigurationResult[] =>
   options.payloadSizes.map((payloadBytes) => {
-    const shape: Shape = { messages: options.messages, payloadBytes };
+    const workload: Workload = { messages: options.messages, payloadBytes };
     const gathered = samples.filter((sample) => sample.payloadBytes === payloadBytes);
     const legs = blankLegs("not selected in this run");
+
     for (const implementation of options.implementations) {
-      legs[implementation] = legOf(shape, implementation, gathered);
+      legs[implementation] = legOf(workload, implementation, gathered);
     }
+
     return {
       configuration: `${payloadBytes}B`,
       payloadBytes,

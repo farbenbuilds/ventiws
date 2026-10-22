@@ -9,14 +9,19 @@ import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 const requested = process.argv[2];
+
 const manifestPath =
   requested === undefined
     ? new URL("../package.json", import.meta.url)
     : pathToFileURL(resolve(requested));
+
 const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
 const exports = manifest.exports;
 
-if (exports === undefined || typeof exports !== "object") {
+// JSON carries strings as primitives, which `instanceof String` does not detect.
+const isText = (value) => Object.prototype.toString.call(value) === "[object String]";
+
+if (!(exports instanceof Object)) {
   throw new Error("finalize-exports: the manifest has no exports map to complete");
 }
 
@@ -35,22 +40,28 @@ const NAMED_RUNTIMES = ["bun", "deno"];
 
 function typesFor(entry) {
   const types = {};
+
   for (const runtime of RUNTIME) {
     const path = entry[runtime.condition];
-    if (typeof path === "string")
+
+    if (isText(path))
       types[runtime.condition] = path.replace(runtime.extension, runtime.declaration);
   }
+
   return types;
 }
 
 function namedRuntimesFor(entry) {
   const conditions = {};
-  if (typeof entry.import !== "string") return conditions;
-  const formats =
-    typeof entry.require === "string"
-      ? { import: entry.import, require: entry.require }
-      : { import: entry.import };
+
+  if (!isText(entry.import)) return conditions;
+
+  const formats = isText(entry.require)
+    ? { import: entry.import, require: entry.require }
+    : { import: entry.import };
+
   for (const runtime of NAMED_RUNTIMES) conditions[runtime] = formats;
+
   return conditions;
 }
 
@@ -62,26 +73,32 @@ function completedEntry(entry) {
   delete rest.types;
   delete rest.bun;
   delete rest.deno;
+
   return { types: typesFor(entry), ...namedRuntimesFor(entry), ...rest };
 }
 
 let finalized = 0;
+
 for (const [subpath, entry] of Object.entries(exports)) {
-  if (entry === null || typeof entry !== "object" || Array.isArray(entry)) continue;
+  if (!(entry instanceof Object) || Array.isArray(entry)) continue;
   const completed = completedEntry(entry);
+
   if (Object.keys(completed.types).length === 0) continue;
   exports[subpath] = completed;
   finalized += 1;
 }
 
 const root = exports["."]?.types?.import;
-if (typeof root !== "string") {
+
+if (!isText(root)) {
   throw new Error('finalize-exports: the exports map has no completed "." entry');
 }
+
 // The top-level `types` field is what a resolver reads when it does not understand
 // `exports` at all -- `moduleResolution: classic` and some older tooling. It pointed
 // at the CJS declaration, which is wrong for every ESM consumer.
 manifest.types = root;
 
 writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+
 console.log(`finalize-exports: added the types conditions for ${finalized} subpaths`);

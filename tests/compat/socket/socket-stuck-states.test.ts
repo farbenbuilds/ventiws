@@ -20,7 +20,9 @@ function deadStream(): Duplex {
     read: () => undefined,
     write: (_chunk, _encoding, callback) => callback(null),
   });
+
   stream.destroy();
+
   return stream;
 }
 
@@ -29,6 +31,7 @@ test(
   { timeout: TEST_TIMEOUT_MS },
   async () => {
     const harness = await upgradeHarness();
+
     try {
       const socket = new WebSocket("ws://example.invalid/");
       // The listener is attached *after* the call, which is the natural order: a caller
@@ -36,10 +39,12 @@ test(
       // synchronously here would latch the error with nobody to receive it and Node
       // would rethrow it as an uncaught exception rather than a socket failing.
       attachSocket(socket, deadStream());
+
       const outcome = new Promise<string>((resolve) => {
         socket.on("error", (error: Error & { code?: string }) => resolve(error.code ?? "ERR_NONE"));
         socket.on("close", () => resolve("CLOSED_WITHOUT_ERROR"));
       });
+
       // A socket left `CONNECTING` here never moves again, so a caller awaiting `open`
       // or `close` waits for the life of the process. `ws` reports this handshake
       // failure as ERR_INVALID_STATE, which is the code used here for the same thing.
@@ -62,9 +67,10 @@ test(
     // its own. The throw then leaves `driveInbound` and reaches the process, which is
     // the application's business, so it is absorbed here rather than asserted.
     const uncaught: string[] = [];
-    const swallow = (error: unknown): void => void uncaught.push((error as Error).message);
+    const swallow: NodeJS.UncaughtExceptionListener = (error) => void uncaught.push(error.message);
     process.on("uncaughtException", swallow);
     const harness = await upgradeHarness();
+
     try {
       const accepted = nextSocket(harness.server);
       const raw = await openRawClient(harness.port);
@@ -73,9 +79,11 @@ test(
       socket.on("message", () => {
         throw new Error("the application's own failure");
       });
+
       const drained = new Promise<number>((resolve) => {
         socket.on("close", (code: number) => resolve(code));
       });
+
       raw.write(clientFrames([{ opcode: 0x1, payload: Buffer.from("hi") }]));
       expect(await drained).toBe(1006);
       expect(uncaught).toEqual(["the application's own failure"]);
@@ -88,6 +96,7 @@ test(
     }
   },
 );
+
 test(
   "a listener that throws ends the connection instead of corrupting it",
   { timeout: TEST_TIMEOUT_MS },
@@ -96,18 +105,22 @@ test(
     const harness = await upgradeHarness(server);
     const accepted = nextSocket(server);
     const raw = await openRawClient(harness.port);
+
     try {
       const socket = await accepted;
       socket.on("error", () => undefined);
+
       const closed = new Promise<number>((resolve) => {
         socket.on("close", (code: number) => resolve(code));
       });
+
       // The throw leaves the transport's `data` callback, so it arrives as an
       // uncaughtException. It has to keep arriving: a handler that swallows its own
       // bug is a harder thing to debug than one that crashes the request.
       const escaped = new Promise<Error>((resolve) => {
         process.once("uncaughtException", resolve);
       });
+
       socket.on("message", () => {
         throw new Error("the application's own bug");
       });

@@ -1,24 +1,18 @@
 import { expect, test } from "vitest";
 import { WebSocketServer as WsServer } from "ws";
 import {
-  CODEC_KINDS,
   codecFeedResume,
   codecOutbound,
   codecOutboundMasked,
   destroyCodec,
-  encodeCodecFrame,
   feedCodec,
 } from "../../src/binding/codec";
 import { drain } from "./codec-frames";
+import { boundPort, frame } from "./codec-interop-support";
 import { clientCodec, serverCodec } from "./codec-support";
 import { openRawClient, TEST_TIMEOUT_MS } from "./codec-net";
 import { openClient, startRawPeer, waitFor } from "./codec-peer";
 
-/// `encode` takes an ordinal, and a decoded event reports a name, so both are named
-/// here rather than being written as a bare `indexOf` result at each use. Comparing
-/// an event's name against an ordinal is a type error in the types and a silent
-/// never-true comparison at runtime, which is the worse of the two.
-const TEXT_ORDINAL = CODEC_KINDS.indexOf("text");
 const TEXT = "text";
 const BINARY = "binary";
 const PING = "ping";
@@ -31,6 +25,7 @@ test(
     const peer = await startRawPeer();
     const client = await openClient(`ws://127.0.0.1:${peer.port}`);
     const handle = serverCodec();
+
     try {
       client.send("hello");
       client.send(Buffer.from([0, 1, 2, 255]));
@@ -39,12 +34,14 @@ test(
       // One read may hold several frames, one frame may span several reads, and one
       // batch may outrun the queue, so the loop tracks the unconsumed remainder and
       // feeds it again after draining, exactly as a connection's read handler has to.
-      const events = [] as ReturnType<typeof drain>;
+      const events: ReturnType<typeof drain> = [];
       let pending: Buffer = Buffer.alloc(0);
+
       while (events.filter((event) => event.kind === CLOSE).length < 1) {
         if (pending.length === 0) pending = await peer.read();
         const outcome = feedCodec(handle, pending);
         events.push(...drain(handle));
+
         if (outcome.kind === "failed") break;
         // A refusal carries no count, so the offset comes from the codec itself. A
         // full queue is not a failure: the rest of the input is still good.
@@ -52,6 +49,7 @@ test(
         expect(consumed).toBeGreaterThan(0);
         pending = pending.subarray(consumed);
       }
+
       // A `ws` client masks, which is the discipline a server codec enforces, and it
       // interleaves a control frame among its data messages.
       const kinds = events.map((event) => event.kind);
@@ -81,11 +79,13 @@ test(
     const peer = await startRawPeer();
     const client = await openClient(`ws://127.0.0.1:${peer.port}`);
     const handle = serverCodec();
+
     try {
       const message = new Promise<string>((resolve, reject) => {
         client.on("message", (data) => resolve(data.toString()));
         client.on("error", reject);
       });
+
       const length = frame(handle, "from the codec");
       // A server must not mask, and `ws` refuses a masked frame from a server.
       expect(codecOutboundMasked(handle)).toBe(false);
@@ -118,6 +118,7 @@ test(
     // write, which is the only arrangement in which it can judge the frame.
     const socket = await openRawClient(boundPort(server));
     const handle = clientCodec();
+
     try {
       const length = frame(handle, "masked by the codec");
       // A client must mask, and `ws` closes a connection that sends an unmasked one.
@@ -132,18 +133,3 @@ test(
     }
   },
 );
-
-/// The port a `ws` server bound, which its type widens to an address or a pipe.
-function boundPort(server: WsServer): number {
-  const address = server.address();
-  return typeof address === "object" && address !== null ? address.port : 0;
-}
-
-/// One complete, uncompressed text frame from a codec, and its length.
-///
-/// The `false` is `compress`, and it is written out here rather than left to a reader:
-/// these cases are about masking and framing, so a reader should be able to see that
-/// nothing about this frame depends on RFC 7692.
-function frame(handle: bigint, text: string): number {
-  return encodeCodecFrame(handle, TEXT_ORDINAL, true, Buffer.from(text), false);
-}

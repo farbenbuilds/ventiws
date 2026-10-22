@@ -24,8 +24,9 @@ function wsBytes(data: ArrayBufferView | ArrayBuffer): Buffer {
   // `ws` normalizes with `toBuffer`; this is the same expression it uses, kept
   // local so the fixture depends on the rule rather than on a copied expectation.
   if (ArrayBuffer.isView(data)) {
-    return Buffer.from(data.buffer as ArrayBuffer, data.byteOffset, data.byteLength);
+    return Buffer.from(data.buffer, data.byteOffset, data.byteLength);
   }
+
   return Buffer.from(data);
 }
 

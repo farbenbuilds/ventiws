@@ -29,7 +29,9 @@ export function assertServerHandle(handle: ServerHandle): void {
 function assertConfigIntegers(config: NativeServerConfig): void {
   for (const field of INTEGER_CONFIG_FIELDS) {
     const value = config[field];
+
     if (value === undefined) continue;
+
     if (!Number.isSafeInteger(value)) {
       // An option value is not a handle, so it must not borrow the handle code: a stable
       // code that is semantically false is harder to branch on than a message alone.
@@ -46,6 +48,7 @@ export function createServer(config: NativeServerConfig, dispatch: EngineDispatc
   const addon = loadAddon();
   const handle = callNative(() => addon.createServer(config, dispatch));
   assertServerHandle(handle);
+
   return handle;
 }
 
@@ -75,6 +78,7 @@ export function finalizeServer(handle: ServerHandle): void {
 export function serverDroppedEvents(handle: ServerHandle): bigint {
   assertServerHandle(handle);
   const addon = loadAddon();
+
   return callNative(() => addon.serverDroppedEvents(handle));
 }
 
@@ -87,6 +91,7 @@ export function serverDroppedEvents(handle: ServerHandle): bigint {
 export function serverDroppedMessages(handle: ServerHandle): bigint {
   assertServerHandle(handle);
   const addon = loadAddon();
+
   return callNative(() => addon.serverDroppedMessages(handle));
 }
 
@@ -96,6 +101,7 @@ export function serverDroppedMessages(handle: ServerHandle): bigint {
 export function serverUndeliveredMessages(handle: ServerHandle): bigint {
   assertServerHandle(handle);
   const addon = loadAddon();
+
   return callNative(() => addon.serverUndeliveredMessages(handle));
 }
 

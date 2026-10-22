@@ -21,6 +21,7 @@ const writeJson = (path, value) => {
 
 const readJson = (path) => {
   if (!existsSync(path)) return null;
+
   return JSON.parse(readFileSync(path, "utf8"));
 };
 
@@ -29,8 +30,10 @@ const writeImmutable = (path, content) => {
     if (readFileSync(path, "utf8") !== content) {
       throw new Error(`published benchmark artifact is immutable: ${path}`);
     }
+
     return;
   }
+
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, content);
 };
@@ -38,7 +41,9 @@ const writeImmutable = (path, content) => {
 const median = (values) => {
   const sorted = [...values].sort((left, right) => left - right);
   const middle = sorted.length >> 1;
+
   if (sorted.length % 2 === 1) return sorted[middle];
+
   return (sorted[middle - 1] + sorted[middle]) / 2;
 };
 
@@ -46,6 +51,7 @@ const summarize = (record, recordPath, rawPath) => {
   const measured = record.results.configurations.filter(
     (configuration) => configuration.candidate_to_baseline_ratio !== null,
   );
+
   const worst = measured.reduce(
     (lowest, configuration) =>
       lowest === null ||
@@ -54,6 +60,7 @@ const summarize = (record, recordPath, rawPath) => {
         : lowest,
     null,
   );
+
   return {
     record_id: record.record_id,
     recorded_at: record.recorded_at,
@@ -72,10 +79,13 @@ const summarize = (record, recordPath, rawPath) => {
 
 export const publishRecord = (input) => {
   const { record, historyDirectory } = input;
+
   if (!RECORD_ID_PATTERN.test(record.record_id)) {
     throw new Error(`invalid benchmark record ID "${record.record_id}"`);
   }
+
   const year = record.recorded_at.slice(0, 4);
+
   if (!/^[0-9]{4}$/.test(year)) throw new Error("invalid benchmark timestamp");
   const recordPath = `records/${year}/${record.record_id}.json`;
   const rawPath = `raw/${year}/${record.record_id}/${RAW_REPORT}`;
@@ -91,15 +101,18 @@ export const publishRecord = (input) => {
 
   const indexPath = join(historyDirectory, "index.json");
   const stored = readJson(indexPath);
+
   // A new benchmark ID starts a new series; the previous index is archived so its
   // records stay reachable from the branch.
   if (stored !== null && stored.benchmark_id !== record.benchmark_id) {
     writeJson(join(historyDirectory, `index-${stored.benchmark_id}.json`), stored);
   }
+
   const index =
     stored !== null && stored.benchmark_id === record.benchmark_id
       ? stored
       : { schema_version: 1, benchmark_id: record.benchmark_id, records: [] };
+
   const entry = summarize(record, recordPath, rawPath);
   index.records = [
     entry,
@@ -113,5 +126,6 @@ export const publishRecord = (input) => {
   writeJson(indexPath, index);
   writeJson(join(historyDirectory, "latest.json"), record);
   writeFileSync(join(historyDirectory, "README.md"), renderReadme(index, record, contractDocPath));
+
   return record.record_id;
 };

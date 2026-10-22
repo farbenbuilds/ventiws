@@ -22,22 +22,26 @@ export type ClientAddress = {
 
 const DEFAULT_PORTS = { "ws:": 80, "wss:": 443 } as const;
 
-/// The schemes `ws` accepts, and the two it rewrites. `ws+unix:` is the IPC form: it
-/// maps to neither and is handled below, so it is here only to be recognised, not
-/// refused.
-const WS_SCHEMES = {
-  "http:": "ws:",
-  "https:": "wss:",
-  "ws:": "ws:",
-  "wss:": "wss:",
-  "ws+unix:": "ws:",
-} as const;
-
 const IPC_SCHEME = "ws+unix:";
 
-type Scheme = keyof typeof WS_SCHEMES;
-
 export type ClientScheme = "ws:" | "wss:";
+
+/// The schemes `ws` rewrites to a WebSocket scheme. `ws+unix:` is absent because it is the
+/// IPC form handled by `buildIpc`; any other scheme is refused by the caller.
+function rewriteScheme(protocol: string): ClientScheme | undefined {
+  switch (protocol) {
+    case "http:":
+      return "ws:";
+    case "https:":
+      return "wss:";
+    case "ws:":
+      return "ws:";
+    case "wss:":
+      return "wss:";
+    default:
+      return undefined;
+  }
+}
 
 /// Parses a client address the way `ws` does, including its errors. Every refusal is a
 /// `SyntaxError`, because a bad address is a programming error and `ws` throws from the
@@ -48,9 +52,10 @@ export type ClientScheme = "ws:" | "wss:";
 // after the scheme, so the path may be a POSIX path or a Windows named pipe.
 export function parseAddress(address: string | URL): ClientAddress {
   const parsed = toUrl(address);
-  const scheme = parsed.protocol as Scheme;
-  if (scheme === IPC_SCHEME) return buildIpc(parsed);
-  const resolved = WS_SCHEMES[scheme];
+
+  if (parsed.protocol === IPC_SCHEME) return buildIpc(parsed);
+  const resolved = rewriteScheme(parsed.protocol);
+
   if (resolved === undefined) {
     throw createError(
       "ERR_INVALID_OPTION",
@@ -58,14 +63,17 @@ export function parseAddress(address: string | URL): ClientAddress {
       SyntaxError,
     );
   }
+
   if (parsed.hash) {
     throw createError("ERR_INVALID_OPTION", "The URL contains a fragment identifier", SyntaxError);
   }
+
   return build(parsed, resolved);
 }
 
 function toUrl(address: string | URL): URL {
   if (address instanceof URL) return address;
+
   try {
     return new URL(address);
   } catch {
@@ -80,6 +88,7 @@ function build(parsed: URL, scheme: ClientScheme): ClientAddress {
   const hasCredentials = parsed.username !== "" || parsed.password !== "";
   const host = parsed.hostname.startsWith("[") ? parsed.hostname.slice(1, -1) : parsed.hostname;
   const port = parsed.port === "" ? DEFAULT_PORTS[scheme] : Number(parsed.port);
+
   return {
     url: parsed.href,
     secure: scheme === "wss:",
@@ -99,14 +108,17 @@ function buildIpc(parsed: URL): ClientAddress {
   if (parsed.pathname === "") {
     throw createError("ERR_INVALID_OPTION", "The URL's pathname is empty", SyntaxError);
   }
+
   if (parsed.hash) {
     throw createError("ERR_INVALID_OPTION", "The URL contains a fragment identifier", SyntaxError);
   }
+
   const parts = parsed.pathname.split(":");
   const socketPath = parts[0] ?? "";
   // `ws` leaves the target `undefined` when the URL gave no path and lets
   // `http.request` default, which is the same request as `/`.
   const target = parts.length > 1 ? parts.slice(1).join(":") : "";
+
   return {
     url: parsed.href,
     secure: false,

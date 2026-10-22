@@ -6,13 +6,13 @@
 // certificate they had just supplied.
 
 import { expect, test } from "vitest";
-import { WebSocket } from "../../../src/index";
+import { WebSocket, type ClientOptions } from "../../../src/index";
 import { undeclared } from "./undeclared";
 import { certificates, tlsServer, TEST_TIMEOUT_MS } from "./tls-support";
 
 /// The echoed message on a connection that opened, or the first 40 characters of the error
 /// on one that did not, so every case below reads the same shape.
-async function echoThrough(url: string, options: Record<string, unknown>): Promise<string> {
+async function echoThrough(url: string, options: ClientOptions): Promise<string> {
   return new Promise((resolve) => {
     const socket = new WebSocket(url, undeclared(options));
     socket.once("open", () => {
@@ -31,6 +31,7 @@ test(
   { timeout: TEST_TIMEOUT_MS },
   async () => {
     const server = await tlsServer();
+
     try {
       expect(await echoThrough(server.url, { rejectUnauthorized: false })).toBe("hi");
     } finally {
@@ -41,6 +42,7 @@ test(
 
 test("a ca the caller supplied is trusted", { timeout: TEST_TIMEOUT_MS }, async () => {
   const server = await tlsServer();
+
   try {
     expect(await echoThrough(server.url, { ca: certificates().ca })).toBe("hi");
   } finally {
@@ -55,6 +57,7 @@ test(
     // The negative case matters as much as the two above: forwarding these options must
     // not have turned verification off for everyone.
     const server = await tlsServer();
+
     try {
       expect(await echoThrough(server.url, {})).toMatch(/^error: self-signed certificate/);
     } finally {

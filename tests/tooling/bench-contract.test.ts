@@ -31,7 +31,7 @@ type SchemaNode = {
   readonly properties?: Readonly<Record<string, SchemaNode>>;
 };
 
-const SCHEMA = JSON.parse(read("bench/contracts/echo_throughput_v2.schema.json")) as SchemaNode;
+const SCHEMA: SchemaNode = JSON.parse(read("bench/contracts/echo_throughput_v2.schema.json"));
 
 test("the contract matches the harness defaults it freezes", () => {
   expect(CONTRACT.implementations).toEqual([...ALL_IMPLEMENTATION_IDS]);

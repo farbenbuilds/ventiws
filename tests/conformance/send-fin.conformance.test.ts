@@ -22,6 +22,7 @@ function observe(target: {
 }): Observed[] {
   const seen: Observed[] = [];
   target.on("message", (data, isBinary) => seen.push({ text: data.toString(), binary: isBinary }));
+
   return seen;
 }
 
@@ -40,6 +41,7 @@ test(
     const harness = await upgradeHarness();
     const accepted = nextSocket(harness.server);
     const client = await openClient(harness.url);
+
     try {
       const socket = await accepted;
       const seen = observe(client);
@@ -66,6 +68,7 @@ test("the client honours both options too", { timeout: TEST_TIMEOUT_MS }, async 
   await new Promise<void>((resolve) => {
     client.once("open", () => resolve());
   });
+
   try {
     const socket = await accepted;
     const seen = observe(socket);

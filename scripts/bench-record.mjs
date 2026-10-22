@@ -16,6 +16,7 @@ const FORMULA =
 
 const legsOf = (configuration, implementations) => {
   const legs = {};
+
   for (const id of implementations) {
     const leg = configuration.legs[id];
     legs[id] = {
@@ -28,13 +29,16 @@ const legsOf = (configuration, implementations) => {
       reason: leg.reason,
     };
   }
+
   return legs;
 };
 
 const ratioOf = (configuration, contract) => {
   const baseline = configuration.legs[contract.gateBaseline]?.medianRoundTripsPerSecond ?? null;
   const candidate = configuration.legs[contract.gateCandidate]?.medianRoundTripsPerSecond ?? null;
+
   if (baseline === null || candidate === null) return null;
+
   return candidate / baseline;
 };
 
@@ -42,6 +46,7 @@ export const buildRecord = ({ report, contractSource, recordedAt, workflow }) =>
   const contract = readContract(parseContract(contractSource));
   assertReportMatchesContract(report, contract);
   const { provenance } = report;
+
   return {
     schema_version: RECORD_SCHEMA_VERSION,
     benchmark_id: BENCHMARK_ID,

@@ -6,26 +6,31 @@
 // run it for real, in a temporary tree, so the comparison is exercised rather than
 // described.
 
-import { execFileSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "vitest";
+import { stagedManifest } from "./staged-manifest";
 
 const SCRIPT = fileURLToPath(new URL("../../scripts/stage-publish.mjs", import.meta.url));
 const SCOPE = "@ventiws";
 const VERSION = "9.9.9";
 const BINDING = "binding-";
 
+type PlatformsManifest = { readonly platforms: readonly string[] };
+
+type RunResult = { readonly code: number; readonly out: string };
+
 /// The real published set, read rather than restated: the script resolves it relative to
 /// its own URL and so always reads the repository's manifest, which means a test that
 /// invents its own list would be asserting against a gate that was told to fail.
-const TARGETS = (
-  JSON.parse(readFileSync(new URL("../../src/builds/platforms.json", import.meta.url), "utf8")) as {
-    platforms: string[];
-  }
-).platforms;
+const platforms: PlatformsManifest = JSON.parse(
+  readFileSync(new URL("../../src/builds/platforms.json", import.meta.url), "utf8"),
+);
+
+const TARGETS = platforms.platforms;
 
 /// A tree shaped like the publish job assembles it: the scaffolded manifest, one
 /// directory per platform, and the bundle `tsdown` produced. `built` overrides which
@@ -51,31 +56,25 @@ function scaffold(built: readonly string[] = TARGETS): string {
   // what the toolchain generates from a narrowed `.npm.platforms`; the gate must not
   // learn the release's platform set from it.
   writeFileSync(join(stage, "package.json"), JSON.stringify({ name: "ventiws" }));
+
   for (const target of built) {
     const dir = join(stage, SCOPE, `${BINDING}${target}`);
     mkdirSync(dir, { recursive: true });
     writeFileSync(join(dir, "package.json"), "{}");
     writeFileSync(join(dir, "ventiws.node"), "not a real addon");
   }
+
   return root;
 }
 
-function run(root: string): { readonly code: number; readonly out: string } {
-  try {
-    const out = execFileSync(process.execPath, [SCRIPT], {
-      cwd: root,
-      encoding: "utf8",
-      stdio: "pipe",
-    });
-    return { code: 0, out };
-  } catch (error) {
-    const failed = error as { status?: number; stdout?: string; stderr?: string };
-    return { code: failed.status ?? 1, out: `${failed.stdout ?? ""}${failed.stderr ?? ""}` };
-  }
-}
+function run(root: string): RunResult {
+  const result = spawnSync(process.execPath, [SCRIPT], {
+    cwd: root,
+    encoding: "utf8",
+    stdio: "pipe",
+  });
 
-function stagedManifest(root: string): Record<string, unknown> {
-  return JSON.parse(readFileSync(join(root, "npm", "ventiws", "package.json"), "utf8"));
+  return { code: result.status ?? 1, out: `${result.stdout}${result.stderr}` };
 }
 
 test("a complete tree stages, and every platform reaches the manifest", () => {
@@ -88,9 +87,9 @@ test("a complete tree stages, and every platform reaches the manifest", () => {
   const manifest = stagedManifest(root);
   // Pinned to the release rather than the scaffold's `0.0.0`, or npm resolves nothing.
   expect(manifest.version).toBe(VERSION);
-  const optional = manifest.optionalDependencies as Record<string, string>;
-  expect(optional[`${SCOPE}/binding-${TARGETS[0]}`]).toBe(VERSION);
-  expect(Object.keys(optional)).toHaveLength(TARGETS.length);
+  const optional = manifest.optionalDependencies;
+  expect(optional?.[`${SCOPE}/binding-${TARGETS[0]}`]).toBe(VERSION);
+  expect(Object.keys(optional ?? {})).toHaveLength(TARGETS.length);
 });
 
 test("a failed shard stops the release and names the platform", () => {
@@ -134,6 +133,7 @@ test("the staged package carries the readme npm renders on the package page", ()
   // without them is a blank page on npmjs.com.
   const root = scaffold();
   expect(run(root).code).toBe(0);
+
   for (const file of ["README.md", "LICENSE"])
     expect(existsSync(join(root, "npm", "ventiws", file))).toBe(true);
 });

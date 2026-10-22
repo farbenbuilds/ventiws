@@ -7,6 +7,7 @@ import { closeFrameWritten } from "./socket/lifecycle";
 /// calls, and destroy terminates the socket unless the socket itself raised the error.
 export function createWebSocketStream(ws: WebSocket, options?: DuplexOptions): Duplex {
   let terminateOnDestroy = true;
+
   const duplex = new Duplex({
     ...options,
     autoDestroy: false,
@@ -18,9 +19,11 @@ export function createWebSocketStream(ws: WebSocket, options?: DuplexOptions): D
   const onEnd = (): void => {
     if (!duplex.destroyed && duplex.writableFinished) duplex.destroy();
   };
+
   const onError = (error: Error): void => {
     duplex.removeListener("error", onError);
     duplex.destroy();
+
     if (duplex.listenerCount("error") === 0) duplex.emit("error", error);
   };
 
@@ -28,6 +31,7 @@ export function createWebSocketStream(ws: WebSocket, options?: DuplexOptions): D
     // `ws` (stream.js:63-64) converts only a text message, and only for a readable side in
     // object mode: a binary message stays a Buffer whatever the mode.
     const data = !isBinary && duplex.readableObjectMode ? message.toString() : message;
+
     if (!duplex.push(data)) ws.pause();
   });
   ws.once("error", (error) => {
@@ -48,8 +52,10 @@ export function createWebSocketStream(ws: WebSocket, options?: DuplexOptions): D
       process.nextTick(() => {
         duplex.emit("close");
       });
+
       return;
     }
+
     let called = false;
     ws.once("error", (failure) => {
       called = true;
@@ -61,6 +67,7 @@ export function createWebSocketStream(ws: WebSocket, options?: DuplexOptions): D
         duplex.emit("close");
       });
     });
+
     if (terminateOnDestroy) ws.terminate();
   };
 
@@ -74,20 +81,28 @@ export function createWebSocketStream(ws: WebSocket, options?: DuplexOptions): D
       ws.once("open", () => {
         duplex._final?.(callback);
       });
+
       return;
     }
+
     if (ws.readyState === ws.CLOSED) {
       callback();
+
       return;
     }
+
     ws.close();
+
     if (!closeFrameWritten(ws)) {
       ws.once("close", () => {
         callback();
       });
+
       return;
     }
+
     callback();
+
     if (duplex.readableEnded) duplex.destroy();
   };
 
@@ -100,12 +115,15 @@ export function createWebSocketStream(ws: WebSocket, options?: DuplexOptions): D
       ws.once("open", () => {
         duplex._write?.(chunk, encoding, callback);
       });
+
       return;
     }
+
     ws.send(chunk, callback);
   };
 
   duplex.on("end", onEnd);
   duplex.on("error", onError);
+
   return duplex;
 }

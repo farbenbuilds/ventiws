@@ -6,6 +6,7 @@ import { PassThrough } from "node:stream";
 function upgradedSocket(): WebSocket {
   const socket = new WebSocket(null);
   attachSocket(socket, new PassThrough());
+
   return socket;
 }
 
@@ -13,10 +14,13 @@ function upgradedSocket(): WebSocket {
 /// warning channel back the way it was found.
 async function captureWarnings(action: () => void): Promise<string[]> {
   const seen: string[] = [];
+
   const listener = (warning: Error & { name?: string }): void => {
     if (warning.name === "MaxListenersExceededWarning") seen.push(warning.message);
   };
+
   process.on("warning", listener);
+
   try {
     action();
     // `process.emitWarning` defers to the next tick, so the listener needs one
@@ -25,6 +29,7 @@ async function captureWarnings(action: () => void): Promise<string[]> {
   } finally {
     process.off("warning", listener);
   }
+
   return seen;
 }
 
@@ -32,9 +37,11 @@ async function captureWarnings(action: () => void): Promise<string[]> {
 /// end of the burst, which is what `EventEmitter` reports.
 test("passing maxListeners raises the Node leak warning", async () => {
   const socket = upgradedSocket();
+
   const warnings = await captureWarnings(() => {
     for (let index = 0; index < 12; index += 1) socket.on("close", () => {});
   });
+
   expect(warnings).toHaveLength(1);
   expect(warnings[0]).toContain("11 close listeners added");
   expect(warnings[0]).toContain("MaxListeners is 10");
@@ -44,21 +51,27 @@ test("passing maxListeners raises the Node leak warning", async () => {
 /// a single leak trains callers to ignore it.
 test("the leak warning is raised once per event", async () => {
   const socket = upgradedSocket();
+
   const warnings = await captureWarnings(() => {
     for (let index = 0; index < 15; index += 1) socket.on("close", () => {});
+
     for (let index = 0; index < 15; index += 1) socket.on("error", () => {});
   });
+
   expect(warnings).toHaveLength(2);
 });
 
 test("a second event warns independently", async () => {
   const socket = upgradedSocket();
+
   const warnings = await captureWarnings(() => {
     for (let index = 0; index < 12; index += 1) socket.on("close", () => {});
   });
+
   const second = await captureWarnings(() => {
     for (let index = 0; index < 12; index += 1) socket.on("message", () => {});
   });
+
   expect(warnings[0]).toContain("close");
   expect(second[0]).toContain("message");
 });
@@ -68,18 +81,22 @@ test("a second event warns independently", async () => {
 test("setMaxListeners(0) means unlimited", async () => {
   const socket = upgradedSocket();
   socket.setMaxListeners(0);
+
   const warnings = await captureWarnings(() => {
     for (let index = 0; index < 200; index += 1) socket.on("close", () => {});
   });
+
   expect(warnings).toHaveLength(0);
 });
 
 test("raising the limit stops the warning", async () => {
   const socket = upgradedSocket();
   socket.setMaxListeners(50);
+
   const warnings = await captureWarnings(() => {
     for (let index = 0; index < 20; index += 1) socket.on("close", () => {});
   });
+
   expect(warnings).toHaveLength(0);
 });
 
@@ -88,13 +105,17 @@ test("raising the limit stops the warning", async () => {
 /// rest of the process.
 test("removeAllListeners resets the leak warning", async () => {
   const socket = upgradedSocket();
+
   const first = await captureWarnings(() => {
     for (let index = 0; index < 12; index += 1) socket.on("close", () => {});
   });
+
   socket.removeAllListeners("close");
+
   const second = await captureWarnings(() => {
     for (let index = 0; index < 12; index += 1) socket.on("close", () => {});
   });
+
   expect(first).toHaveLength(1);
   expect(second).toHaveLength(1);
 });

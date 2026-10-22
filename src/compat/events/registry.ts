@@ -1,4 +1,8 @@
-import type { EventMap, EventName, Listener, Registry } from "../../types/events";
+import type { EmitterState, EventMap, EventName, Listener, Registry } from "../../types/events";
+
+/// The record listeners observe as `this`. It is whatever facade owns the state, so its
+/// contract is the state's own target field rather than a second declaration.
+type DispatchTarget<E extends EventMap> = EmitterState<E>["target"];
 
 export function createRegistry<E extends EventMap>(): Registry<E> {
   return {};
@@ -17,6 +21,7 @@ export function subscribe<E extends EventMap, K extends EventName<E>>(
   handler: Listener<E, K>,
 ): Registry<E> {
   const bucket = registry[event] ?? [];
+
   return { ...registry, [event]: [...bucket, handler] };
 }
 
@@ -26,6 +31,7 @@ export function prepend<E extends EventMap, K extends EventName<E>>(
   handler: Listener<E, K>,
 ): Registry<E> {
   const bucket = registry[event] ?? [];
+
   return { ...registry, [event]: [handler, ...bucket] };
 }
 
@@ -37,14 +43,18 @@ export function unsubscribeMatching<E extends EventMap, K extends EventName<E>>(
   matches: (handler: Listener<E, K>) => boolean,
 ): Registry<E> {
   const bucket = registry[event];
+
   if (bucket === undefined) return registry;
   let index = bucket.length - 1;
+
   while (index >= 0) {
     if (matches(bucket[index])) {
       return { ...registry, [event]: bucket.toSpliced(index, 1) };
     }
+
     index -= 1;
   }
+
   return registry;
 }
 
@@ -53,14 +63,17 @@ export function removeAll<E extends EventMap>(
   event?: EventName<E>,
 ): Registry<E> {
   if (event === undefined) return {};
+
   return { ...registry, [event]: [] };
 }
 
 export function eventNames<E extends EventMap>(registry: Registry<E>): EventName<E>[] {
   const names: EventName<E>[] = [];
-  for (const key of Object.keys(registry) as EventName<E>[]) {
+
+  for (const key of Object.keys(registry)) {
     if ((registry[key]?.length ?? 0) > 0) names.push(key);
   }
+
   return names;
 }
 
@@ -69,14 +82,17 @@ export function eventNames<E extends EventMap>(registry: Registry<E>): EventName
 /// spread: the message path runs this per frame and two arrays per event is one too many.
 export function dispatchWith<E extends EventMap, K extends EventName<E>>(
   registry: Registry<E>,
-  target: unknown,
+  target: DispatchTarget<E>,
   event: K,
   args: E[K],
 ): number {
   const bucket = registry[event];
+
   if (bucket === undefined) return 0;
+
   for (let index = 0; index < bucket.length; index += 1) {
-    Reflect.apply(bucket[index], target, args);
+    bucket[index].call(target, ...args);
   }
+
   return bucket.length;
 }

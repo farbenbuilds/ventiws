@@ -11,6 +11,7 @@ import type { AddonTarget } from "./target";
 import type { VentiAddon } from "./native";
 
 export type { VentiAddon } from "./native";
+
 export type { AddonTarget } from "./target";
 
 const require = createRequire(import.meta.url);
@@ -33,11 +34,13 @@ function pathExists(path: string): boolean {
 
 function findPackageRoot(start: string): string | undefined {
   let current: string | undefined = start;
+
   while (current !== undefined) {
     if (pathExists(join(current, "package.json"))) return current;
     const parent = dirname(current);
     current = parent === current ? undefined : parent;
   }
+
   return undefined;
 }
 
@@ -48,12 +51,14 @@ function packageRoot(): string | undefined {
 function checkoutArtifact(root: string | undefined): string | undefined {
   if (root === undefined) return undefined;
   const candidate = join(root, ...checkoutPath);
+
   return pathExists(candidate) ? candidate : undefined;
 }
 
 function legacyArtifact(root: string | undefined): string | undefined {
   if (root === undefined) return undefined;
   const candidate = join(root, ...legacyPath);
+
   return pathExists(candidate) ? candidate : undefined;
 }
 
@@ -78,6 +83,7 @@ let addon: VentiAddon | undefined;
 export function loadAddon(): VentiAddon {
   if (addon !== undefined) return addon;
   addon = resolveAddon();
+
   return addon;
 }
 
@@ -86,14 +92,17 @@ function resolveAddon(): VentiAddon {
   const target = hostAddonTarget();
 
   const checkout = checkoutArtifact(root);
+
   if (checkout !== undefined) return loadArtifact(checkout);
 
   if (target !== undefined) {
     const installed = installedBinding(target);
+
     if (installed !== undefined) return loadArtifact(installed);
   }
 
   const legacy = legacyArtifact(root);
+
   if (legacy !== undefined) return loadArtifact(legacy);
 
   throw new Error(

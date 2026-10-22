@@ -19,7 +19,9 @@ const SocketServerLive = Layer.effect(
     yield* Effect.addFinalizer(() => Effect.sync(() => wss.close()));
 
     const address = wss.address();
-    if (address === null || typeof address === "string") throw new Error("wss did not bind");
+
+    if (!(address instanceof Object)) throw new Error("wss did not bind");
+
     const bound = Result.getOrThrow(
       NetAddress.inetAddressV4(NetAddress.ipv4Loopback, address.port),
     );
@@ -48,6 +50,7 @@ const SocketServerLive = Layer.effect(
 
           wss.on("connection", onConnection);
           yield* Effect.addFinalizer(() => Effect.sync(() => wss.off("connection", onConnection)));
+
           return yield* Effect.never;
         }),
       );

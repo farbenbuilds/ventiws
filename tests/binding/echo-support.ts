@@ -9,6 +9,7 @@ import {
 } from "../../src/binding/socket";
 import { closeServer, createServer, finalizeServer, listenServer } from "../../src/binding/server";
 import type { ServerHandle } from "../../src/binding/server";
+import { once } from "./once-support";
 
 const FINALIZE_ATTEMPTS = 200;
 const POLL_INTERVAL_MS = 5;
@@ -33,35 +34,6 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/// A sticky one-shot read. The value is kept so a late subscriber still sees an
-/// event that already fired, and the callback is kept so an early subscriber
-/// still hears one that has not.
-type Once<T> = {
-  readonly value: T | null;
-  readonly settled: Promise<T>;
-  resolve(value: T): void;
-};
-
-function once<T>(): Once<T> {
-  const state: { value: T | null; resolve: (value: T) => void } = {
-    value: null,
-    resolve: () => undefined,
-  };
-  const settled = new Promise<T>((resolve) => {
-    state.resolve = resolve;
-  });
-  return {
-    get value(): T | null {
-      return state.value;
-    },
-    settled,
-    resolve: (value: T): void => {
-      state.value ??= value;
-      state.resolve(state.value);
-    },
-  };
-}
-
 /// A reference echo over the engine, and the smallest application that exercises
 /// the whole path: the engine parses a frame, hands the payload to JavaScript,
 /// the application stages a reply, and the pump puts it on the wire.
@@ -80,12 +52,15 @@ export async function startEcho(): Promise<EchoServer> {
     switch (event.kind) {
       case "listening":
         listened.resolve(event.code);
+
         return;
       case "connectionOpen":
-        opened.resolve(packConnectionHandle(event.index, event.generation) as ConnectionHandle);
+        opened.resolve(packConnectionHandle(event.index, event.generation));
+
         return;
       case "connectionMessage":
         echo(handle, opened.value, received);
+
         return;
       case "connectionClose":
         // The inbound ring is one ordered FIFO shared by every connection, and a
@@ -95,6 +70,7 @@ export async function startEcho(): Promise<EchoServer> {
         // server. Purging on the close event is what keeps one departed peer from
         // taking the rest of the server down with it.
         purgeSocketMessage(handle, event.index, event.generation);
+
         return;
       default:
         return;
@@ -103,6 +79,7 @@ export async function startEcho(): Promise<EchoServer> {
 
   handle = createServer({ host: "127.0.0.1", port: 0, path: "/" }, dispatch);
   listenServer(handle);
+
   return {
     handle,
     port: await listened.settled,
@@ -117,8 +94,10 @@ export async function startEcho(): Promise<EchoServer> {
 function echo(handle: ServerHandle, connection: ConnectionHandle | null, received: Reply[]): void {
   if (connection === null) return;
   const taken = takeSocketMessage(handle, connection);
+
   if (taken === null) return;
   received.push(taken);
+
   if (sendSocket(handle, connection, taken.bytes, taken.isBinary) !== "ok") return;
   pumpSocket(handle, connection);
 }
@@ -129,19 +108,25 @@ async function dispose(handle: ServerHandle): Promise<void> {
   } catch {
     // Already closing or closed; the retry loop below settles it.
   }
+
   for (let attempt = 0; attempt < FINALIZE_ATTEMPTS; attempt += 1) {
     try {
       finalizeServer(handle);
+
       return;
     } catch (error) {
       if (!(error instanceof Error)) throw error;
+
       if (error.message === "UnknownServer") return;
+
       if (error.message === "EventsPending" || error.message === "ServerNotClosed") {
         await delay(POLL_INTERVAL_MS);
         continue;
       }
+
       throw error;
     }
   }
+
   throw new Error("echo server did not drain before finalize");
 }

@@ -9,22 +9,27 @@ import type { CodedError } from "../../../src/types/errors";
 import { attached, terminateClient } from "./socket-support";
 import { TEST_TIMEOUT_MS } from "../../binding/support";
 
+type SendFailureCallback = (failure?: CodedError) => void;
+
+type Detached = {
+  readonly errors: Error[];
+  readonly state: SocketState;
+  send(data: string, options?: undefined, callback?: SendFailureCallback): void;
+};
+
 /// A socket record with no native transport, which is what every `send` on a
 /// `WebSocketServer`-produced socket looks like today, plus an `error` collector
 /// wired through the real registry so the dispatch path is the one under test.
-function detached(readyState: ReadyState): {
-  readonly errors: CodedError[];
-  readonly state: SocketState;
-  readonly send: (data: unknown, options?: unknown, callback?: unknown) => void;
-} {
+function detached(readyState: ReadyState): Detached {
   const state = createSocketState();
   state.readyState = readyState;
-  const errors: CodedError[] = [];
+  const errors: Error[] = [];
   state.listeners.error = [
     (error: Error): void => {
-      errors.push(error as CodedError);
+      errors.push(error);
     },
   ];
+
   return {
     errors,
     state,
@@ -40,8 +45,8 @@ test("a failed send on an open socket emits one coded error", () => {
   const socket = detached(OPEN);
   socket.send("hello");
   expect(socket.errors).toHaveLength(1);
-  expect(socket.errors[0].code).toBe("ERR_INVALID_STATE");
-  expect(socket.errors[0].message).toMatch(/no native transport attached/);
+  expect(socket.errors[0]).toMatchObject({ code: "ERR_INVALID_STATE" });
+  expect(socket.errors[0]?.message).toMatch(/no native transport attached/);
 });
 
 /// A send that fails on an open socket with a callback reports through it and does
@@ -124,6 +129,7 @@ test("a second failure after the first is not reported again", () => {
 /// to report and must not be turned into an error.
 test("a staged send reports no error", { timeout: TEST_TIMEOUT_MS }, async () => {
   const ours = await attached();
+
   try {
     const seen: CodedError[] = [];
     ours.socket.on("error", (error: CodedError) => seen.push(error));

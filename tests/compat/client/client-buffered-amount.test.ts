@@ -11,6 +11,7 @@
 import { WebSocket as WsSocket, WebSocketServer as WsServer } from "ws";
 import { expect, test } from "vitest";
 import { WebSocket, WebSocketServer } from "../../../src/index";
+import { boundPort } from "../address-support";
 import { TEST_TIMEOUT_MS } from "../../binding/support";
 
 /// 65536 payload plus 14 bytes of client framing: two header bytes, the 8-byte length a
@@ -20,49 +21,52 @@ const PAYLOAD = 64 * 1024;
 const FRAME = PAYLOAD + 14;
 const SENDS = 200;
 
-type Client = {
-  bufferedAmount: number;
-  on(event: string, listener: (...args: never[]) => void): void;
-  once(event: string, listener: () => void): void;
-  send(data: string): void;
-  terminate(): void;
-};
+type Make = () => [WsServer, (port: number) => WsSocket];
 
-type Make = () => [WsServer | WebSocketServer, (port: number) => Client];
+type Burst = { readonly deltas: number[]; readonly final: number };
 
 /// The one scenario: a peer that accepts and then reads nothing, and a burst that cannot
 /// fit in the kernel's send buffer.
-async function burst(make: Make): Promise<{ deltas: number[]; final: number }> {
+async function burst(make: Make): Promise<Burst> {
   const [server, clientFor] = make();
   const accepted = new Promise<WsSocket>((resolve) => server.once("connection", resolve));
   await new Promise<void>((resolve) => server.once("listening", () => resolve()));
-  const client = clientFor((server.address() as { port: number }).port);
+  const client = clientFor(boundPort(server.address()));
   await new Promise<void>((resolve) => client.once("open", () => resolve()));
   const peer = await accepted;
   peer.pause();
-  const seen: number[] = [];
+  const deltas: number[] = [];
+  let previous = 0;
+  let final = 0;
+
   for (let index = 0; index < SENDS; index += 1) {
     client.send("x".repeat(PAYLOAD));
-    seen.push(client.bufferedAmount);
+    final = client.bufferedAmount;
+
+    // The first send's step is its whole total, which the series below starts after.
+    if (index > 0) deltas.push(final - previous);
+    previous = final;
   }
+
   client.terminate();
   peer.terminate();
   await new Promise<void>((resolve) => server.close(() => resolve()));
-  const deltas = seen.slice(1).map((value, index) => value - (seen[index] as number));
-  return { deltas, final: seen[seen.length - 1] as number };
+
+  return { deltas, final };
 }
 
 test(
   "bufferedAmount counts every framed byte of a burst exactly as ws does",
   { timeout: TEST_TIMEOUT_MS },
   async () => {
-    const reference = await burst((): [WsServer, (port: number) => Client] => [
+    const reference = await burst(() => [
       new WsServer({ port: 0 }),
-      (port) => new WsSocket(`ws://127.0.0.1:${port}/`) as unknown as Client,
+      (port) => new WsSocket(`ws://127.0.0.1:${port}/`),
     ]);
-    const ours = await burst((): [WebSocketServer, (port: number) => Client] => [
+
+    const ours = await burst(() => [
       new WebSocketServer({ port: 0 }),
-      (port) => new WebSocket(`ws://127.0.0.1:${port}/`) as unknown as Client,
+      (port) => new WebSocket(`ws://127.0.0.1:${port}/`),
     ]);
 
     // A step is either nothing, because the kernel took that frame whole, or exactly one
@@ -80,6 +84,7 @@ test(
       expect(leg.final).toBeGreaterThan(FRAME * 100);
       expect(leg.final).toBeLessThan(FRAME * SENDS);
     }
+
     // The parity claim itself: two clients, one host, one stalled peer, one number.
     expect(ours.final).toBe(reference.final);
     expect(ours.deltas).toEqual(reference.deltas);

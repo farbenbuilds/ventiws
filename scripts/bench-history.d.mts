@@ -4,6 +4,7 @@
 import type { BenchmarkRecord } from "./bench-record.mjs";
 
 export declare const RECORD_ID_PATTERN: RegExp;
+
 export declare function publishRecord(input: {
   readonly record: BenchmarkRecord;
   readonly reportSource: string;

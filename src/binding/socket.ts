@@ -36,6 +36,7 @@ function assertPayload(data: Uint8Array): void {
 /// An ordinal outside the table is an ABI mismatch between the addon and this binding.
 function statusFromOrdinal(ordinal: number): EngineStatus {
   const status = NATIVE_SOCKET_STATUSES[ordinal];
+
   if (status === undefined) {
     throw guardError(
       `ventiws: unknown native socket status ${ordinal}`,
@@ -43,6 +44,7 @@ function statusFromOrdinal(ordinal: number): EngineStatus {
       RangeError,
     );
   }
+
   return ENGINE_STATUS_BY_NATIVE[status];
 }
 
@@ -64,6 +66,7 @@ export function sendSocket(
   assertConnectionHandle(connection);
   assertPayload(data);
   const addon = loadAddon();
+
   return statusFromOrdinal(callNative(() => addon.sendSocket(server, connection, data, binary)));
 }
 
@@ -79,6 +82,7 @@ export function closeSocket(
   assertCloseCode(code);
   assertPayload(reason);
   const addon = loadAddon();
+
   return statusFromOrdinal(callNative(() => addon.closeSocket(server, connection, code, reason)));
 }
 
@@ -86,6 +90,7 @@ export function pauseSocket(server: ServerHandle, connection: ConnectionHandle):
   assertServerHandle(server);
   assertConnectionHandle(connection);
   const addon = loadAddon();
+
   return statusFromOrdinal(callNative(() => addon.pauseSocket(server, connection)));
 }
 
@@ -93,6 +98,7 @@ export function resumeSocket(server: ServerHandle, connection: ConnectionHandle)
   assertServerHandle(server);
   assertConnectionHandle(connection);
   const addon = loadAddon();
+
   return statusFromOrdinal(callNative(() => addon.resumeSocket(server, connection)));
 }
 
@@ -104,6 +110,7 @@ export function pumpSocket(server: ServerHandle, connection: ConnectionHandle): 
   assertServerHandle(server);
   assertConnectionHandle(connection);
   const addon = loadAddon();
+
   return statusFromOrdinal(callNative(() => addon.pumpSocket(server, connection)));
 }
 
@@ -112,5 +119,6 @@ export function socketBufferedAmount(server: ServerHandle, connection: Connectio
   assertServerHandle(server);
   assertConnectionHandle(connection);
   const addon = loadAddon();
+
   return callNative(() => addon.socketBufferedAmount(server, connection));
 }

@@ -18,6 +18,7 @@ test(
     const seen = await refused(new WebSocketServer({ noServer: true }), (send) => {
       send(rawFrame([0x88, 0x80 | 2, ...MASK, 0x03, 0xee]));
     });
+
     expect(seen.code).toBe("WS_ERR_INVALID_CLOSE_CODE");
     expect(seen.closeCode).toBe(1002);
   },
@@ -30,6 +31,7 @@ test(
     const seen = await refused(new WebSocketServer({ noServer: true }), (send) => {
       send(rawFrame([0x88, 0x80 | 1, ...MASK, 0x03]));
     });
+
     expect(seen.code).toBe("WS_ERR_INVALID_CONTROL_PAYLOAD_LENGTH");
     expect(seen.closeCode).toBe(1002);
   },
@@ -53,6 +55,7 @@ test(
         ]),
       );
     });
+
     expect(seen.code).toBe("WS_ERR_TOO_MANY_BUFFERED_PARTS");
     expect(seen.message).toBe("Too many message fragments");
     // 1008, not 1002: every frame was well formed and the peer simply split one message
@@ -66,9 +69,11 @@ test(
   { timeout: TEST_TIMEOUT_MS },
   async () => {
     const server = new WebSocketServer({ noServer: true, maxPayload: 8 });
+
     const seen = await refused(server, (send) => {
       send(clientFrames([{ opcode: 0x1, payload: Buffer.from("0123456789") }]));
     });
+
     expect(seen.code).toBe("WS_ERR_UNSUPPORTED_MESSAGE_LENGTH");
     expect(seen.message).toBe("Max payload size exceeded");
     expect(seen.closeCode).toBe(1009);
@@ -79,13 +84,16 @@ test("a second refused frame is not reported twice", { timeout: TEST_TIMEOUT_MS 
   const harness = await upgradeHarness();
   const accepted = nextSocket(harness.server);
   const raw = await openRawClient(harness.port);
+
   try {
     const socket = await accepted;
     const errors: string[] = [];
     socket.on("error", (error: Error & { code?: string }) => errors.push(error.code ?? ""));
+
     const closed = new Promise<number>((resolve) => {
       socket.on("close", (code: number) => resolve(code));
     });
+
     raw.write(Buffer.from([0x81, 0x02, 0x68, 0x69]));
     raw.write(Buffer.from([0x81, 0x02, 0x68, 0x69]));
     expect(await closed).toBe(1002);

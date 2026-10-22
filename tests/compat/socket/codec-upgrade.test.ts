@@ -16,6 +16,7 @@ test(
     const harness = await upgradeHarness();
     const accepted = nextSocket(harness.server);
     const client = await openClient(harness.url);
+
     try {
       const socket = await accepted;
       const messages: Array<[string, boolean]> = [];
@@ -47,6 +48,7 @@ test(
     const harness = await upgradeHarness();
     const accepted = nextSocket(harness.server);
     const client = await openClient(harness.url);
+
     try {
       const socket = await accepted;
       const received: string[] = [];
@@ -75,8 +77,10 @@ test(
     const harness = await upgradeHarness();
     const accepted = nextSocket(harness.server);
     const client = await openClient(harness.url);
+
     try {
       const socket = await accepted;
+
       const closed = new Promise<[number, string]>((resolve) => {
         socket.on("close", (code, reason) => resolve([code, reason.toString()]));
       });
@@ -99,11 +103,14 @@ test(
     const harness = await upgradeHarness();
     const accepted = nextSocket(harness.server);
     const client = await openClient(harness.url);
+
     try {
       const socket = await accepted;
+
       const closed = new Promise<[number, string]>((resolve) => {
         socket.on("close", (code, reason) => resolve([code, reason.toString()]));
       });
+
       client.close(1001, "going away");
       // The peer's code is what the socket reports: it chose 1001, and reporting 1006
       // for a handshake that completed would be a lie in the other direction.

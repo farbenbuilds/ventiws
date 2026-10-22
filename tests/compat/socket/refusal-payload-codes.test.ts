@@ -26,15 +26,18 @@ test(
     const harness = await upgradeHarness(deflateServer());
     const accepted = nextSocket(harness.server);
     const handshake = await offerExtension(harness.port, WS_OFFER);
+
     try {
       expect(handshake.status).toBe(101);
       const raw = handshake.socket;
       const socket = await accepted;
+
       const seen = new Promise<{ code: string; closeCode: number }>((resolve, reject) => {
         const timer = setTimeout(
           () => reject(new Error("no refusal within the timeout")),
           TEST_TIMEOUT_MS,
         );
+
         socket.on("error", (error: Error & { code?: string }) => {
           clearTimeout(timer);
           socket.on("close", (closeCode: number) => {
@@ -42,6 +45,7 @@ test(
           });
         });
       });
+
       raw.write(
         rawFrame([0xc1, 0x80 | 8, ...MASK, 0xff, 0xfe, 0xfd, 0xfc, 0xfb, 0xfa, 0xf9, 0xf8, 0xf7]),
       );
@@ -59,6 +63,7 @@ test(
     const seen = await refused(new WebSocketServer({ noServer: true }), (send) => {
       send(clientFrames([{ opcode: 0x1, payload: Buffer.from([0x41, 0x80, 0x42]) }]));
     });
+
     // `ws` raises an `Error` here, not a `RangeError`, and the difference is visible to a
     // caller catching by type.
     expect(seen.code).toBe("WS_ERR_INVALID_UTF8");

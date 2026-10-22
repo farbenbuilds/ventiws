@@ -6,6 +6,7 @@
 import { expect, test } from "vitest";
 import { WebSocketServer as WsServer } from "ws";
 import { WebSocket } from "../../../src/index";
+import { boundPort } from "../address-support";
 import { TEST_TIMEOUT_MS } from "../../binding/support";
 import { COMPRESSIBLE, deflateServer, NEGOTIATED } from "./deflate-support";
 import { nextSocket, openClient, upgradeHarness } from "./codec-upgrade-support";
@@ -23,6 +24,7 @@ test(
     const harness = await upgradeHarness(deflateServer());
     const accepted = nextSocket(harness.server);
     const client = await openClient(harness.url);
+
     try {
       const socket = await accepted;
       expect(socket.extensions).toBe(NEGOTIATED);
@@ -43,11 +45,14 @@ test(
     const harness = await upgradeHarness(deflateServer());
     const accepted = nextSocket(harness.server);
     const client = await openClient(harness.url);
+
     try {
       const socket = await accepted;
+
       const message = new Promise<string>((resolve) =>
         client.once("message", (data) => resolve(data.toString())),
       );
+
       socket.send(COMPRESSIBLE);
       expect(await message).toBe(COMPRESSIBLE);
     } finally {
@@ -65,13 +70,16 @@ test(
     // parameter set this codec did not choose. `perMessageDeflate: true` is not a `ws` *server* default, so the case would pass uncompressed.
     const server = new WsServer({ port: 0, perMessageDeflate: true });
     await new Promise<void>((resolve) => server.once("listening", resolve));
+
     try {
-      const port = (server.address() as { port: number }).port;
+      const port = boundPort(server.address());
+
       const received = new Promise<string>((resolve) => {
         server.once("connection", (peer) => {
           peer.once("message", (data) => resolve(data.toString()));
         });
       });
+
       const client = new WebSocket(`ws://127.0.0.1:${port}`);
       await new Promise<void>((resolve, reject) => {
         client.once("open", resolve);
@@ -96,6 +104,7 @@ test(
     const harness = await upgradeHarness();
     const accepted = nextSocket(harness.server);
     const client = await openClient(harness.url, { perMessageDeflate: false });
+
     try {
       const socket = await accepted;
       expect(socket.extensions).toBe("");
@@ -124,6 +133,7 @@ test.each([
     const harness = await upgradeHarness(deflateServer());
     const accepted = nextSocket(harness.server);
     const client = await openClient(harness.url, { perMessageDeflate });
+
     try {
       const socket = await accepted;
       const message = messageFrom(socket);

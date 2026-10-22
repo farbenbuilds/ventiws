@@ -19,6 +19,7 @@ test(
     // and the two are different conversations.
     const peerPings: string[] = [];
     const pongs: string[] = [];
+
     const { socket, harness } = await openWithPeer(
       (peer) => {
         peer.on("ping", (data) => peerPings.push(data.toString()));
@@ -28,6 +29,7 @@ test(
       undefined,
       undeclared({ autoPong: false }),
     );
+
     try {
       socket.ping("beat");
       await waitFor(() => peerPings.length === 1);

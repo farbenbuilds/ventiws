@@ -8,6 +8,8 @@ import { expect, test } from "vitest";
 import { publishRecord } from "../../scripts/bench-history.mjs";
 import { build, publishInput, reportOf } from "./bench-fixtures";
 
+type SeriesIndex = { readonly benchmark_id: string };
+
 test("a new benchmark series archives the previous index", () => {
   const history = mkdtempSync(join(tmpdir(), "ventiws-bench-series-"));
   writeFileSync(
@@ -15,12 +17,13 @@ test("a new benchmark series archives the previous index", () => {
     `${JSON.stringify({ schema_version: 1, benchmark_id: "echo-throughput-v1", records: [] })}\n`,
   );
   publishRecord(publishInput(build(reportOf()), history));
-  const archived = JSON.parse(
+
+  const archived: SeriesIndex = JSON.parse(
     readFileSync(join(history, "index-echo-throughput-v1.json"), "utf8"),
-  ) as { benchmark_id: string };
-  const active = JSON.parse(readFileSync(join(history, "index.json"), "utf8")) as {
-    benchmark_id: string;
-  };
+  );
+
+  const active: SeriesIndex = JSON.parse(readFileSync(join(history, "index.json"), "utf8"));
+
   expect(archived.benchmark_id).toBe("echo-throughput-v1");
   expect(active.benchmark_id).toBe("echo-throughput-v2");
 });

@@ -12,10 +12,12 @@ export function clientCount(state: ServerState): number {
 /// `close` event.
 export function trackClient(state: ServerState, socket: WebSocket): void {
   const clients = state.clients;
+
   if (clients === undefined) return;
   clients.add(socket);
   socket.once("close", () => {
     clients.delete(socket);
+
     if (state.shouldEmitClose && clients.size === 0) process.nextTick(() => emitClose(state));
   });
 }

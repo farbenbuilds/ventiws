@@ -14,9 +14,11 @@ test(
   { timeout: TEST_TIMEOUT_MS },
   async () => {
     const { socket, harness } = await openWithPeer(() => undefined);
+
     const closed = new Promise<[number, string]>((resolve) => {
       socket.on("close", (code, reason) => resolve([code, reason.toString()]));
     });
+
     try {
       // A reserved code fails the code check, an oversized reason fails the reason check,
       // and neither may disturb the state the other one left.

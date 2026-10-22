@@ -3,11 +3,11 @@ import { loadAddon } from "../../src/binding/load";
 import { engineLimits } from "../../src/binding/server";
 
 test("loads the native addon", () => {
-  expect(typeof loadAddon().engineVersion).toBe("function");
+  expect(loadAddon().engineVersion).toBeTypeOf("function");
 });
 
 test("reports the pinned uWebZockets release", () => {
-  expect(loadAddon().engineVersion()).toBe("1.8.0");
+  expect(loadAddon().engineVersion()).toBe("2.0.0");
 });
 
 test("reports HTTP/3 support from the linked engine", () => {
@@ -16,20 +16,20 @@ test("reports HTTP/3 support from the linked engine", () => {
 
 test("exposes the server lifecycle surface", () => {
   const addon = loadAddon();
-  expect(typeof addon.createServer).toBe("function");
-  expect(typeof addon.listenServer).toBe("function");
-  expect(typeof addon.closeServer).toBe("function");
-  expect(typeof addon.finalizeServer).toBe("function");
+  expect(addon.createServer).toBeTypeOf("function");
+  expect(addon.listenServer).toBeTypeOf("function");
+  expect(addon.closeServer).toBeTypeOf("function");
+  expect(addon.finalizeServer).toBeTypeOf("function");
 });
 
 test("exposes the per-connection socket surface", () => {
   const addon = loadAddon();
-  expect(typeof addon.sendSocket).toBe("function");
-  expect(typeof addon.closeSocket).toBe("function");
-  expect(typeof addon.pauseSocket).toBe("function");
-  expect(typeof addon.resumeSocket).toBe("function");
-  expect(typeof addon.socketBufferedAmount).toBe("function");
-  expect(typeof addon.serverDroppedEvents).toBe("function");
+  expect(addon.sendSocket).toBeTypeOf("function");
+  expect(addon.closeSocket).toBeTypeOf("function");
+  expect(addon.pauseSocket).toBeTypeOf("function");
+  expect(addon.resumeSocket).toBeTypeOf("function");
+  expect(addon.socketBufferedAmount).toBeTypeOf("function");
+  expect(addon.serverDroppedEvents).toBeTypeOf("function");
 });
 
 /// `capacities.zig` calls each of these "a promise the compatibility layer has to

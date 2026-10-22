@@ -3,6 +3,7 @@ import type { CodedError } from "../../types/errors";
 import type { SocketState } from "../../types/socket";
 import type { ErrorStatus } from "../../types/status";
 import { createError, createStatusError } from "../errors";
+import { isNumberValue, isStringValue, type SocketCallback } from "./argument-kind";
 
 const READY_STATE_NAMES = ["CONNECTING", "OPEN", "CLOSING", "CLOSED"] as const;
 
@@ -11,20 +12,34 @@ export type SocketPayload = {
   readonly binary: boolean;
 };
 
+/// The payload forms `ws` accepts on `send`, plus the number it stringifies at runtime.
+export type SendInput =
+  | string
+  | number
+  | Buffer
+  | ArrayBuffer
+  | SharedArrayBuffer
+  | ArrayBufferView
+  | Blob
+  | Buffer[];
+
 /// The `Buffer.from` argument surface `ws` documents. Enforced by `Buffer.from` itself,
 /// which throws the same `TypeError` upstream.
 export type BufferLikeSource = ArrayLike<number>;
 
 /// Normalizes the `ws` payload surface, minus the blob, which `send.ts` routes to
 /// `send-blob.ts` before this is reached: a blob has to be read before it can be framed.
-export function toPayload(data: unknown): SocketPayload {
-  if (typeof data === "number") return { bytes: Buffer.from(String(data), "utf8"), binary: false };
-  if (typeof data === "string") {
+export function toPayload<Data>(data: Data): SocketPayload {
+  if (isNumberValue(data)) return { bytes: Buffer.from(String(data), "utf8"), binary: false };
+
+  if (isStringValue(data)) {
     return data.length === 0
       ? { bytes: Buffer.alloc(0), binary: false }
       : { bytes: Buffer.from(data, "utf8"), binary: false };
   }
+
   if (!data) return { bytes: Buffer.alloc(0), binary: true };
+
   return { bytes: toBytes(data), binary: true };
 }
 
@@ -34,17 +49,25 @@ export function toPayload(data: unknown): SocketPayload {
 /// read through `.buffer`, `.byteOffset` and `.byteLength`, not element by element:
 /// `Buffer.from(view)` keeps one byte per element, so a two-element `Uint16Array` would
 /// put 2 bytes on the wire where `ws` puts 4.
-function toBytes(data: unknown): Buffer {
+function toBytes<Data>(data: Data): Buffer {
   if (Buffer.isBuffer(data)) return data;
+
   if (ArrayBuffer.isView(data)) {
-    return Buffer.from(data.buffer as ArrayBuffer, data.byteOffset, data.byteLength);
+    return Buffer.from(data.buffer, data.byteOffset, data.byteLength);
   }
+
   if (data instanceof ArrayBuffer) return Buffer.from(data);
+
+  if (data instanceof SharedArrayBuffer) return Buffer.from(data);
+
+  // SAFETY: `Buffer.from` reads the remaining ArrayLike payload and throws the same
+  // `TypeError` `ws` surfaces when the value has no readable length.
   return Buffer.from(data as BufferLikeSource);
 }
 
 export function notOpenError(readyState: number): CodedError {
   const name = READY_STATE_NAMES[readyState] ?? "UNKNOWN";
+
   return createError(
     "ERR_SOCKET_NOT_OPEN",
     `WebSocket is not open: readyState ${readyState} (${name})`,
@@ -59,12 +82,14 @@ export function statusError(status: ErrorStatus): CodedError {
 /// `writableLength` is the one property on a Node stream that means "waiting to go out".
 export function queuedBytes(state: SocketState): number {
   if (state.transport === null) return 0;
+
   return state.transport.writableLength;
 }
 
 /// A transport-owned socket has no staging ring, so it reads the transport's own queue.
 export function bufferedAmountOf(state: SocketState): number {
   if (state.attachment === null) return queuedBytes(state) + state.bufferedExtra;
+
   return (
     socketBufferedAmount(state.attachment.server, state.attachment.connection) + state.bufferedExtra
   );
@@ -72,7 +97,8 @@ export function bufferedAmountOf(state: SocketState): number {
 
 /// `nextTick` keeps send and close callbacks off the caller's stack, matching the native
 /// sender's completion timing.
-export function defer(callback: unknown, error?: Error): void {
-  if (typeof callback !== "function") return;
-  process.nextTick(callback as (failure?: Error) => void, error);
+export function defer(callback: SocketCallback | undefined, error?: Error): void {
+  if (callback === undefined) return;
+
+  process.nextTick(callback, error);
 }

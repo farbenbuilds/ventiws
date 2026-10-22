@@ -22,6 +22,7 @@ const EXEMPT = new Set(["src/types/ws.d.ts"]);
 // leaves a file that fails the line budget on the next `pnpm lint`.
 const GENERATED_ROOTS = ["tests/autobahn/reports/"];
 const MAX_LINES = 150;
+
 const TEXT_EXTENSIONS = new Set([
   ".ts",
   ".mts",
@@ -35,9 +36,11 @@ const TEXT_EXTENSIONS = new Set([
   ".yml",
   ".yaml",
 ]);
+
 const EMOJI = /\p{Extended_Pictographic}|\u20E3|\p{Regional_Indicator}/u;
 const KEBAB_CASE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const ZIG_FUNCTION = /\bfn\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(/g;
+
 // snake_case is lowercase words joined by single underscores; a leading,
 // trailing, or doubled underscore is not snake_case.
 const ZIG_SNAKE_CASE = /^[a-z][a-z0-9]*(?:_[a-z0-9]+)*$/;
@@ -47,10 +50,12 @@ const violations = [];
 function walk(directory) {
   for (const entry of readdirSync(directory, { withFileTypes: true })) {
     const path = join(directory, entry.name);
+
     if (entry.isDirectory()) {
       walk(path);
       continue;
     }
+
     check(path);
   }
 }
@@ -63,9 +68,12 @@ function check(path) {
   // Windows checkout while passing in CI, which is what made `pnpm lint` unusable
   // there rather than merely noisier.
   const name = relative(ROOT, path).split(sep).join("/");
+
   if (EXEMPT.has(name)) return;
+
   if (GENERATED_ROOTS.some((root) => name.startsWith(root))) return;
   const extension = name.slice(name.lastIndexOf("."));
+
   if (!TEXT_EXTENSIONS.has(extension)) return;
   const source = readFileSync(path, "utf8");
   const lines = source.split("\n").length - (source.endsWith("\n") ? 1 : 0);
@@ -87,6 +95,7 @@ function check(path) {
   if (extension === ".ts" && name.startsWith("src/")) {
     const base = name.slice(name.lastIndexOf("/") + 1);
     const stem = base.slice(0, base.length - extension.length);
+
     if (!KEBAB_CASE.test(stem)) {
       violations.push(`${name}: TypeScript filename '${stem}' is not kebab-case`);
     }

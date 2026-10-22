@@ -16,29 +16,44 @@ afterAll(() => {
   for (const dir of created) rmSync(dir, { recursive: true, force: true });
 });
 
-type Manifest = {
-  types?: string;
-  exports?: Record<string, Record<string, unknown>>;
+type ExportConditions = {
+  readonly import?: string;
+  readonly require?: string;
+  readonly types?: string | Readonly<Record<string, string>>;
+  readonly bun?: ExportConditions;
+  readonly deno?: ExportConditions;
 };
+
+type Manifest = {
+  readonly types?: string;
+  readonly exports?: Readonly<Record<string, ExportConditions>>;
+};
+
+type RunResult = { readonly status: number | null; readonly manifest: Manifest };
 
 function manifestPath(fixture: Manifest): string {
   const dir = mkdtempSync(join(tmpdir(), "ventiws-exports-"));
   created.push(dir);
   const path = join(dir, "package.json");
   writeFileSync(path, `${JSON.stringify(fixture, null, 2)}\n`);
+
   return path;
 }
 
-function run(fixture: Manifest): { status: number | null; manifest: Manifest } {
+function run(fixture: Manifest): RunResult {
   const path = manifestPath(fixture);
   const result = spawnSync(process.execPath, [SCRIPT, path], { encoding: "utf8" });
-  return { status: result.status, manifest: JSON.parse(readFileSync(path, "utf8")) as Manifest };
+  const manifest: Manifest = JSON.parse(readFileSync(path, "utf8"));
+
+  return { status: result.status, manifest };
 }
 
 function rerun(path: string): Manifest {
   const result = spawnSync(process.execPath, [SCRIPT, path], { encoding: "utf8" });
   expect(result.status).toBe(0);
-  return JSON.parse(readFileSync(path, "utf8")) as Manifest;
+  const manifest: Manifest = JSON.parse(readFileSync(path, "utf8"));
+
+  return manifest;
 }
 
 test("adds a declaration beside each bundled runtime path", () => {
@@ -48,6 +63,7 @@ test("adds a declaration beside each bundled runtime path", () => {
       "./logging": { import: "./dist/logging.mjs", require: "./dist/logging.cjs" },
     },
   });
+
   expect(status).toBe(0);
   const root = manifest.exports?.["."];
   expect(root?.types).toEqual({ import: "./dist/index.d.mts", require: "./dist/index.d.cts" });
@@ -59,6 +75,7 @@ test("names Bun and Deno ahead of the format condition", () => {
   const { status, manifest } = run({
     exports: { ".": { import: "./dist/index.mjs", require: "./dist/index.cjs" } },
   });
+
   expect(status).toBe(0);
   const root = manifest.exports?.["."];
   const keys = Object.keys(root ?? {});
@@ -77,6 +94,7 @@ test("a completed manifest is stable when it is completed again", () => {
   const path = manifestPath({
     exports: { ".": { import: "./dist/index.mjs", require: "./dist/index.cjs" } },
   });
+
   const once = rerun(path);
   const twice = rerun(path);
   expect(twice.exports?.["."]).toEqual(once.exports?.["."]);
@@ -89,6 +107,7 @@ test("a subpath with no ESM bundle gets no named-runtime keys", () => {
       "./legacy": { require: "./dist/legacy.cjs" },
     },
   });
+
   expect(status).toBe(0);
   const legacy = manifest.exports?.["./legacy"];
   expect(legacy?.types).toEqual({ require: "./dist/legacy.d.cts" });

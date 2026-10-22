@@ -1,5 +1,6 @@
 import { createRequire } from "node:module";
 import process from "node:process";
+import { guardError } from "./errors";
 import { runtimeName } from "./runtime";
 import type { VentiAddon } from "./native";
 
@@ -13,11 +14,21 @@ const DLOPEN_FLAGS = 0;
 /// Node and Bun keep `require`, which is how the platform packages already resolve.
 export function openAddon(path: string): VentiAddon {
   if (runtimeName() === "deno") return denoAddon(path);
-  return require(path) as VentiAddon;
+
+  const addon: VentiAddon = require(path);
+
+  return addon;
 }
 
+type AddonModule = { exports: VentiAddon | undefined };
+
 function denoAddon(path: string): VentiAddon {
-  const addon: { exports: VentiAddon } = { exports: {} as VentiAddon };
+  const addon: AddonModule = { exports: undefined };
   process.dlopen(addon, path, DLOPEN_FLAGS);
+
+  if (addon.exports === undefined) {
+    throw guardError("ventiws: process.dlopen loaded no addon exports", "ERR_PROTOCOL", Error);
+  }
+
   return addon.exports;
 }

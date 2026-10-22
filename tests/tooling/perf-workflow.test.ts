@@ -9,6 +9,7 @@ import { expect, test } from "vitest";
 const ROOT = new URL("../../", import.meta.url);
 const WORKFLOW = readFileSync(new URL(".github/workflows/perf.yml", ROOT), "utf8");
 const PUBLISH_JOB = WORKFLOW.split(/\n {2}(?=publish-history:)/)[1] ?? "";
+
 const COMPARE_JOB =
   WORKFLOW.split(/\n {2}(?=echo-throughput:)/)[1]?.split(/\n {2}(?=publish-history:)/)[0] ?? "";
 

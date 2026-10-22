@@ -22,6 +22,7 @@ test("nodebuffer is the default", { timeout: TEST_TIMEOUT_MS }, async () => {
   const harness = await upgradeHarness();
   const accepted = nextSocket(harness.server);
   const client = await openClient(harness.url);
+
   try {
     const socket = await accepted;
     const seen: Array<{ isBuffer: boolean; isArrayBuffer: boolean }> = [];
@@ -44,6 +45,7 @@ test(
     const harness = await upgradeHarness();
     const accepted = nextSocket(harness.server);
     const client = await openClient(harness.url);
+
     try {
       const socket = await accepted;
       const seen: ArrayBuffer[] = [];
@@ -56,7 +58,7 @@ test(
       // Exactly the three bytes, not the 64 KiB the socket read allocated: a caller
       // reading `byteLength` off the underlying allocation would see the whole read.
       expect(seen[0]?.byteLength).toBe(3);
-      expect([...new Uint8Array(seen[0] as ArrayBuffer)]).toEqual([1, 2, 3]);
+      expect([...new Uint8Array(seen[0])]).toEqual([1, 2, 3]);
     } finally {
       client.terminate();
       await harness.close();

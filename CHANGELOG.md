@@ -5,17 +5,41 @@ All notable changes to this project are documented here. The format follows
 [Conventional Commits](.github/COMMIT_CONVENTION.md), so the commit subjects are the
 same information in a form `git log` can filter.
 
+## [1.0.0-rc.5] - 2026-10-22
+
+### Security
+
+- Require Node.js 22.23.4, 24.22.1, or 26.12.1 to include the October 2026
+  security fixes: CVE-2026-105482, CVE-2026-105483, CVE-2026-106069,
+  CVE-2026-111497, CVE-2026-105481, CVE-2026-106072, CVE-2026-106074,
+  CVE-2026-106070, CVE-2026-106071, and CVE-2026-106073. See
+  https://nodejs.org/en/blog/vulnerability/october-2026-security-releases
+
+### Changed
+
+- Update the development dependencies to their latest releases, including
+  `oxlint`/`@oxlint/plugins` 1.89.0, `oxfmt` 0.74.0, `vitest` 5.0.5, `vite`
+  8.3.5, `tsdown` 0.23.1, `lefthook` 2.2.2, and `@types/node` 26.6.5.
+- Adopt `uWebZockets` v2.0.0 and adapt the listener port lookup to its listener
+  array.
+- Enforce the anti-slop evidence rules at `error` and format the whole tree with
+  `oxfmt`.
+- Emit function and data sections for the engine's vendored C and C++ sources,
+  reducing the linux-x64-musl addon from 15,016,880 to 14,380,712 bytes
+  (-4.24%) while keeping `ReleaseSafe`.
+- Build the cross-compiled release artifacts with `--release=safe`.
+
+### Fixed
+
+- Preserve the listener port for `port: 0` after the `uWebZockets` v2 listener
+  API change.
+- Remove the duplicated `1.0.0-rc.4` changelog section.
+
 ## [1.0.0-rc.4] - 2026-10-10
 
 ### Fixed
 
 - fix(ci): preserve immutable benchmark contract docs (#72)
-
-## [1.0.0-rc.4] - 2026-10-10
-
-### Fixed
-
-- fix(ci): preserve immutable benchmark contract docs
 
 ## [1.0.0-rc.3] - 2026-10-06
 

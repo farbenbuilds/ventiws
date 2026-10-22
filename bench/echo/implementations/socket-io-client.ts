@@ -1,5 +1,6 @@
 import { io as connectIo } from "socket.io-client";
 import type { EchoClient } from "../echo-types.ts";
+import type { SocketIoPayload } from "./socket-io-binary.ts";
 import { ECHO_EVENT, toBinaryBuffer } from "./socket-io-binary.ts";
 
 export const socketIoClient = (url: string): EchoClient => {
@@ -10,6 +11,7 @@ export const socketIoClient = (url: string): EchoClient => {
     // it disabled, so the extension is never negotiated.
     reconnection: false,
   });
+
   return {
     send: (payload) => {
       socket.emit(ECHO_EVENT, payload);
@@ -21,8 +23,9 @@ export const socketIoClient = (url: string): EchoClient => {
       socket.on("connect", listener);
     },
     onMessage: (listener) => {
-      socket.on(ECHO_EVENT, (payload: unknown) => {
+      socket.on(ECHO_EVENT, (payload: SocketIoPayload) => {
         const binary = toBinaryBuffer(payload);
+
         if (binary !== null) listener(binary);
       });
     },

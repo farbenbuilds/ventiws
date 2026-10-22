@@ -21,6 +21,7 @@ test("a release directive moves the version the way its kinds say", () => {
     ["1.0.1-alpha.2", ["major"], "2.0.0-alpha.0"],
     ["1.0.1-alpha.2", ["minor", "stable"], "1.1.0"],
   ];
+
   for (const [current, kinds, expected] of cases)
     expect(nextVersion(current, kinds), `${current} ${kinds}`).toBe(expected);
 });
@@ -57,9 +58,11 @@ test("a stable version is newer than its own prereleases", () => {
     ["1.0.1", "1.0.1-rc.4"],
     ["2.0.0-rc.0", "1.9.9"],
   ];
+
   for (const [a, b] of newer) {
     expect(compareVersions(a, b), `${a} > ${b}`).toBeGreaterThan(0);
     expect(compareVersions(b, a), `${b} < ${a}`).toBeLessThan(0);
   }
+
   expect(compareVersions("1.0.0-alpha", "1.0.0-alpha.1")).toBeLessThan(0);
 });
