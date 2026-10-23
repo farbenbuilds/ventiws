@@ -281,12 +281,13 @@ declarations through the package `exports` map; it needs `tsdown` output.
   (default: the next prerelease counter, or the next patch's train after a stable
   version; a version the tree states with no tag yet is released as written),
   unless the pull request carries `release:skip`, which lands the merge with no
-  version, commit, or tag. It commits the version and pushes the tag with the
-  release app's installation token
-  (`RELEASE_APP_CLIENT_ID` and `RELEASE_APP_PRIVATE_KEY`), because a tag pushed
-  with `GITHUB_TOKEN` starts no workflow run. That commit carries no CI skip
-  marker, because a release tag points at it and GitHub reads a marker anywhere
-  in a tagged commit's message.
+  version, commit, or tag. It commits and pushes the version, then pushes the
+  tag, with the release app's installation token
+  (`RELEASE_APP_CLIENT_ID` and `RELEASE_APP_PRIVATE_KEY`); the app is on
+  `main`'s required-review bypass list, and a tag pushed with `GITHUB_TOKEN`
+  starts no workflow run. That commit carries no CI skip marker, because a
+  release tag points at it and GitHub reads a marker anywhere in a tagged
+  commit's message.
   `tests/tooling/version.test.ts` holds the three version sources, the
   changelog's shape, the bump loop guard, and that marker rule together.
 - `perf.yml` reports echo throughput for the public facade, `ws`, the native
