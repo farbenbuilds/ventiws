@@ -20,7 +20,11 @@ async function expectRegistryValue(args, expected, run, wait, label) {
   // npm can accept a publish before its new version is visible to registry reads.
   for (let attempt = 0; attempt < 18; attempt += 1) {
     try {
-      if (JSON.parse(run(args)) === expected) return;
+      const value = JSON.parse(run(args));
+
+      if (value === expected) return;
+
+      if (Array.isArray(value) && value.length === 1 && value[0] === expected) return;
     } catch {
       // A newly published version may return 404 during registry propagation.
     }
