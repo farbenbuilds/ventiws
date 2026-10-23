@@ -1,7 +1,7 @@
 import { loadVentiwsAddon } from "./target-runtime.ts";
 import { INBOUND_LIMIT_BYTES } from "./inbound-limit.ts";
 import { DEFAULT_TARGET_HOST, DEFAULT_TARGET_PORT } from "./paths.ts";
-import { echoState } from "./target-runtime.ts";
+import { echoState } from "./target-echo.ts";
 import { encodeTargetReady } from "./target-runtime.ts";
 import { onEvent, requestClose } from "./target-lifecycle.ts";
 import type { TargetState } from "./target-lifecycle.ts";

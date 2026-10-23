@@ -1,6 +1,8 @@
 import { loadVentiwsAddon } from "./target-runtime.ts";
-import type { EngineEvent, EchoState } from "./target-runtime.ts";
-import { pack, purge, reply } from "./target-runtime.ts";
+import type { EngineEvent } from "./target-runtime.ts";
+import { pack } from "./target-runtime.ts";
+import { purge, reply } from "./target-echo.ts";
+import type { EchoState } from "./target-echo.ts";
 
 const FINALIZE_ATTEMPTS = 6;
 

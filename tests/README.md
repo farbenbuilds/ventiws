@@ -1,6 +1,6 @@
 # Tests
 
-The suite is deliberately small: 56 files and 509 tests, down from 160 files and
+The suite is deliberately small: 57 files and 511 tests, down from 160 files and
 855 tests. It is organized by the evidence it produces, not by one file per
 scenario. A behavior belongs to exactly one layer. If a case is already covered
 by the conformance or Autobahn oracle, do not add a second unit test for it;
