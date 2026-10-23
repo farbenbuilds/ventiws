@@ -51,9 +51,9 @@ the image.
 - The reduction is smaller than a feature cut, but it is reproducible, preserves
   the safety posture, and does not add a second native product to the release
   matrix.
-- `uWebZockets` is pinned to the v2.0.5 line plus the packaging and section
-  commits; a future engine upgrade must keep both changes or replace them with
-  an upstream equivalent.
+- `uWebZockets` is pinned to the upstream v2.0.6 release, which carries the
+  packaging and section changes. A future engine upgrade must keep both changes
+  or replace them with an upstream equivalent.
 
 **Rejected.**
 

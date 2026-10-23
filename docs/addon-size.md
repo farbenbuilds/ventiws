@@ -22,9 +22,10 @@ tests, Autobahn, and the engine benchmark row, and is never published.
 | linux-x64-gnu  |           14,387,952 |               470,784 | -13,917,168 (-96.73%) |
 
 The development engine addon is 14,407,576 bytes on linux-x64-musl with the
-v2.0.5 security refresh. It carries
-the same full ABI the published addon used to expose; only the public artifact
-changed.
+v2.0.5 security refresh and the section flags. The upstream v2.0.6 release
+carries the same build graph, so the recorded size remains the reference. It
+carries the same full ABI the published addon used to expose; only the public
+artifact changed.
 
 The public artifact carries the codec, `engineVersion`, and `engineLimits`. It
 has no `createServer`, `http3Available`, `sendSocket`, or `pumpSocket`, and a

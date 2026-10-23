@@ -34,10 +34,10 @@
     "url": "git+https://github.com/farbenbuilds/napi-zig?ref=v0.3.1-ventiws.1#038912638dbcaab61ba0bde912339200434de11a",
     "hash": "sha256-/fIusBvJUHHF1tDEqIwRgqntfnMBqp8llGR4VYOzbqA="
   },
-  "uWebZockets-2.0.5-SD3SPM1tKgBrClxOl0zHBMAzBQ9GIc6RZU3O4sCLU8LD": {
+  "uWebZockets-2.0.6-SD3SPNB0KgCJmT4NxpuxAuVfoTt8QSgz_jZP5P3gcqs-": {
     "name": "uWebZockets",
-    "url": "git+https://github.com/farbenbuilds/uWebZockets?ref=v2.0.5-ventiws.1#15ec728ac3a066a07e5e90a2364161021b463fa2",
-    "hash": "sha256-SDoqHQU4GttRT8rD0kPFBh2vr7gC4qRALXoitGOa8R0="
+    "url": "git+https://github.com/farbenbuilds/uWebZockets?ref=v2.0.6#a74f1251389d51009b72a77695850b3c7bd7f538",
+    "hash": "sha256-VOTkTxjf8IOB9xGfe1j8inQXmrShrPOODhprRW0SZBU="
   },
   "N-V-__8AAJ2cNgAgfBtAw33Bxfu1IWISDeKKSr3DAqoAysIJ": {
     "name": "zlib",

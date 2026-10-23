@@ -1,6 +1,6 @@
 git+https://github.com/ebiggers/libdeflate#92e6a0db9fa848d742f9eb286c92afc60f2c3dda
 git+https://github.com/farbenbuilds/napi-zig?ref=v0.3.1-ventiws.1#038912638dbcaab61ba0bde912339200434de11a
-git+https://github.com/farbenbuilds/uWebZockets?ref=v2.0.5-ventiws.1#15ec728ac3a066a07e5e90a2364161021b463fa2
+git+https://github.com/farbenbuilds/uWebZockets?ref=v2.0.6#a74f1251389d51009b72a77695850b3c7bd7f538
 git+https://github.com/google/boringssl#d3bf4795ad5b79d646cddf2fec687da5b9b502db
 git+https://github.com/litespeedtech/ls-hpack#fda48e02491d865cce00612be8cc10c2622b8e55
 git+https://github.com/litespeedtech/ls-qpack#91567706c41c0d97ab8dc576873ecd472d7869fa

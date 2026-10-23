@@ -58,7 +58,7 @@ function artifact(path: string): AddonSurface {
 test("the loader returns the public codec artifact at the pinned release", () => {
   const addon = loadAddon();
 
-  expect(addon.engineVersion()).toBe("2.0.5");
+  expect(addon.engineVersion()).toBe("2.0.6");
 
   for (const name of CODEC_FUNCTIONS) expect(addon[name]).toBeTypeOf("function");
 
