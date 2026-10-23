@@ -1,12 +1,18 @@
 name: Publish
 
-# The tag is the release decision, and the only way in: `bump.yml` pushes it with the
-# release app's installation token, because a tag pushed with `GITHUB_TOKEN` starts no run.
-# `pnpm release` remains the hand-pushed path.
+# A tag starts a publish. `bump.yml` pushes it with the release app's token because a
+# `GITHUB_TOKEN` tag push starts no run; `pnpm release` remains the hand-pushed path.
+# Manual dispatch repairs dist-tags for a version already published on all six packages.
 on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Already-published version to promote to latest
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -20,6 +26,7 @@ concurrency:
 jobs:
   bindings:
     name: ${{ matrix.name }}
+    if: ${{ github.event_name == 'push' }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 120
     strategy:
@@ -94,6 +101,7 @@ jobs:
 
   bindings-musl:
     name: linux-x64-musl
+    if: ${{ github.event_name == 'push' }}
     runs-on: ubuntu-24.04
     # A musl host, or the addon links glibc into an Alpine binary. node:24-alpine already
     # carries a Node the JavaScript actions can run.
@@ -148,6 +156,7 @@ jobs:
 
   publish:
     name: Publish to npm
+    if: ${{ github.event_name == 'push' }}
     needs: [bindings, bindings-musl]
     runs-on: ubuntu-24.04
     timeout-minutes: 45
@@ -228,13 +237,10 @@ jobs:
         run: pnpm exec napi-zig publish
 
       - name: Point latest at this release
-        # Every merge publishes the newest version, prerelease or not, so `npm install
-        # ventiws` resolves what just landed. The `ventiws` trusted publisher must grant
-        # the dist-tag action; the OIDC token this job already holds is the credential,
-        # and no npm secret is stored for it.
+        # Bindings move first and ventiws last, after all six versions are visible.
         env:
           TAG: ${{ github.ref_name }}
-        run: npm dist-tag add "ventiws@${TAG#v}" latest
+        run: node scripts/promote-latest.mjs "${TAG#v}"
 
       - name: Upload the packed tarballs
         # `always()` because a failed publish is exactly when someone wants to see what was
@@ -245,6 +251,35 @@ jobs:
           name: npm-tarballs
           path: pnpm-pack
           if-no-files-found: warn
+
+  promote:
+    name: Repair latest dist-tags
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      id-token: write
+    environment:
+      name: npm
+      url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: pnpm/setup@v2
+        with:
+          version: 12.4.2
+          runtime: node@24.22.1
+          cache: true
+          install: false
+
+      - name: Install the publish client
+        run: pnpm add -g npm@12.2.0
+
+      - name: Promote an existing release
+        env:
+          VERSION: ${{ inputs.version }}
+        run: node scripts/promote-latest.mjs "$VERSION"
 
   release:
     name: GitHub Release

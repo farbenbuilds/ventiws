@@ -167,8 +167,7 @@ pnpm lockfile.
 
 The version commit and tag are pushed with the release app's installation token
 rather than `GITHUB_TOKEN`: the app is on `main`'s required-review bypass list,
-and a `GITHUB_TOKEN` tag push starts no workflow run while `publish.yml` takes
-no dispatch. The app is a one-time maintainer step: create a GitHub App with
+and a `GITHUB_TOKEN` tag push starts no workflow run. The app is a one-time maintainer step: create a GitHub App with
 `Contents: Read and write` and no webhook, install it on this repository only,
 add it to the `main` branch-protection bypass list, then store its Client ID as
 the `RELEASE_APP_CLIENT_ID` repository variable and its private key as the
@@ -203,10 +202,20 @@ also set; a prerelease label on a stable version targets the next patch.
 with nothing published. A merge with no release label still releases: use the
 skip label when that is not wanted.
 
-Every publish is then promoted to the `latest` dist-tag, prerelease or not, so
-`npm install ventiws` always resolves the newest merge. The promotion is an
-`npm dist-tag add` in `publish.yml` authorized by the same OIDC token, which
-requires the `ventiws` trusted publisher on npm to allow dist-tag management.
+Every publish then promotes all five bindings and `ventiws` to the `latest`
+dist-tag, prerelease or not. The workflow checks that all six versions exist
+before changing any tag, confirms each binding tag, and moves `ventiws` last.
+Each package's trusted publisher must allow dist-tag management over OIDC.
+If a publish succeeded but promotion failed, repair the existing version without
+rebuilding or republishing it:
+
+```sh
+gh workflow run publish.yml -f version="$VERSION"
+```
+
+Use the version that is already present on npm for all six packages, and run
+this after any active tag publish has finished. The manual run checks version
+availability before it changes any dist-tag.
 
 Without a pull request -- a direct push, or a run by hand -- the same directive is
 a pair of dispatch inputs:
