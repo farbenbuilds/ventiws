@@ -5,6 +5,13 @@ All notable changes to this project are documented here. The format follows
 [Conventional Commits](.github/COMMIT_CONVENTION.md), so the commit subjects are the
 same information in a form `git log` can filter.
 
+## [1.0.0-rc.6] - 2026-10-23
+
+### Fixed
+
+- fix(ci): align binding latest tags with releases (#78)
+- fix(ci): include unscoped conventional subjects in the changelog (#77)
+
 ## [1.0.0-rc.5] - 2026-10-23
 
 ### Security
