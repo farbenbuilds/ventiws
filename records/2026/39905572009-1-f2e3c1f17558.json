@@ -1,0 +1,354 @@
+{
+  "schema_version": 1,
+  "benchmark_id": "echo-throughput-v2",
+  "record_id": "39905572009-1-f2e3c1f17558",
+  "recorded_at": "2026-10-23T05:40:21.705Z",
+  "guarantee": {
+    "formula": "candidate_median_round_trips_per_second >= baseline_median_round_trips_per_second * minimum_baseline_ratio",
+    "minimum_baseline_ratio": 0.9,
+    "passed": true
+  },
+  "methodology": {
+    "contract_sha256": "32a7e625914946b2873398ae65d04727616a787a05adf186dd445ff722183e70",
+    "statistic": "median",
+    "messages": 200000,
+    "repeats": 3,
+    "warmups": 1,
+    "payload_sizes_bytes": [
+      64,
+      1024,
+      16384,
+      32768
+    ],
+    "per_message_deflate": false,
+    "wire_bytes_basis": "payload-only",
+    "implementations": [
+      "ws",
+      "ventiws",
+      "ventiws-engine",
+      "uWebSockets.js",
+      "socket.io"
+    ],
+    "gate_baseline": "ws",
+    "gate_candidate": "ventiws"
+  },
+  "provenance": {
+    "repository": "farbenbuilds/ventiws",
+    "event_name": "push",
+    "git_ref": "refs/heads/main",
+    "commit_sha": "f2e3c1f17558bf191aff90ec8f799528f8a3a3d8",
+    "workflow_run_url": "https://github.com/farbenbuilds/ventiws/actions/runs/39905572009",
+    "run_id": 39905572009,
+    "run_attempt": 1
+  },
+  "runner": {
+    "os": "Linux",
+    "architecture": "X64",
+    "name": "GitHub Actions 1000004870",
+    "image": "ubuntu24/20261012.334.1",
+    "cpu_model": "AMD EPYC 9V45 96-Core Processor",
+    "cpu_count": 4,
+    "kernel": "Linux 6.17.0-1022-azure #22-Ubuntu SMP Mon Jul 27 17:24:03 UTC 2026 x86_64 GNU/Linux",
+    "total_memory_bytes": 16766406656
+  },
+  "toolchain": {
+    "node_version": "24.22.1",
+    "node_abi": "137",
+    "pnpm_version": "12.4.2",
+    "zig_version": "0.16.0",
+    "lockfile_sha256": "a5f8ad12643321bc95527d0dd0860e2624f930ee7c3f2baa5c6f4b95463845be",
+    "ventiws_version": "1.0.0-rc.4",
+    "ws_version": "8.22.0",
+    "uweb_sockets_version": "20.71.0",
+    "socket_io_version": "4.8.4",
+    "socket_io_client_version": "4.8.4"
+  },
+  "results": {
+    "configurations": [
+      {
+        "payload_bytes": 64,
+        "candidate_to_baseline_ratio": 0.9548328652957695,
+        "legs": {
+          "ws": {
+            "status": "measured",
+            "median_seconds": 3.6235190299999998,
+            "median_round_trips_per_second": 55195,
+            "median_wire_bytes_per_second": 7064955,
+            "spread": 0.02352456694563022,
+            "samples_seconds": [
+              3.645739321,
+              3.560497605,
+              3.6235190299999998
+            ],
+            "reason": null
+          },
+          "ventiws": {
+            "status": "measured",
+            "median_seconds": 3.7949376040000002,
+            "median_round_trips_per_second": 52702,
+            "median_wire_bytes_per_second": 6745829,
+            "spread": 0.004614214205140895,
+            "samples_seconds": [
+              3.7949376040000002,
+              3.793599006,
+              3.811109661
+            ],
+            "reason": null
+          },
+          "ventiws-engine": {
+            "status": "measured",
+            "median_seconds": 10.187342326,
+            "median_round_trips_per_second": 19632,
+            "median_wire_bytes_per_second": 2512922,
+            "spread": 0.034711674123043504,
+            "samples_seconds": [
+              10.481637292,
+              10.128017585,
+              10.187342326
+            ],
+            "reason": null
+          },
+          "uWebSockets.js": {
+            "status": "measured",
+            "median_seconds": 3.207352309,
+            "median_round_trips_per_second": 62357,
+            "median_wire_bytes_per_second": 7981661,
+            "spread": 0.01048035163012079,
+            "samples_seconds": [
+              3.234510174,
+              3.200895994,
+              3.207352309
+            ],
+            "reason": null
+          },
+          "socket.io": {
+            "status": "measured",
+            "median_seconds": 8.91426189,
+            "median_round_trips_per_second": 22436,
+            "median_wire_bytes_per_second": 2871803,
+            "spread": 0.035226308568773804,
+            "samples_seconds": [
+              8.91426189,
+              8.733127499,
+              9.047144039
+            ],
+            "reason": null
+          }
+        }
+      },
+      {
+        "payload_bytes": 1024,
+        "candidate_to_baseline_ratio": 0.9663620686237586,
+        "legs": {
+          "ws": {
+            "status": "measured",
+            "median_seconds": 3.964392212,
+            "median_round_trips_per_second": 50449,
+            "median_wire_bytes_per_second": 103319747,
+            "spread": 0.037653910112161224,
+            "samples_seconds": [
+              4.089643552,
+              3.940368684,
+              3.964392212
+            ],
+            "reason": null
+          },
+          "ventiws": {
+            "status": "measured",
+            "median_seconds": 4.102390031,
+            "median_round_trips_per_second": 48752,
+            "median_wire_bytes_per_second": 99844236,
+            "spread": 0.04352592772766515,
+            "samples_seconds": [
+              4.076413154,
+              4.254973486,
+              4.102390031
+            ],
+            "reason": null
+          },
+          "ventiws-engine": {
+            "status": "measured",
+            "median_seconds": 10.687545021000002,
+            "median_round_trips_per_second": 18713,
+            "median_wire_bytes_per_second": 38324985,
+            "spread": 0.007983108265963247,
+            "samples_seconds": [
+              10.75304304,
+              10.667723211,
+              10.687545021000002
+            ],
+            "reason": null
+          },
+          "uWebSockets.js": {
+            "status": "measured",
+            "median_seconds": 3.491789797,
+            "median_round_trips_per_second": 57277,
+            "median_wire_bytes_per_second": 117303739,
+            "spread": 0.03290145646759843,
+            "samples_seconds": [
+              3.491789797,
+              3.515729205,
+              3.400844235
+            ],
+            "reason": null
+          },
+          "socket.io": {
+            "status": "measured",
+            "median_seconds": 9.472362298,
+            "median_round_trips_per_second": 21114,
+            "median_wire_bytes_per_second": 43241589,
+            "spread": 0.053205824180353745,
+            "samples_seconds": [
+              9.472362298,
+              9.544978196,
+              9.040993353000001
+            ],
+            "reason": null
+          }
+        }
+      },
+      {
+        "payload_bytes": 16384,
+        "candidate_to_baseline_ratio": 1.1715298491332728,
+        "legs": {
+          "ws": {
+            "status": "measured",
+            "median_seconds": 8.645605315,
+            "median_round_trips_per_second": 23133,
+            "median_wire_bytes_per_second": 758026739,
+            "spread": 0.04240458483154776,
+            "samples_seconds": [
+              8.811176697999999,
+              8.645605315,
+              8.444563394000001
+            ],
+            "reason": null
+          },
+          "ventiws": {
+            "status": "measured",
+            "median_seconds": 7.3799047170000005,
+            "median_round_trips_per_second": 27101,
+            "median_wire_bytes_per_second": 888033146,
+            "spread": 0.04124967891506183,
+            "samples_seconds": [
+              7.3799047170000005,
+              7.387322116,
+              7.082903416
+            ],
+            "reason": null
+          },
+          "ventiws-engine": {
+            "status": "measured",
+            "median_seconds": 15.065921107,
+            "median_round_trips_per_second": 13275,
+            "median_wire_bytes_per_second": 434994977,
+            "spread": 0.022132830885797587,
+            "samples_seconds": [
+              15.192236224,
+              15.065921107,
+              14.85878474
+            ],
+            "reason": null
+          },
+          "uWebSockets.js": {
+            "status": "measured",
+            "median_seconds": 6.2554711020000004,
+            "median_round_trips_per_second": 31972,
+            "median_wire_bytes_per_second": 1047658904,
+            "spread": 0.03088677125184476,
+            "samples_seconds": [
+              6.4362716429999995,
+              6.2554711020000004,
+              6.243060338
+            ],
+            "reason": null
+          },
+          "socket.io": {
+            "status": "measured",
+            "median_seconds": 14.732055396,
+            "median_round_trips_per_second": 13576,
+            "median_wire_bytes_per_second": 444853065,
+            "spread": 0.03900377778622901,
+            "samples_seconds": [
+              15.189671609,
+              14.615065794,
+              14.732055396
+            ],
+            "reason": null
+          }
+        }
+      },
+      {
+        "payload_bytes": 32768,
+        "candidate_to_baseline_ratio": 1.2911541119557706,
+        "legs": {
+          "ws": {
+            "status": "measured",
+            "median_seconds": 13.821963826000001,
+            "median_round_trips_per_second": 14470,
+            "median_wire_bytes_per_second": 948287824,
+            "spread": 0.020325412910684966,
+            "samples_seconds": [
+              14.031622768,
+              13.821963826000001,
+              13.750685645999999
+            ],
+            "reason": null
+          },
+          "ventiws": {
+            "status": "measured",
+            "median_seconds": 10.705172497,
+            "median_round_trips_per_second": 18683,
+            "median_wire_bytes_per_second": 1224380084,
+            "spread": 0.07651979183236508,
+            "samples_seconds": [
+              10.705172497,
+              11.152053028000001,
+              10.332895457000001
+            ],
+            "reason": null
+          },
+          "ventiws-engine": {
+            "status": "measured",
+            "median_seconds": 20.422942306999996,
+            "median_round_trips_per_second": 9793,
+            "median_wire_bytes_per_second": 641788034,
+            "spread": 0.03265780698853559,
+            "samples_seconds": [
+              20.748930659000003,
+              20.422942306999996,
+              20.081962151
+            ],
+            "reason": null
+          },
+          "uWebSockets.js": {
+            "status": "measured",
+            "median_seconds": 9.689184541,
+            "median_round_trips_per_second": 20642,
+            "median_wire_bytes_per_second": 1352766060,
+            "spread": 0.03561845401330144,
+            "samples_seconds": [
+              9.741548002,
+              9.689184541,
+              9.396434228
+            ],
+            "reason": null
+          },
+          "socket.io": {
+            "status": "measured",
+            "median_seconds": 21.318726786,
+            "median_round_trips_per_second": 9381,
+            "median_wire_bytes_per_second": 614820957,
+            "spread": 0.02803256123121088,
+            "samples_seconds": [
+              21.378489666,
+              21.318726786,
+              20.780871152
+            ],
+            "reason": null
+          }
+        }
+      }
+    ]
+  }
+}
