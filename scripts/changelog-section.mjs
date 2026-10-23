@@ -7,11 +7,27 @@ import { execFileSync } from "node:child_process";
 /// The subjects that reach the changelog, and the heading each is listed under. A merge is
 /// titled by its pull request, and a squash merge keeps that title as its subject.
 const REACHING = [
-  { pattern: /^feat(\(|!)/, heading: "Added" },
-  { pattern: /^fix(\(|!)/, heading: "Fixed" },
-  { pattern: /^perf(\(|!)/, heading: "Performance" },
-  { pattern: /^(build|ci|refactor|style)(\(|!)/, heading: "Changed" },
+  { pattern: /^feat(?:\(|!|:)/, heading: "Added" },
+  { pattern: /^fix(?:\(|!|:)/, heading: "Fixed" },
+  { pattern: /^perf(?:\(|!|:)/, heading: "Performance" },
+  { pattern: /^(?:build|ci|refactor|style)(?:\(|!|:)/, heading: "Changed" },
 ];
+
+/// Group merged subjects under the changelog heading for their Conventional Commit type.
+export function groupSubjects(subjects) {
+  const groups = new Map();
+
+  for (const subject of subjects) {
+    const entry = REACHING.find(({ pattern }) => pattern.test(subject));
+
+    if (!entry) continue;
+
+    if (!groups.has(entry.heading)) groups.set(entry.heading, []);
+    groups.get(entry.heading).push(subject);
+  }
+
+  return [...groups];
+}
 
 /// git's stdout, or `null` when git could not answer.
 ///
@@ -50,20 +66,10 @@ export function changelogSection(root, version, marker) {
     .split("\n")
     .filter((subject) => subject !== "");
 
-  const groups = new Map();
-
-  for (const subject of subjects) {
-    const entry = REACHING.find(({ pattern }) => pattern.test(subject));
-
-    if (!entry) continue;
-
-    if (!groups.has(entry.heading)) groups.set(entry.heading, []);
-    groups.get(entry.heading).push(subject);
-  }
-
+  const groups = groupSubjects(subjects);
   const date = new Date().toISOString().slice(0, 10);
 
-  const body = [...groups].map(
+  const body = groups.map(
     ([heading, lines]) => `### ${heading}\n\n${lines.map((line) => `- ${line}`).join("\n")}`,
   );
 
