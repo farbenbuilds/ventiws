@@ -64,21 +64,23 @@ test("a merge's directive reaches the bump, and release:skip writes nothing", ()
   }
 });
 
-test("the bump tags through the release app, and a re-run finds its own work", () => {
-  // A tag pushed with `GITHUB_TOKEN` starts no workflow, so it uses the app token; the
-  // checkout must not persist a credential that would take precedence over it.
+test("the bump pushes the version and tag through the release app", () => {
+  // The version commit and tag both use the app token: the app is the branch-protection
+  // bypass actor, and a tag pushed with `GITHUB_TOKEN` starts no workflow. The checkout
+  // must not persist a credential that would take precedence over either push.
   expectAll(BUMP_WORKFLOW, [
     "actions/create-github-app-token@v3",
     "secrets.RELEASE_APP_PRIVATE_KEY",
     'git push "$remote" "refs/tags/$TAG"',
     "persist-credentials: false",
-    "BRANCH_TOKEN",
+    "BRANCH_TOKEN: ${{ steps.app-token.outputs.token }}",
     "is already committed",
     'git ls-remote --tags "$remote" "refs/tags/$TAG"',
     'echo "$TAG already exists"',
     "fetch-depth: 0",
     "fetch-tags: true",
   ]);
+  expect(BUMP_WORKFLOW).not.toContain("BRANCH_TOKEN: ${{ secrets.GITHUB_TOKEN }}");
   expect(BUMP_WORKFLOW).not.toContain("gh workflow run");
   expect(BUMP_WORKFLOW).not.toContain("id-token");
   expect(BUMP_SCRIPT).toContain("const alreadyDocumented = changelog.includes(`## [${next}]`);");

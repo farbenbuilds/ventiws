@@ -165,14 +165,16 @@ pnpm lockfile.
 3. Verify [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) against the shipped
    artifacts.
 
-The tag is pushed with the release app's installation token rather than
-`GITHUB_TOKEN`, because a `GITHUB_TOKEN` push starts no workflow run and
-`publish.yml` takes no dispatch. The app is a one-time maintainer step: create a
-GitHub App with `Contents: Read and write` and no webhook, install it on this
-repository only, then store its Client ID as the `RELEASE_APP_CLIENT_ID`
-repository variable and its private key as the `RELEASE_APP_PRIVATE_KEY` secret.
-`pnpm release` (`scripts/tag-release.mjs`) pushes the tag by hand and remains the
-recovery path for a run that failed before its tag.
+The version commit and tag are pushed with the release app's installation token
+rather than `GITHUB_TOKEN`: the app is on `main`'s required-review bypass list,
+and a `GITHUB_TOKEN` tag push starts no workflow run while `publish.yml` takes
+no dispatch. The app is a one-time maintainer step: create a GitHub App with
+`Contents: Read and write` and no webhook, install it on this repository only,
+add it to the `main` branch-protection bypass list, then store its Client ID as
+the `RELEASE_APP_CLIENT_ID` repository variable and its private key as the
+`RELEASE_APP_PRIVATE_KEY` secret. `pnpm release` (`scripts/tag-release.mjs`)
+pushes the tag by hand and remains the recovery path for a run that failed
+before its tag.
 
 ### What the next version is
 

@@ -1,8 +1,9 @@
 name: Bump
 
-# A merge advances the version, commits it, and pushes the release tag. The tag is pushed
-# with the release app's installation token, not `GITHUB_TOKEN`: a `GITHUB_TOKEN` push
-# starts no workflow run, and the tag trigger is the only way into `publish.yml`.
+# A merge advances the version, commits it, and pushes the version commit and tag with the
+# release app's installation token. The app is on main's required-review bypass list, so the
+# version commit can land without a pull request. The bump loop guard ignores that commit,
+# and the tag is the only way into `publish.yml`.
 on:
   push:
     branches:
@@ -63,8 +64,8 @@ jobs:
           # `bump-version` also asks whether the tree's version is tagged; without tags a
           # released version looks unpublished and its merge publishes nothing.
           fetch-tags: true
-          # No persisted `GITHUB_TOKEN` credential: its Authorization header would
-          # authenticate the tag push below, and a `GITHUB_TOKEN` push starts no run.
+          # No persisted checkout credential: both pushes below use the release app's token,
+          # and a persisted `GITHUB_TOKEN` would take precedence over it.
           persist-credentials: false
 
       # A push run reads the directive from the merged pull request's labels; a dispatch run
@@ -95,9 +96,8 @@ jobs:
           if [ "${skip}" = "true" ]; then suffix=" (skipped)"; fi
           echo "release directive: ${kinds:-default}${suffix}"
 
-      # The checkout keeps the default `GITHUB_TOKEN` on purpose: the bump commit reaches
-      # `main` without starting a second round of CI, and only the tag push needs a
-      # credential that triggers runs.
+      # The app token can bypass main's required-review rule for the version commit. Its
+      # push starts a normal run, which the loop guard then skips; the tag starts publish.
       - uses: actions/create-github-app-token@v3
         id: app-token
         if: steps.release.outputs.skip != 'true'
@@ -130,7 +130,7 @@ jobs:
           # Through the environment: a version string is manifest data, and manifest data
           # interpolated into a `run:` line is shell input.
           VERSION: ${{ steps.bump.outputs.version }}
-          BRANCH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH_TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -147,8 +147,8 @@ jobs:
           # A merge landing during this job makes the push a non-fast-forward. Rebasing
           # onto it is a rebase of four lines onto a tree that did not touch them.
           git pull --rebase origin main
-          # The default token authenticates this push, which is what keeps it silent: only
-          # the tag push below should start a run.
+          # The release app is a branch-protection bypass actor. The commit carries no CI
+          # skip marker; the job-level loop guard skips this push and the tag starts publish.
           git push "https://x-access-token:${BRANCH_TOKEN}@github.com/${{ github.repository }}.git" HEAD:main
 
       - name: Tag the version
