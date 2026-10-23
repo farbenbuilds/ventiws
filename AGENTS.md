@@ -270,11 +270,13 @@ declarations through the package `exports` map; it needs `tsdown` output.
   `tsdown` copies the host `.node` into `dist/` only when a build produced one,
   so a checkout is runnable and a release is not carrying a foreign binary.
   `.github/workflows/publish.yml` builds every published platform on a runner
-  that is native for it and publishes six packages, and it runs only for a `v*`
-  tag. Every release is promoted to the `latest` dist-tag after publishing,
-  prerelease or not, so an install resolves the newest merge; that OIDC
-  `npm dist-tag add` needs the `ventiws` trusted publisher to allow tag
-  management. It holds no npm secret: `id-token: write` is the whole credential,
+  that is native for it and publishes six packages on a `v*` tag. After all six
+  versions are visible on npm, it promotes the five bindings first and `ventiws`
+  last to the `latest` dist-tag, prerelease or not. A manual dispatch repairs
+  those tags for a version already published on all six packages without
+  rebuilding or republishing. Each package's trusted publisher needs to allow
+  OIDC tag management. The workflow holds no npm secret: `id-token: write` is
+  the whole credential,
   because every package's trusted publisher on npm is configured against this
   workflow's filename and the `npm` environment. `.github/workflows/bump.yml`
   advances the version on a merge by the `release:<kind>` labels it carries

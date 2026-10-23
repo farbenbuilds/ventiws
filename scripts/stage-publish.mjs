@@ -107,7 +107,7 @@ function main() {
   verifyCompleteness(declared, built);
   verifyAddons(declared);
 
-  stageFiles();
+  stageFiles(declared);
   writeManifests(repo, declared);
 
   console.log(`stage-publish: ventiws@${repo.version} with ${declared.length} platform packages`);

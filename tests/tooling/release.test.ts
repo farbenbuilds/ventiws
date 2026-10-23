@@ -15,7 +15,7 @@ const WORKFLOW = readFileSync(
 // Slice the jobs so an assertion about one cannot be satisfied by another above it.
 const PUBLISH_JOB = WORKFLOW.slice(
   WORKFLOW.indexOf("\n  publish:"),
-  WORKFLOW.indexOf("\n  release:"),
+  WORKFLOW.indexOf("\n  promote:"),
 );
 
 const RELEASE_JOB = WORKFLOW.slice(WORKFLOW.indexOf("\n  release:"));
@@ -97,14 +97,14 @@ test("a release tags the version it finds rather than choosing one", () => {
   expect(Object.values(MANIFEST.scripts)).not.toContain("bumpp");
 });
 
-test("the tag is the only trigger, and the page follows a successful publish", () => {
+test("tag pushes publish, manual recovery is available, and the page follows a successful publish", () => {
   const trigger = WORKFLOW.slice(WORKFLOW.indexOf("\non:"), WORKFLOW.indexOf("permissions:"))
     .replace(/^\s*#.*$/gm, "")
     .replace(/\s+/g, " ")
     .trim();
 
-  expect(trigger).toBe('on: push: tags: - "v*"');
-  expect(WORKFLOW).not.toContain("inputs.");
+  expect(trigger).toContain('on: push: tags: - "v*" workflow_dispatch: inputs: version:');
+  expect(trigger).toContain("required: true type: string");
   expectAll(RELEASE_HEADER, [
     "needs: [bindings, bindings-musl, publish]",
     "needs.publish.result == 'success'",
@@ -114,7 +114,7 @@ test("the tag is the only trigger, and the page follows a successful publish", (
   expect(RELEASE_HEADER).not.toContain("id-token");
 });
 
-test("OIDC, the npm client, and the six packages sit on the publish job", () => {
+test("OIDC, the npm client, and six-package promotion sit on the publish job", () => {
   // `pnpm/setup` strips the bundled npm, and a client below 12.2.0 cannot write a
   // dist-tag over OIDC. Both grants belong to the job that publishes, not the page job.
   expect(PUBLISH_JOB).toContain("id-token: write");
@@ -127,8 +127,7 @@ test("OIDC, the npm client, and the six packages sit on the publish job", () => 
     "node scripts/check-release-tag.mjs",
     "pnpm run stage:publish",
     "pnpm exec napi-zig publish",
-    "npm dist-tag add",
-    '"ventiws@${TAG#v}" latest',
+    'node scripts/promote-latest.mjs "${TAG#v}"',
   ]);
   expect(PUBLISH_JOB).not.toContain("NPM_TOKEN");
 });

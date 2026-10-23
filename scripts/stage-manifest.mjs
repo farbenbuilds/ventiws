@@ -28,12 +28,12 @@ function writeJson(path, value) {
   writeFileSync(path, `${JSON.stringify(value, null, 2)}\n`, "utf8");
 }
 
-/// The bundle and the two files npm force-includes when it packs this directory.
+/// The bundle and files npm force-includes when it packs each directory.
 ///
 /// npm force-inclusion is the only reason `files` does not already name them, and it
 /// does not pull them from the repository: this copy is what puts them in the tarball.
 /// Without it the published page renders as a bare name and version.
-export function stageFiles() {
+export function stageFiles(targets) {
   if (!existsSync("dist")) {
     throw new Error("stage-publish: dist/ is missing; run tsdown first");
   }
@@ -41,6 +41,9 @@ export function stageFiles() {
   cpSync("dist", join(STAGE, "dist"), { recursive: true });
 
   for (const file of ["README.md", "LICENSE"]) cpSync(file, join(STAGE, file));
+
+  for (const target of targets)
+    cpSync("README.md", join(STAGE, SCOPE_DIR, `${BINDING_PREFIX}${target}`, "README.md"));
 
   for (const file of SCAFFOLDED) rmSync(join(STAGE, file), { force: true });
 }

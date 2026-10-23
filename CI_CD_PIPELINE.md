@@ -7,17 +7,17 @@ it is not proof that no memory or security defect remains.
 
 ## Job matrix
 
-| Workflow       | Jobs                                        | Triggers                                                                             | Gates on                                                              |
-| -------------- | ------------------------------------------- | ------------------------------------------------------------------------------------ | --------------------------------------------------------------------- |
-| `ts-lint.yml`  | TypeScript and formatting                   | push and pull request to `main` on a JS/TS or config path, manual                    | `pnpm lint`, `pnpm format:check`, `pnpm typecheck`                    |
-| `zig-lint.yml` | Zig formatting                              | push and pull request on `**.zig`, `build.zig`, `build.zig.zon`, manual              | `zig fmt --check`                                                     |
-| `nix-lint.yml` | Nix formatting                              | push and pull request on `**.nix` or `flake.lock`, manual                            | `nix fmt -- --check` over tracked `.nix` files                        |
-| `ts-test.yml`  | Unit and boundary tests                     | push and pull request on a JS/TS or config path, manual                              | `tests/protocol` and `tests/compat/options`                           |
-| `zig-test.yml` | Zig unit tests, Binding lifecycle tests     | push and pull request on a Zig, `src/`, `tests/`, `scripts/`, or config path, manual | `zig build test`, `typecheck:dist`, the whole vitest suite            |
-| `autobahn.yml` | Autobahn engine gate, RFC 6455 conformance  | push and pull request on a Zig, manifest, or harness path, weekly, manual            | the committed known-failure baseline                                  |
-| `perf.yml`     | Echo throughput across five implementations | push and pull request on a Zig, manifest, or `bench/` path, nightly, manual          | nothing: it reports, and trusted `main` runs publish a durable record |
-| `bump.yml`     | Advance the version, push the tag           | push to `main`, manual                                                               | nothing: it commits the version and starts the publish                |
-| `publish.yml`  | Platform build matrix, publish to npm       | a `v*` tag pushed by a maintainer                                                    | every platform builds and its addon loads and echoes                  |
+| Workflow       | Jobs                                                      | Triggers                                                                             | Gates on                                                              |
+| -------------- | --------------------------------------------------------- | ------------------------------------------------------------------------------------ | --------------------------------------------------------------------- |
+| `ts-lint.yml`  | TypeScript and formatting                                 | push and pull request to `main` on a JS/TS or config path, manual                    | `pnpm lint`, `pnpm format:check`, `pnpm typecheck`                    |
+| `zig-lint.yml` | Zig formatting                                            | push and pull request on `**.zig`, `build.zig`, `build.zig.zon`, manual              | `zig fmt --check`                                                     |
+| `nix-lint.yml` | Nix formatting                                            | push and pull request on `**.nix` or `flake.lock`, manual                            | `nix fmt -- --check` over tracked `.nix` files                        |
+| `ts-test.yml`  | Unit and boundary tests                                   | push and pull request on a JS/TS or config path, manual                              | `tests/protocol` and `tests/compat/options`                           |
+| `zig-test.yml` | Zig unit tests, Binding lifecycle tests                   | push and pull request on a Zig, `src/`, `tests/`, `scripts/`, or config path, manual | `zig build test`, `typecheck:dist`, the whole vitest suite            |
+| `autobahn.yml` | Autobahn engine gate, RFC 6455 conformance                | push and pull request on a Zig, manifest, or harness path, weekly, manual            | the committed known-failure baseline                                  |
+| `perf.yml`     | Echo throughput across five implementations               | push and pull request on a Zig, manifest, or `bench/` path, nightly, manual          | nothing: it reports, and trusted `main` runs publish a durable record |
+| `bump.yml`     | Advance the version, push the tag                         | push to `main`, manual                                                               | nothing: it commits the version and starts the publish                |
+| `publish.yml`  | Platform build matrix, publish to npm, repair latest tags | a `v*` tag or manual version dispatch                                                | every platform builds and its addon loads and echoes on tag pushes    |
 
 Every gating workflow runs on `ubuntu-24.04`. Node is `node@24.22.1` and pnpm
 `12.4.2` through `pnpm/setup@v2`, Zig is `0.16.0` through
@@ -32,7 +32,8 @@ rather than to gate a change, so its matrix is the published set.
 
 ## Release and native matrix
 
-`publish.yml` runs on the `v*` tag `bump.yml` pushes, or one pushed by hand. It
+`publish.yml` builds on the `v*` tag `bump.yml` pushes, or one pushed by hand.
+A manual dispatch only repairs dist-tags for an already-published version. It
 is the only workflow that builds anything but Linux, and the reason is that a
 published addon has to exist
 for every platform the package claims to support.
@@ -115,7 +116,7 @@ a token.
 `publish.yml` publishes the per-platform packages before the main package, so a
 main package is never on the registry pointing at bindings that are not there
 yet. It checks the tag against `package.json` first, so a tag pushed by hand
-cannot publish a version nobody released. The tag is the only way to start it:
+cannot publish a version nobody released. A tag is the only way to start a publish:
 `bump.yml` pushes it with the release app's installation token
 (`RELEASE_APP_CLIENT_ID` and `RELEASE_APP_PRIVATE_KEY`), because a tag pushed
 with `GITHUB_TOKEN` starts no run.
@@ -129,15 +130,20 @@ tree states with no tag yet is the release as written, so an authored
 `1.0.0-beta.1`. `scripts/next-version.mjs` is the table and
 `tests/tooling/version.test.ts` holds it.
 
-Every release is then promoted to the `latest` dist-tag, prerelease or not, so
-an install resolves the newest merge. The promotion is an OIDC `npm dist-tag
-add` in the publish job and needs the `ventiws` trusted publisher to allow
-dist-tag management.
+Every release then promotes all five bindings and `ventiws` to the `latest`
+dist-tag, prerelease or not. The promotion checks all six versions on npm before
+changing a tag, confirms each binding tag, and moves `ventiws` last. All six
+trusted publishers must allow dist-tag management over OIDC. If the publish
+succeeded but a tag update failed, run `gh workflow run publish.yml -f
+version="$VERSION"` with the already-published version after any active tag
+publish has finished. This dispatch uses the
+same `npm` environment and npm 12.2.0 client, without rebuilding or republishing.
 
 The publish is not transactional: a failure part way leaves the earlier packages
 on the registry. `napi-zig publish` treats an already-published version as a
 skip rather than an error, so a re-run of the same tag is safe, but a release
-that half-succeeded is repaired by re-running it rather than by hand.
+that half-succeeded is repaired by re-running the tag workflow. The manual
+dispatch is for versions already present on all six packages.
 
 ## Lint and type gates
 
