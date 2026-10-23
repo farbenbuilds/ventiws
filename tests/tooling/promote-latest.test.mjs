@@ -14,7 +14,7 @@ const bindings = [
 
 const names = [...bindings, "ventiws"];
 
-function registry(missing) {
+function registry(missing, read = JSON.stringify) {
   const calls = [];
   const tags = new Map();
 
@@ -28,11 +28,9 @@ function registry(missing) {
       return "";
     }
 
-    if (args[2] === "dist-tags.latest") return JSON.stringify(tags.get(args[1]) ?? staleVersion);
+    if (args[2] === "dist-tags.latest") return read(tags.get(args[1]) ?? staleVersion, args);
 
-    return JSON.stringify(
-      args[1] === `${missing}@${fixtureVersion}` ? staleVersion : fixtureVersion,
-    );
+    return read(args[1] === `${missing}@${fixtureVersion}` ? staleVersion : fixtureVersion, args);
   };
 
   return { calls, run, tags };
@@ -64,6 +62,37 @@ test("promotes all five bindings before ventiws after preflighting all six versi
     names.map((name) => ["view", name, "dist-tags.latest", "--json", "--prefer-online"]),
   );
   expect([...tags.keys()]).toEqual(names);
+});
+
+test("accepts npm 12 singleton array readbacks for versions and latest tags", async () => {
+  const { calls, run, tags } = registry(undefined, (value) => JSON.stringify([value]));
+  const log = vi.spyOn(console, "log").mockImplementation(() => {});
+
+  try {
+    await promoteLatest(fixtureVersion, run, async () => {});
+  } finally {
+    log.mockRestore();
+  }
+
+  expect(calls.filter(([command]) => command === "view")).toHaveLength(names.length * 2);
+  expect([...tags.keys()]).toEqual(names);
+});
+
+test.each([
+  ["empty array", "[]"],
+  ["multiple values", JSON.stringify([fixtureVersion, fixtureVersion])],
+  ["different value", JSON.stringify([staleVersion])],
+  ["malformed JSON", "{bad"],
+])("rejects %s on version and latest readbacks", async (_label, response) => {
+  for (const field of ["version", "dist-tags.latest"]) {
+    const { run, tags } = registry(undefined, (value, args) =>
+      args[2] === field ? response : JSON.stringify([value]),
+    );
+
+    await expect(promoteLatest(fixtureVersion, run, async () => {})).rejects.toThrow(bindings[0]);
+    expect(tags.size).toBe(field === "version" ? 0 : 1);
+    expect(tags.has("ventiws")).toBe(false);
+  }
 });
 
 test("missing platform version stops before changing any dist-tag", async () => {
