@@ -19,8 +19,10 @@ const visible = (text: string): string => text.replace(ANSI, "");
 
 function capture(run: () => void): string {
   const spy = vi.spyOn(process.stdout, "write").mockReturnValue(true);
+
   try {
     run();
+
     return spy.mock.calls.map((call) => String(call[0] ?? "")).join("");
   } finally {
     spy.mockRestore();
@@ -84,12 +86,14 @@ test("VENTIWS_LOG is read once, at load", async () => {
 
 test("a disabled logger writes nothing at all", () => {
   setLoggerEnabled(false);
+
   const output = capture(() => {
     info("pnpm build", "ok");
     warn("pnpm lint", "warn");
     fatal("pnpm test", "fail");
     ready("1.0.0-beta", 42, 8080);
   });
+
   expect(output).toBe("");
 });
 

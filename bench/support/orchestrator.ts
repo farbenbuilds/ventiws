@@ -2,6 +2,9 @@ import cluster from "node:cluster";
 import type { EchoConfig, EchoSample, ImplementationId } from "../echo/echo-types.ts";
 import { unavailable } from "../echo/echo-sample.ts";
 import { SPEC_ENV, type SampleMessage } from "../echo/worker.ts";
+import type { JsonValue } from "./json-value.ts";
+import { isJsonObject } from "./json-value.ts";
+import { errorText } from "./error-text.ts";
 import type { BenchOptions } from "./options.ts";
 import {
   PREFLIGHT_MESSAGES,
@@ -21,13 +24,10 @@ export type CollectOptions = {
 const GRACE_MS = 15000;
 const parentDeadlineMs = (timeoutMs: number): number => timeoutMs + GRACE_MS;
 
-const describeError = (error: unknown): string =>
-  error instanceof Error ? error.message : String(error);
+const isSampleMessage = (message: JsonValue): message is SampleMessage => {
+  if (!isJsonObject(message)) return false;
 
-const isSampleMessage = (message: unknown): message is SampleMessage => {
-  if (typeof message !== "object" || message === null) return false;
-  const record = message as Record<string, unknown>;
-  return record.kind === "sample" && typeof record.sample === "object" && record.sample !== null;
+  return message.kind === "sample" && isJsonObject(message.sample);
 };
 
 const configOf = (job: SampleJob, timeoutMs: number): EchoConfig => ({
@@ -47,6 +47,7 @@ const runJob = (job: SampleJob, timeoutMs: number): Promise<EchoSample> =>
   new Promise<EchoSample>((resolve) => {
     const worker = cluster.fork({ [SPEC_ENV]: JSON.stringify(configOf(job, timeoutMs)) });
     let settled = false;
+
     const finish = (sample: EchoSample): void => {
       if (settled) return;
       settled = true;
@@ -55,6 +56,7 @@ const runJob = (job: SampleJob, timeoutMs: number): Promise<EchoSample> =>
       worker.kill();
       resolve(sample);
     };
+
     const deadline = setTimeout(
       () =>
         finish(
@@ -66,14 +68,15 @@ const runJob = (job: SampleJob, timeoutMs: number): Promise<EchoSample> =>
         ),
       parentDeadlineMs(timeoutMs),
     );
-    worker.on("message", (message: unknown) => {
+
+    worker.on("message", (message: JsonValue) => {
       finish(
         isSampleMessage(message)
           ? message.sample
           : failed(job, timeoutMs, "worker sent an undecodable message"),
       );
     });
-    worker.on("error", (error: Error) => finish(failed(job, timeoutMs, describeError(error))));
+    worker.on("error", (error: Error) => finish(failed(job, timeoutMs, errorText(error))));
     worker.on("exit", (code: number) =>
       finish(failed(job, timeoutMs, `worker exited with code ${code} before reporting`)),
     );
@@ -96,14 +99,18 @@ const probeImplementations = async (
   log: (line: string) => void,
 ): Promise<ReadonlyMap<ImplementationId, string>> => {
   const blocked = new Map<ImplementationId, string>();
+
   for (const id of new Set(jobs.map((job) => job.implementation))) {
     const first = jobs.find((job) => job.implementation === id);
+
     if (first === undefined) continue;
     const sample = await runJob(probeOf(first), PREFLIGHT_TIMEOUT_MS);
     const reason = sample.status === "measured" ? null : sample.reason;
     log(reason === null ? `  preflight ${id}: echo round trip ok` : `  preflight ${id}: ${reason}`);
+
     if (reason !== null) blocked.set(id, `preflight: ${reason}`);
   }
+
   return blocked;
 };
 
@@ -113,12 +120,15 @@ export const collectSamples = async (
 ): Promise<readonly EchoSample[]> => {
   const blocked = await probeImplementations(jobs, options.log);
   const samples: EchoSample[] = [];
+
   for (const job of jobs) {
     const blockReason = blocked.get(job.implementation) ?? null;
+
     if (blockReason !== null) {
       samples.push(failed(job, SAMPLE_TIMEOUT_MS, blockReason));
       continue;
     }
+
     if (job.repeat <= options.bench.warmups) {
       // The warm-up runs the same shape as a measured repeat and is discarded;
       // a skipped warm-up would warm nothing and make the flag a lie.
@@ -126,10 +136,12 @@ export const collectSamples = async (
       await runJob(job, SAMPLE_TIMEOUT_MS);
       continue;
     }
+
     options.log(
       `  repeat ${job.repeat}  ${job.configuration}  ${job.payloadBytes} B x ${job.messages}`,
     );
     samples.push(await runJob(job, SAMPLE_TIMEOUT_MS));
   }
+
   return samples;
 };

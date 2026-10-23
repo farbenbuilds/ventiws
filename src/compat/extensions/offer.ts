@@ -10,5 +10,6 @@ import { PERMESSAGE_DEFLATE, NO_CONTEXT_TAKEOVER } from "./negotiated";
 /// `ws` offers it bare, and this one-shot compressor cannot choose a window below 15.
 export function offer(options: NormalizedPerMessageDeflate | false): string | undefined {
   if (options === false) return undefined;
+
   return formatExtension(PERMESSAGE_DEFLATE, NO_CONTEXT_TAKEOVER);
 }

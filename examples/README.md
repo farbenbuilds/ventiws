@@ -1,40 +1,36 @@
 # ventiws examples
 
-Runnable quickstarts that install the published `ventiws`. The three runtime
+Runnable quickstarts that install the published `ventiws`. The two runtime
 examples keep the same server and let each host own the client and the
 configuration; `effect-rpc-ventiws` shows ventiws behind Effect RPC, and
 `express-session-ventiws` attaches ventiws to an Express upgrade. Each directory
 is a standalone project, not part of the repository's pnpm workspace.
 
-| Example                                              | Stack                 | Run                               |
-| ---------------------------------------------------- | --------------------- | --------------------------------- |
-| [`vanilla-ventiws`](vanilla-ventiws)                 | Node.js 22.18+        | `pnpm install && pnpm start`      |
-| [`bun-ventiws`](bun-ventiws)                         | Bun                   | `bun install && bun run start`    |
-| [`deno-ventiws`](deno-ventiws)                       | Deno 2                | `deno install && deno task start` |
-| [`effect-rpc-ventiws`](effect-rpc-ventiws)           | Node.js, Effect RPC 4 | `pnpm install && pnpm start`      |
-| [`express-session-ventiws`](express-session-ventiws) | Node.js, Express 5    | `pnpm install && pnpm start`      |
+| Example                                              | Stack                 | Run                            |
+| ---------------------------------------------------- | --------------------- | ------------------------------ |
+| [`vanilla-ventiws`](vanilla-ventiws)                 | Node.js 22.18+        | `pnpm install && pnpm start`   |
+| [`bun-ventiws`](bun-ventiws)                         | Bun                   | `bun install && bun run start` |
+| [`effect-rpc-ventiws`](effect-rpc-ventiws)           | Node.js, Effect RPC 4 | `pnpm install && pnpm start`   |
+| [`express-session-ventiws`](express-session-ventiws) | Node.js, Express 5    | `pnpm install && pnpm start`   |
 
 The Node.js projects carry their own `pnpm-workspace.yaml` so they are their own
 workspace roots: without it, a `pnpm install` run inside the example resolves
 the repository workspace above. Their excludes admit the newest published
 dependencies through pnpm's 24-hour supply-chain window, because tracking the
-latest release is the example's job. Bun and Deno look no further than the
-example's own `package.json`.
+latest release is the example's job. Bun looks no further than the example's own
+`package.json`.
 
 Every manifest asks for the `latest` dist-tag, so the examples exercise the
 newest published release and never state a version a release leaves behind.
 
-Each project runs TypeScript directly: Node.js strips types since 22.18, and
-Bun and Deno execute it natively. Only the Node.js projects need `@types/node`;
-Bun uses `@types/bun`, and Deno's own `deno check` covers the example without
-an extra package.
+Each project runs TypeScript directly: Node.js strips types since 22.18, and Bun
+executes it natively. Only the Node.js projects need `@types/node`; Bun uses
+`@types/bun`.
 
-All three runtime examples run the same exchange: a ventiws `WebSocketServer`
-echoes one text frame, and the run ends by itself. The host supplies the rest.
-Node reads `process.env` and dials with the ventiws `WebSocket`; Bun reads
-`Bun.env` and dials with Bun's built-in `WebSocket` and DOM handlers; Deno reads
-`Deno.env.get` and dials with Deno's built-in `WebSocket`, setting
-`Deno.exitCode` on error.
+Both runtime examples run the same exchange: a ventiws `WebSocketServer` echoes
+one text frame, and the run ends by itself. Node reads `process.env` and dials
+with the ventiws `WebSocket`; Bun reads `Bun.env` and dials with Bun's built-in
+`WebSocket` and DOM handlers.
 
 `effect-rpc-ventiws` is a four-file project instead: `rpc.ts` defines the RPC
 group and handlers, `server.ts` implements Effect's `SocketServer` over a
@@ -51,13 +47,4 @@ so the socket reads `request.session.userId`. It uses `noServer: true` and
 `handleUpgrade`, refuses an unauthenticated upgrade with a 401, and serves a
 browser client from `public/`. Run it, then open http://localhost:8080.
 
-The Deno run needs `--allow-net` for the sockets, `--allow-env` for `Deno.env`
-and because importing ventiws reads `VENTIWS_LOG`, and `--allow-ffi` for the
-native addon.
-`--allow-read` covers the addon loader's filesystem fallbacks; an installed
-`@ventiws/binding-*` resolves without it. `deno.json` carries all four, and
-exempts ventiws from Deno's own 24-hour minimum dependency age so the example
-can track the newest release.
-
-`pnpm typecheck`, `bun run typecheck`, and `deno task typecheck` check each
-example without running it.
+`pnpm typecheck` and `bun run typecheck` check each example without running it.

@@ -17,5 +17,6 @@ export function pauseUntilNextTick(state: SocketState, resume: () => void): bool
     state.deliveryPaused = false;
     resume();
   });
+
   return true;
 }

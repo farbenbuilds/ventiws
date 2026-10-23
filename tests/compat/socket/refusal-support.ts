@@ -6,7 +6,7 @@
 
 import type { WebSocketServer } from "../../../src/index";
 import { TEST_TIMEOUT_MS } from "../../binding/support";
-import { openRawClient } from "../../binding/codec-net";
+import { openRawClient } from "../handshake";
 import { nextSocket, upgradeHarness } from "./codec-upgrade-support";
 
 /// What one refused frame reported: the application's `error`, and the socket's `close`.
@@ -35,13 +35,16 @@ export async function refused(
   const harness = await upgradeHarness(server);
   const accepted = nextSocket(server);
   const raw = await openRawClient(harness.port);
+
   try {
     const socket = await accepted;
+
     const seen = new Promise<Seen>((resolve, reject) => {
       const timer = setTimeout(
         () => reject(new Error("no refusal within the timeout")),
         TEST_TIMEOUT_MS,
       );
+
       socket.on("error", (error: Error & { code?: string }) => {
         clearTimeout(timer);
         socket.on("close", (code: number) => {
@@ -54,7 +57,9 @@ export async function refused(
         });
       });
     });
+
     write((bytes) => raw.write(bytes));
+
     return await seen;
   } finally {
     raw.destroy();

@@ -14,6 +14,7 @@
 
   function handleResponse(response) {
     if (!response.ok) return Promise.reject(new Error("Unexpected response"));
+
     return response.json().then((data) => JSON.stringify(data, null, 2));
   }
 
@@ -51,6 +52,7 @@
   wsSendButton.onclick = () => {
     if (!socket) {
       showMessage("No WebSocket connection");
+
       return;
     }
 

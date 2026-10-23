@@ -12,11 +12,13 @@ export type GateImplementationId = "ws" | "ventiws";
 export const BASELINE_ID: GateImplementationId = "ws";
 export const CANDIDATE_ID: GateImplementationId = "ventiws";
 export const GATE_IMPLEMENTATION_IDS: readonly GateImplementationId[] = [BASELINE_ID, CANDIDATE_ID];
+
 export const REFERENCE_IMPLEMENTATION_IDS: readonly ImplementationId[] = [
   "ventiws-engine",
   "uWebSockets.js",
   "socket.io",
 ];
+
 export const ALL_IMPLEMENTATION_IDS: readonly ImplementationId[] = [
   ...GATE_IMPLEMENTATION_IDS,
   ...REFERENCE_IMPLEMENTATION_IDS,

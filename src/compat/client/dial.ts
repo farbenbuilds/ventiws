@@ -13,7 +13,9 @@ import type { Attempt } from "./connect";
 export function dial(attempt: Attempt): ClientRequest | null {
   // Wired here, not in `hop.ts`: importing these there restores the cycle this split removed.
   const request = create(attempt, { upgrade: onUpgrade, response: onResponse });
+
   if (request === null) return null;
   finish(attempt, request);
+
   return request;
 }

@@ -4,10 +4,11 @@
     .fingerprint = 0x66c665792a0706f4, // Changing this has security and trust implications.
     .minimum_zig_version = "0.16.0",
     .dependencies = .{
-        // farbenbuilds/uWebZockets
+        // farbenbuilds/uWebZockets v2.0.6, the upstream release that packages
+        // the vendor overlay and emits function/data sections for the size pass.
         .uWebZockets = .{
-            .url = "git+https://github.com/farbenbuilds/uWebZockets?ref=v1.8.0#d94b4e546000455f2ca680d07cb61d032034d5ec",
-            .hash = "uWebZockets-1.8.0-SD3SPCtoJgB2t5E5ldRsnhw2iSXJXaEU03GScHvbL_8s",
+            .url = "git+https://github.com/farbenbuilds/uWebZockets?ref=v2.0.6#a74f1251389d51009b72a77695850b3c7bd7f538",
+            .hash = "uWebZockets-2.0.6-SD3SPNB0KgCJmT4NxpuxAuVfoTt8QSgz_jZP5P3gcqs-",
         },
 
         // farbenbuilds/zslay
@@ -20,10 +21,17 @@
             .hash = "zslay-0.2.1-OB-IfBl0AQCHCIVUH0AbAjErcCG_LNkaLp8Gz1BUXnoy",
         },
 
-        // yuku-toolchain/napi-zig
+        // farbenbuilds/napi-zig: yuku-toolchain/napi-zig v0.3.1 plus the
+        // npm-release fix that honors the requested optimize mode.
         .napi_zig = .{
-            .url = "git+https://github.com/yuku-toolchain/napi-zig?ref=v0.3.1#1032d3e9da30bd0e8ab895886cb862d45fb56230",
-            .hash = "napi_zig-0.2.0-XRkY0XcYAgDV-EwyPZo287cfJkKZaES9crzUCRoqcQ09",
+            .url = "git+https://github.com/farbenbuilds/napi-zig?ref=v0.3.1-ventiws.1#038912638dbcaab61ba0bde912339200434de11a",
+            .hash = "napi_zig-0.2.0-XRkY0XsYAgDIh9b-qjtT8olotHwNKi_6GSNKHwxLUR_d",
+        },
+        // ebiggers/libdeflate: the same revision the engine vendors, resolved directly so
+        // the codec-only addon can compress without importing or linking the engine.
+        .libdeflate = .{
+            .url = "git+https://github.com/ebiggers/libdeflate#92e6a0db9fa848d742f9eb286c92afc60f2c3dda",
+            .hash = "N-V-__8AAEaRCwCsYb_rSsH72Pb6DNFQLSjdRzTFOVsJWcoB",
         },
     },
     .paths = .{

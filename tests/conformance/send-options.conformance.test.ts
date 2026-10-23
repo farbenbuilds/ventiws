@@ -1,9 +1,9 @@
-// `send`'s options on the wire. `binary` and `fin` were normalized, documented, and never read:
-// `send(buffer, { binary: false })` put a binary frame on the wire where `ws` puts text, and
-// `send(data, { fin: false })` framed a complete message with `fin` set. The peer is a real `ws`
-// client throughout, so every assertion is about how a conforming implementation reads the bytes.
+// `send`'s shaping options on the wire: `binary`, `fin`, `compress`, and `mask`.
+// The peer is a real `ws` client, except where a frame must be read directly.
 
 import { expect, test } from "vitest";
+import { WebSocket, WebSocketServer } from "../../src/index";
+import type { CodedError } from "../../src/types/errors";
 import { TEST_TIMEOUT_MS } from "../binding/support";
 import {
   nextSocket,
@@ -11,6 +11,8 @@ import {
   upgradeHarness,
   waitFor,
 } from "../compat/socket/codec-upgrade-support";
+import { offerExtension, readFrame } from "../compat/socket/raw-peer";
+import { boundPort } from "./bound-port";
 
 type Observed = { readonly text: string; readonly binary: boolean };
 
@@ -19,6 +21,7 @@ function observe(target: {
 }): Observed[] {
   const seen: Observed[] = [];
   target.on("message", (data, isBinary) => seen.push({ text: data.toString(), binary: isBinary }));
+
   return seen;
 }
 
@@ -26,10 +29,11 @@ test("the binary option chooses the opcode", { timeout: TEST_TIMEOUT_MS }, async
   const harness = await upgradeHarness();
   const accepted = nextSocket(harness.server);
   const client = await openClient(harness.url);
+
   try {
     const socket = await accepted;
     const seen = observe(client);
-    // Autodetected both ways, then overridden both ways: a Buffer with `binary: false` is a text frame.
+    // Autodetected both ways, then overridden both ways.
     socket.send("abc");
     socket.send("xyz", { binary: true });
     socket.send(Buffer.from("raw"), { binary: false });
@@ -47,22 +51,19 @@ test("the binary option chooses the opcode", { timeout: TEST_TIMEOUT_MS }, async
   }
 });
 
-/// A caller that fragments has no other way to do it, and RFC 6455 requires the continuation to
-/// carry opcode 0: a second opcode-1 frame with `fin` set reads as two complete messages.
 test("the fin option fragments an outbound message", { timeout: TEST_TIMEOUT_MS }, async () => {
   const harness = await upgradeHarness();
   const accepted = nextSocket(harness.server);
   const client = await openClient(harness.url);
+
   try {
     const socket = await accepted;
     const seen = observe(client);
     socket.send("one", { fin: false });
-    // The peer has no complete message yet, so nothing is delivered at this point.
     await new Promise<void>((resolve) => setTimeout(resolve, 60));
     expect(seen).toEqual([]);
     socket.send("two", { fin: true });
     await waitFor(() => seen.length === 1);
-    // One message, whole, delivered once: the reassembly a peer does with a fragmented send.
     expect(seen).toEqual([{ text: "onetwo", binary: false }]);
   } finally {
     client.terminate();
@@ -70,11 +71,11 @@ test("the fin option fragments an outbound message", { timeout: TEST_TIMEOUT_MS 
   }
 });
 
-/// `fin` defaults to set, so the ordinary send is unchanged.
 test("a send with no options is a complete message", { timeout: TEST_TIMEOUT_MS }, async () => {
   const harness = await upgradeHarness();
   const accepted = nextSocket(harness.server);
   const client = await openClient(harness.url);
+
   try {
     const socket = await accepted;
     const seen = observe(client);
@@ -87,3 +88,49 @@ test("a send with no options is a complete message", { timeout: TEST_TIMEOUT_MS 
     await harness.close();
   }
 });
+
+test(
+  "compress: false leaves RSV1 clear above the threshold",
+  { timeout: TEST_TIMEOUT_MS },
+  async () => {
+    // 2048 bytes is over the 1024-byte threshold, so only the option prevents compression.
+    const harness = await upgradeHarness(new WebSocketServer({ port: 0, perMessageDeflate: true }));
+    const accepted = nextSocket(harness.server);
+    const handshake = await offerExtension(harness.port, "permessage-deflate");
+
+    try {
+      expect(handshake.status).toBe(101);
+      const socket = await accepted;
+      socket.send("y".repeat(2048), { compress: false });
+      const frame = await readFrame(handshake.socket);
+      expect(frame.rsv1).toBe(false);
+      expect(frame.inflated.toString()).toBe("y".repeat(2048));
+    } finally {
+      handshake.socket.destroy();
+      await harness.close();
+    }
+  },
+);
+
+test(
+  "mask: false is honoured, so the peer refuses the frame",
+  { timeout: TEST_TIMEOUT_MS },
+  async () => {
+    // RFC 6455 section 5.1 requires a client to mask; a server closes on one that does not.
+    const server = new WebSocketServer({ port: 0 });
+    const accepted = new Promise<WebSocket>((resolve) => server.once("connection", resolve));
+    await new Promise<void>((resolve) => server.once("listening", () => resolve()));
+    const client = new WebSocket(`ws://127.0.0.1:${boundPort(server)}`);
+
+    try {
+      await new Promise<void>((resolve) => client.once("open", () => resolve()));
+      const socket = await accepted;
+      const failure = new Promise<CodedError>((resolve) => socket.once("error", resolve));
+      client.send("abc", { mask: false });
+      expect((await failure).code).toBe("WS_ERR_EXPECTED_MASK");
+    } finally {
+      client.terminate();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  },
+);

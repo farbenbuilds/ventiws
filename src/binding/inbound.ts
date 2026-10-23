@@ -1,6 +1,6 @@
 import { callNative } from "./errors";
 import { assertServerHandle, type ServerHandle } from "./server";
-import { loadAddon } from "./load";
+import { loadEngineAddon } from "./load-engine";
 import { assertConnectionHandle, type ConnectionHandle } from "./handle";
 
 /// The inbound half of the per-connection surface. Both are consumers of the same
@@ -14,9 +14,11 @@ export function takeSocketMessage(
 ): { readonly bytes: Buffer; readonly isBinary: boolean } | null {
   assertServerHandle(server);
   assertConnectionHandle(connection);
-  const addon = loadAddon();
+  const addon = loadEngineAddon();
   const taken = callNative(() => addon.takeSocketMessage(server, connection));
+
   if (taken === null) return null;
+
   return { bytes: taken[0], isBinary: taken[1] };
 }
 
@@ -31,6 +33,7 @@ export function purgeSocketMessage(
   generation: number,
 ): number {
   assertServerHandle(server);
-  const addon = loadAddon();
+  const addon = loadEngineAddon();
+
   return Number(callNative(() => addon.purgeSocketMessage(server, index, generation)));
 }

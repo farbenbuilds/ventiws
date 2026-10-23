@@ -7,44 +7,53 @@
 import type { SocketState } from "../../types/socket";
 import { createError } from "../errors";
 import { CONNECTING } from "../ready-state";
+import type { SocketCallback } from "./argument-kind";
 import { reportWithoutClosing } from "./lifecycle";
 import { defer, notOpenError, toPayload } from "./payload";
 import { framePayload, frameResolved, resolveCallback } from "./send-frame";
-import { isBlob } from "./send-blob";
+import { isBlob, sendBlob } from "./send-blob";
+import { sendOptionsFrom } from "./send-options";
 
-export function sendData(
+export function sendData<Data, Options, Callback>(
   state: SocketState,
-  data: unknown,
-  options: unknown,
-  callback: unknown,
+  data: Data,
+  options: Options,
+  callback: Callback,
 ): void {
   if (state.readyState === CONNECTING) throw notOpenError(CONNECTING);
   const pending = state.pendingSend;
+
   if (pending === null) {
     framePayload(state, data, options, callback);
+
     return;
   }
+
   // A blob read in flight has to finish first: `ws` puts the read on its own sender queue,
   // so a send issued after a blob waits behind it and the two arrive in the order called.
   queueSend(state, pending, data, options, callback);
 }
 
-function queueSend(
+function queueSend<Data, Options, Callback>(
   state: SocketState,
   pending: Promise<void>,
-  data: unknown,
-  options: unknown,
-  callback: unknown,
+  data: Data,
+  options: Options,
+  callback: Callback,
 ): void {
   const failure = resolveCallback(options, callback);
+  const sendOptions = sendOptionsFrom(options);
+
   if (isBlob(data)) {
-    settle(state, pending, failure, () => framePayload(state, data, options, callback));
+    settle(state, pending, failure, () => sendBlob(state, data, sendOptions, failure));
+
     return;
   }
+
   // Converted before the queue, not inside it: `ws` throws from `send` for a payload
   // `Buffer.from` refuses even while an earlier read is in flight.
   const payload = toPayload(data);
-  settle(state, pending, failure, () => frameResolved(state, payload, options, failure));
+  settle(state, pending, failure, () => frameResolved(state, payload, sendOptions, failure));
 }
 
 /// Runs one queued send when the read settles. A synchronous throw here would otherwise
@@ -52,7 +61,7 @@ function queueSend(
 function settle(
   state: SocketState,
   pending: Promise<void>,
-  failure: unknown,
+  failure: SocketCallback | undefined,
   work: () => void,
 ): void {
   const run = (): void => {
@@ -61,9 +70,11 @@ function settle(
     } catch (error) {
       const reported =
         error instanceof Error ? error : createError("ERR_INVALID_STATE", String(error));
-      if (typeof failure === "function") defer(failure, reported);
+
+      if (failure !== undefined) defer(failure, reported);
       else reportWithoutClosing(state, reported);
     }
   };
+
   pending.then(run, run);
 }

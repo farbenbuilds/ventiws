@@ -7,13 +7,18 @@ will own parsing, buffers, and backpressure.
 
 ## Current state: docs describe the target, not the tree
 
-- `build.zig` delegates to `src/builds/orchestrator.zig`, which wires the addon
-  through `napi_zig.addLib` and imports the full `uWebZockets` engine module;
-  `src/lib.zig` exposes `engineVersion()`, `http3Available()`, the server
-  lifecycle functions, and the per-connection socket operations, following the
-  `napi-zig` layout: the Zig root module lives in `src/` next to the TypeScript
-  sources. `src/binding/{load,open}.ts` resolve and load the built `.node` for
-  Node.js, Bun, and Deno, with `runtime.ts`/`host-libc.ts` naming the host;
+- `build.zig` delegates to `src/builds/orchestrator.zig`, which wires two
+  addons through `napi_zig.addLib`: the published codec-only `ventiws.node`
+  (`src/lib.zig`, `zslay` + direct libdeflate) and the development-only
+  `ventiws-engine.node` (the same root plus `src/engine_exports.zig`, which
+  imports the full `uWebZockets` engine). `src/lib.zig` exposes
+  `engineVersion()`, `engineLimits()`, and the codec functions; the engine
+  addon adds `http3Available()`, the server lifecycle, and the per-connection
+  socket operations. The layout follows `napi-zig`: the Zig root module lives
+  in `src/` next to the TypeScript
+  sources. `src/binding/{load,load-engine,open}.ts` resolve and load the public
+  codec artifact and the development engine artifact for Node.js and Bun, with
+  `runtime.ts`/`host-libc.ts` naming the host;
   `src/binding/{native,handle,server,socket}.ts` declare the addon ABI and wrap
   the lifecycle and socket calls; `src/types/ws.d.ts` vendors the DefinitelyTyped
   `ws` declarations, and `src/index.ts` re-exports that surface as type-only ESM
@@ -54,13 +59,13 @@ will own parsing, buffers, and backpressure.
   `policy-violation` instead of staging a frame nothing would send.
   `src/lib.zig` also exports `engineLimits`, so the compiled capacities are read
   rather than restated.
-  `pnpm build:binding` builds the addon in ReleaseSafe, and
+  `pnpm build:binding` builds both artifacts in ReleaseSafe; release builds use
+  `-Dengine-addon=false` and publish only the codec addon, and
   `scripts/check-conventions.mjs` (run by `pnpm lint` and a `lefthook` job)
   enforces the line budget, Zig naming, filename case, and the emoji ban.
   `pnpm lint` also loads the vendored anti-slop Oxlint plugin under
-  `tools/oxlint/anti-slop/`; its evidence rules are staged at `warn` until the
-  follow-up cleanup, and `anti-slop/require-readable-spacing` stays off because
-  its autofix conflicts with the 150-line budget. The pinned `ws`/`@types/ws`
+  `tools/oxlint/anti-slop/`, and every evidence rule is enforced at `error`;
+  the 150-line and comment budgets still apply. The pinned `ws`/`@types/ws`
   devDependencies back the first conformance leg in `tests/conformance/`.
 - Root documents (`CODEBASE.md`, `CONTRIBUTE.md`, `CI_CD_PIPELINE.md`,
   `SKILL.md`) specify the intended architecture. When they disagree with
@@ -80,7 +85,7 @@ will own parsing, buffers, and backpressure.
 ## Commands
 
 Use pnpm; do not invoke package binaries directly. The shell normally runs
-inside `nix develop` (Node 24, pnpm 12, Zig 0.16.0, zls).
+inside `nix develop` (Node 24.22.1, pnpm 12, Zig 0.16.0, zls).
 
 | Task                          | Command                                                                            |
 | ----------------------------- | ---------------------------------------------------------------------------------- |
@@ -136,6 +141,9 @@ declarations through the package `exports` map; it needs `tsdown` output.
 - The published package may depend only on `napi-zig` and `uWebZockets`, the
   first-party engine;
   everything else belongs in `devDependencies`.
+- A first-party fork stays in sync with its upstream. Every carried patch is
+  listed in `docs/forks.md`, pinned by tag plus commit, and retired when
+  upstream accepts it. Never edit `zig-pkg/**`.
 - Hot paths allocate nothing. Capacities are fixed or `comptime`, and every
   peer-controlled length is capped.
 - Types stay readable: explicit unions over derived `Exclude`/`Extract`
@@ -149,13 +157,20 @@ declarations through the package `exports` map; it needs `tsdown` output.
 
 - Ownership, target layout, boundary contracts: `CODEBASE.md`
 - Why Node owns the socket and Zig owns the framing: `docs/adr/0001-transport-and-framing-ownership.md`
+- Addon size, release mode, and the measured size budget:
+  `docs/addon-size.md`, `docs/adr/0002-addon-size-and-release-safe.md`
+- Why the published package ships only the codec and the engine addon is
+  development-only: `docs/adr/0003-codec-only-public-addon.md`
 - Style depth and anti-OOP patterns: `CODING_CONVENTION.md`
+- Test layers and the one-owner-per-behavior rule: `tests/README.md`
 - Script contract, testing, PRs, release: `CONTRIBUTE.md`
 - Target workflows and native matrix: `CI_CD_PIPELINE.md`
 - Threat model and private reporting: `SECURITY.md`
 - License obligations kept in sync with dependencies: `THIRD_PARTY_NOTICES.md`
 - Vendored Oxlint rules and their update procedure:
   `tools/oxlint/anti-slop/UPSTREAM.md`, `install-anti-slop`
+- First-party forks, carried patches, and the upstream sync procedure:
+  `docs/forks.md`
 
 ## Agent skills and plugins
 

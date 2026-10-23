@@ -17,13 +17,14 @@ import { WebSocketServer, createWebSocketStream } from "../../src/index";
 import type { WebSocket } from "../../src/types/ws";
 import { nextSocket, openClient } from "../compat/socket/codec-upgrade-support";
 import { serve } from "../compat/server/upgrade-support";
+import { boundPort } from "./bound-port";
 
 /// What two implementations can be compared on: the events a caller would see, in order.
 export type Transcript = string[];
 
 /// The server-side socket, narrowed to what a scenario observes of it.
 export type Watched = {
-  on(event: "close", handler: (code: number, reason: Buffer) => void): unknown;
+  on(event: "close", handler: (code: number, reason: Buffer) => void): void;
   terminate(): void;
   readonly isPaused: boolean;
 };
@@ -46,22 +47,27 @@ const POLL_MS = 5;
 /// The `ws` reference: a real `ws` server, the socket it accepts, and `ws`'s own stream.
 export async function upstreamFixture(options?: DuplexOptions): Promise<StreamFixture> {
   const server = new UpstreamServer({ port: 0 });
+
   const accepted = new Promise<UpstreamSocket>((resolve) => {
     server.on("connection", (socket) => resolve(socket));
   });
+
   await new Promise<void>((resolve) => {
     server.once("listening", resolve);
   });
-  const port = (server.address() as { port: number }).port;
+  const port = boundPort(server);
   const client = new UpstreamClient(`ws://127.0.0.1:${port}/`);
   client.on("error", () => {});
+
   // The server accepts on the 101 it writes, which is before the client has read it, so a
   // scenario that sends has to wait for the client's own `open` and not infer it.
   const opened = new Promise<void>((resolve) => {
     client.once("open", resolve);
   });
+
   const socket = await accepted;
   await opened;
+
   return {
     stream: upstreamStream(socket, options),
     socket,
@@ -84,6 +90,7 @@ export async function ventiwsFixture(options?: DuplexOptions): Promise<StreamFix
   const harness = await serve(server);
   const client = await openClient(`ws://127.0.0.1:${harness.port}/`);
   const socket: WebSocket = await accepted;
+
   return {
     stream: createWebSocketStream(socket, options),
     socket,
@@ -98,10 +105,10 @@ export async function ventiwsFixture(options?: DuplexOptions): Promise<StreamFix
 
 /// A chunk as the caller sees it. The type is half the transcript: a text message under
 /// `readableObjectMode` is the only chunk whose type a caller can tell apart.
-export function describeChunk(chunk: unknown): string {
-  if (typeof chunk === "string") return `string:${chunk}`;
+export function describeChunk(chunk: string | Buffer): string {
   if (Buffer.isBuffer(chunk)) return `buffer:${chunk.toString()}`;
-  return `other:${String(chunk)}`;
+
+  return `string:${chunk}`;
 }
 
 export function within(settled: Promise<void>, what: string): Promise<void> {
@@ -109,6 +116,7 @@ export function within(settled: Promise<void>, what: string): Promise<void> {
     const timer = setTimeout(() => reject(new Error(`timed out waiting for ${what}`)), WINDOW_MS);
     timer.unref?.();
   });
+
   return Promise.race([settled, late]);
 }
 
@@ -119,6 +127,7 @@ export function until(seen: Transcript, label: string): Promise<void> {
       clearInterval(poll);
       resolve();
     }, POLL_MS);
+
     setTimeout(() => {
       clearInterval(poll);
       resolve();

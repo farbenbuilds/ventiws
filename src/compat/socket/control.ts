@@ -2,8 +2,9 @@ import type { SocketState } from "../../types/socket";
 import { isValidControlPayload } from "../../protocol/close-codes";
 import { createError } from "../errors";
 import { CONNECTING, OPEN } from "../ready-state";
+import { isCallback, isNumberValue, type SocketCallback } from "./argument-kind";
 import { frameError, writeFrame } from "./codec-outbound";
-import { defer, notOpenError, toPayload } from "./payload";
+import { defer, notOpenError, toPayload, type SendInput } from "./payload";
 
 /// The length check throws rather than reporting through the callback, because `ws`
 /// throws: `websocket.ping` reaches `sender.ping` synchronously on an open socket and the
@@ -13,26 +14,33 @@ import { defer, notOpenError, toPayload } from "./payload";
 export function controlFrame(
   state: SocketState,
   kind: "ping" | "pong",
-  data: unknown,
-  mask: unknown,
-  callback: unknown,
+  data: SendInput | undefined,
+  mask: boolean | SocketCallback | undefined,
+  callback: SocketCallback | undefined,
 ): void {
   if (state.readyState === CONNECTING) throw notOpenError(CONNECTING);
   let payload = data;
   let failure = callback;
-  if (typeof payload === "function") {
+  let masking = mask;
+
+  if (isCallback(payload)) {
     failure = payload;
     payload = undefined;
-  } else if (typeof mask === "function") {
-    failure = mask;
-    mask = undefined;
+  } else if (isCallback(masking)) {
+    failure = masking;
+    masking = undefined;
   }
-  if (typeof payload === "number") payload = String(payload);
+
+  if (isNumberValue(payload)) payload = String(payload);
+
   if (state.readyState !== OPEN) {
     defer(failure, notOpenError(state.readyState));
+
     return;
   }
+
   const bytes = toPayload(payload).bytes;
+
   if (!isValidControlPayload(bytes)) {
     throw createError(
       "ERR_INVALID_OPTION",
@@ -40,12 +48,16 @@ export function controlFrame(
       RangeError,
     );
   }
+
   // `ping(data, mask, cb)`, as in `ws`: a client that asks for an unmasked control frame gets
   // one. A server still refuses, which `codec-outbound.ts` owns.
-  const status = writeFrame(state, kind, bytes, true, false, mask !== false);
+  const status = writeFrame(state, kind, bytes, true, false, masking !== false);
+
   if (status === "ok") {
     defer(failure);
+
     return;
   }
+
   defer(failure, frameError(status));
 }

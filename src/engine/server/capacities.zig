@@ -9,6 +9,15 @@ pub const message_capacity: u32 = 64 * 1024;
 /// Largest single frame, which can never exceed a message and so tracks it.
 pub const frame_capacity: u32 = message_capacity;
 
+/// Outbound payload slots staged per server; slot bytes equal the trusted message cap.
+pub const payload_slots: usize = 8;
+
+/// Inbound slots, deliberately deeper than the outbound ring: an outbound payload is taken
+/// by the `pump` that staged it, while an inbound one waits for the main thread. The depth is
+/// the burst budget -- the engine cannot stop reading once a consumer falls behind. At the
+/// 64 KiB message cap that is 4 MiB per server; the excess is `serverDroppedMessages`.
+pub const inbound_slots: usize = 64;
+
 /// Headroom above the message cap for the write queue, which holds a maximum-size frame *plus* its header: sized equal to `message_capacity` the frame fills the queue before the header lands, `send` fails, and the payload disappears. At 128 connections this is 8 MiB per server, the dominant term after the message slab.
 pub const write_queue_headroom: u32 = 64 * 1024;
 pub const write_queue_capacity: u32 = message_capacity + write_queue_headroom;

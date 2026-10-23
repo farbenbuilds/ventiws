@@ -124,7 +124,8 @@ fn run_engine(target: *instance.Instance) void {
 /// one path rather than a per-OS branch.
 fn bound_port(target: *instance.Instance) u16 {
     const app = target.cluster.worker(0) orelse return target.config.listen.port;
-    const server = app.server orelse return target.config.listen.port;
+    if (app.listener_count == 0) return target.config.listen.port;
+    const server = app.listeners[0];
     const Listener = @TypeOf(server.listener);
     const fd = if (@hasDecl(Listener, "fd")) server.listener.fd() else server.listener.fd;
     return ports.bound_port(fd) orelse target.config.listen.port;

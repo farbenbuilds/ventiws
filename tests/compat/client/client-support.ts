@@ -6,9 +6,9 @@
 // synchronously and a listener attached afterwards never sees the event it was
 // waiting for.
 
-import type { IncomingMessage } from "node:http";
 import { WebSocketServer as WsServer, type WebSocket as WsSocket } from "ws";
 import { WebSocket, type ClientOptions } from "../../../src/index";
+import { boundPort } from "../address-support";
 import { TEST_TIMEOUT_MS } from "../../binding/support";
 
 export type Harness = {
@@ -31,6 +31,7 @@ export async function wsServer(
 ): Promise<{ harness: Harness; accepted: Promise<Peer> }> {
   const server = new WsServer({ port: 0 });
   const peers: Peer[] = [];
+
   const accepted = new Promise<Peer>((resolve) => {
     server.on("connection", (socket) => {
       peers.push(socket);
@@ -38,15 +39,18 @@ export async function wsServer(
       resolve(socket);
     });
   });
+
   await new Promise<void>((resolve) => {
     server.once("listening", () => resolve());
   });
+
   return {
     harness: {
-      url: `ws://127.0.0.1:${(server.address() as { port: number }).port}`,
+      url: `ws://127.0.0.1:${boundPort(server.address())}`,
       server,
       close: () => {
         for (const peer of peers) peer.terminate();
+
         return new Promise<void>((resolve) => {
           server.close(() => resolve());
         });
@@ -86,6 +90,7 @@ export async function openWithPeer(
 ): Promise<{ socket: WebSocket; peer: Peer; harness: Harness }> {
   const { harness, accepted } = await wsServer(onPeer);
   const socket = await open(harness.url, setup, protocols, options);
+
   return { socket, peer: await accepted, harness };
 }
 
@@ -93,53 +98,14 @@ export async function openWithPeer(
 export function waitFor(condition: () => boolean): Promise<void> {
   return new Promise((resolve, reject) => {
     const deadline = Date.now() + TEST_TIMEOUT_MS;
+
     const poll = (): void => {
       if (condition()) return resolve();
+
       if (Date.now() > deadline) return reject(new Error("condition unmet within the timeout"));
       setTimeout(poll, 5);
     };
+
     poll();
   });
-}
-
-/// Resolves on the socket's `error`, which is how a refused handshake is observed.
-///
-/// The `close` event matters as much as the `error` and is a separate promise on
-/// purpose. Asserting `readyState` after the `error` proved nothing: the ready state
-/// was `CLOSED` even on a socket whose `close` event had never been dispatched, because
-/// the abort path latched the terminal state itself and then skipped the dispatch. A
-/// caller that awaits `close` is the ordinary shape, and it hung.
-export function failed(socket: WebSocket): Promise<Error> {
-  return new Promise((resolve) => {
-    socket.on("error", resolve);
-  });
-}
-
-export function closed(socket: WebSocket): Promise<void> {
-  return new Promise((resolve) => {
-    if (socket.readyState === WebSocket.CLOSED) {
-      resolve();
-      return;
-    }
-    socket.once("close", () => resolve());
-  });
-}
-
-/// Resolves on the next `unexpected-response`, carrying the response itself.
-///
-/// A promise rather than a poll because a listener takes the refusal over: there is no
-/// `error` and no `close` to await on a socket a caller has taken responsibility for.
-///
-/// The whole `IncomingMessage` rather than its status, because that is what `ws` hands
-/// over and what the event is for: a status code alone cannot be read for a
-/// `www-authenticate` challenge or a body, which is the entire reason to take it over.
-export function refused(socket: WebSocket): Promise<IncomingMessage> {
-  return new Promise((resolve) => {
-    socket.once("unexpected-response", (_request, response) => resolve(response));
-  });
-}
-
-/// The status a refused handshake reported, from the error the socket emitted.
-export function refusalStatus(error: Error): number {
-  return Number(/Unexpected server response: (\d+)/.exec(error.message)?.[1] ?? 0);
 }

@@ -1,150 +1,148 @@
-// The version is stated in three files that cannot import each other, and the transition
-// table that decides the next one lives in `scripts/next-version.mjs`, exercised by
-// `next-version.test.ts`. Every bug this repository has shipped in this area is the same
-// shape: one fact stated twice, one of them stale.
+// The version is stated in three files that cannot import each other, and the release notes
+// are the changelog sections between two tags. Both are facts stated twice, held together here.
 
-import { readFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { expect, test } from "vitest";
-import { compareVersions } from "../../scripts/next-version.mjs";
+import { compareVersions, nextVersion, releaseVersion } from "../../scripts/next-version.mjs";
+import { CHANGELOG, MANIFEST, README, ZON } from "./version-fixtures";
 
-const ROOT = new URL("../../", import.meta.url);
-const read = (path: string) => readFileSync(new URL(path, ROOT), "utf8");
-
-type Manifest = { readonly version: string; readonly scripts: Record<string, string> };
-
-const MANIFEST = JSON.parse(read("package.json")) as Manifest;
-const ZON = read("build.zig.zon");
-const README = read("README.md");
-const CHANGELOG = read("CHANGELOG.md");
-const BUMP_SCRIPT = read("scripts/bump-version.mjs");
-const BUMP_WORKFLOW = read(".github/workflows/bump.yml");
-const TAG_SCRIPT = read("scripts/tag-release.mjs");
-
-/// The five forms GitHub recognises, shared with `check-commit-msg.mjs`. A check that knew
-/// four works right up until the fifth is used, which is why this is a list.
-const MARKERS = ["skip ci", "ci skip", "no ci", "skip actions", "actions skip"];
-
-/// The version in a `## [...]` heading, so the changelog can be read as a log rather than
-/// diffed as text.
 const HEADING = /^## \[([^\]]+)\]/gm;
 
-function logged(): string[] {
-  return [...CHANGELOG.matchAll(HEADING)].map((match) => match[1] ?? "");
-}
-
-/// Adjacent pairs, newest first: `[a, b]` names the direction, where `toEqual` does not.
-function descending(values: readonly string[]): [string, string][] {
-  return values.slice(1).map((value, index) => [values[index] ?? "", value]);
-}
-
-test("the three sources of the version agree with the manifest", () => {
+test("the three sources agree and the changelog is newest first, never ahead", () => {
   expect(/\.version\s*=\s*"([^"]+)"/.exec(ZON)?.[1]).toBe(MANIFEST.version);
   expect(/is at\s*`([^`]+)`/.exec(README)?.[1]).toBe(MANIFEST.version);
-});
-
-test("the changelog is a log: newest first, and never ahead of the manifest", () => {
-  const entries = logged();
+  const entries = [...CHANGELOG.matchAll(HEADING)].map((match) => match[1] ?? "");
   expect(entries.length).toBeGreaterThan(0);
-
-  // The newest heading is not asserted to equal the version: a merge that reached no
-  // changelog type still advances the version and leaves no section. What must hold is that
-  // the log never runs ahead of the manifest, since a heading newer than the version is what
-  // a hand-edited changelog looks like.
+  // A merge with no changelog type still bumps the version, so the newest heading may lag
+  // it; one ahead of the manifest would advertise a release that does not exist.
   expect(compareVersions(entries[0] ?? "", MANIFEST.version)).toBeLessThanOrEqual(0);
-  for (const [newer, older] of descending(entries))
-    expect(compareVersions(older, newer)).toBeLessThanOrEqual(0);
+
+  for (let index = 1; index < entries.length; index += 1)
+    expect(compareVersions(entries[index] ?? "", entries[index - 1] ?? "")).toBeLessThanOrEqual(0);
 });
 
-test("the loop guard matches the commit the bump makes", () => {
-  // The guard reads the head commit's subject and the bump writes one, so a marker that
-  // differs between them is an infinite bump rather than a visible failure.
-  const marker = /const MARKER = "([^"]+)"/.exec(BUMP_SCRIPT)?.[1];
-  expect(marker).toBeDefined();
-  expect(BUMP_WORKFLOW).toContain(`!startsWith(github.event.head_commit.message, '${marker}')`);
-  expect(BUMP_WORKFLOW).toContain(`git commit -m "${marker} v$VERSION"`);
-  expect(BUMP_WORKFLOW).toContain("VERSION: ${{ steps.bump.outputs.version }}");
+const TRANSITIONS: ReadonlyArray<readonly [string, readonly string[], string]> = [
+  ["1.0.0-alpha.12", [], "1.0.0-alpha.13"],
+  ["1.0.0-alpha.12", ["beta"], "1.0.0-beta.0"],
+  ["1.0.0-alpha", [], "1.0.0-alpha.1"],
+  ["1.0.0-beta.3", ["beta"], "1.0.0-beta.4"],
+  ["1.0.0-beta.3", ["stable"], "1.0.0"],
+  ["2.0.0-rc.1", [], "2.0.0-rc.2"],
+  ["1.0.0", [], "1.0.1-alpha.0"],
+  ["1.0.0", ["beta"], "1.0.1-beta.0"],
+  ["1.0.0", ["patch"], "1.0.1"],
+  ["1.0.0", ["minor"], "1.1.0"],
+  ["1.0.0", ["major"], "2.0.0"],
+  ["1.0.0", ["major", "beta"], "2.0.0-beta.0"],
+  ["1.0.1-alpha.2", ["major"], "2.0.0-alpha.0"],
+  ["1.0.1-alpha.2", ["minor", "stable"], "1.1.0"],
+];
+
+test.each(TRANSITIONS)("%s with %j advances to %s", (current, kinds, expected) => {
+  expect(nextVersion(current, kinds)).toBe(expected);
 });
 
-test("the commit the tag points at carries no CI skip marker", () => {
-  // GitHub reads a marker anywhere in a *tagged* commit's message, so one here would skip
-  // `publish.yml`: a tag on `main`, nothing on npm, and no workflow to report it.
-  const commit = /git commit -m "([^"]*)"/.exec(BUMP_WORKFLOW)?.[1] ?? "";
-  expect(commit).not.toBe("");
-  for (const marker of MARKERS) expect(commit.includes(`[${marker}]`), commit).toBe(false);
+const REFUSALS: ReadonlyArray<readonly [string, readonly string[], string]> = [
+  ["1.0.0", ["stable"], "already stable"],
+  ["1.0.0", ["major", "minor"], "cannot combine"],
+  ["1.0.0", ["alpha", "beta"], "cannot combine"],
+  ["1.0.0", ["nope"], "unknown release kind"],
+];
+
+test.each(REFUSALS)("refuses %s with %j: %s", (current, kinds, message) => {
+  expect(() => nextVersion(current, kinds)).toThrow(message);
 });
 
-test("the merge's release directive reaches the bump as labels or inputs", () => {
-  // A push run has no inputs, so the directive is the merged pull request's labels; a
-  // dispatch run has no pull request, so it is the inputs. Both end at one kinds string.
-  expect(BUMP_WORKFLOW).toContain("pull-requests: read");
-  expect(BUMP_WORKFLOW).toContain("/commits/${{ github.sha }}/pulls");
-  expect(BUMP_WORKFLOW).toContain('node scripts/bump-version.mjs --release "${KINDS}"');
-  expect(BUMP_WORKFLOW).toContain("inputs.preid");
+// An authored prerelease is released as written until it has a tag.
+const RELEASES: ReadonlyArray<readonly [string, readonly string[], boolean, string]> = [
+  ["1.0.0-beta", [], false, "1.0.0-beta"],
+  ["1.0.0-beta", ["beta"], false, "1.0.0-beta"],
+  ["1.0.0-rc", ["rc"], false, "1.0.0-rc"],
+  ["1.0.0", [], false, "1.0.0"],
+  ["2.0.0", [], false, "2.0.0"],
+  ["1.0.0-beta", [], true, "1.0.0-beta.1"],
+  ["1.0.0-beta", ["stable"], true, "1.0.0"],
+  ["1.0.0", ["major"], true, "2.0.0"],
+  ["1.0.0", ["minor", "beta"], true, "1.1.0-beta.0"],
+];
+
+test.each(RELEASES)("releases %s with %j tagged=%s as %s", (current, kinds, tagged, expected) => {
+  expect(releaseVersion(current, kinds, tagged)).toBe(expected);
 });
 
-test("a release:skip label lands the merge with nothing written", () => {
-  // Every step that mints a credential or writes a version, commit, or tag gates on `skip`.
-  expect(BUMP_WORKFLOW).toMatch(/grep\s+-[A-Za-z]*x[A-Za-z]*\s+'release:skip'/);
-  for (const header of [
-    "- uses: actions/create-github-app-token@v3",
-    "- name: Advance the version",
-    "- name: Commit the version",
-    "- name: Tag the version",
-  ]) {
-    const start = BUMP_WORKFLOW.indexOf(header);
-    const next = BUMP_WORKFLOW.indexOf("\n      - ", start);
-    expect(BUMP_WORKFLOW.slice(start, next === -1 ? undefined : next), header).toContain(
-      "steps.release.outputs.skip != 'true'",
-    );
+const NEWER: ReadonlyArray<readonly [string, string]> = [
+  ["1.0.1-alpha.2", "1.0.1-alpha.1"],
+  ["1.0.1-alpha.1", "1.0.1-alpha"],
+  ["1.0.1-beta.0", "1.0.1-alpha.9"],
+  ["1.0.1", "1.0.1-rc.4"],
+  ["2.0.0-rc.0", "1.9.9"],
+];
+
+test.each(NEWER)("%s is newer than %s", (newer, older) => {
+  expect(compareVersions(newer, older)).toBeGreaterThan(0);
+  expect(compareVersions(older, newer)).toBeLessThan(0);
+});
+
+const SCRIPT = fileURLToPath(new URL("../../scripts/release-notes.mjs", import.meta.url));
+const PREAMBLE = "# Changelog\n\nAll notable changes.\n\n";
+
+/// A repository with one commit per merge, tagged for the first `tagged` of them: the
+/// shape the bump and tag scripts produce together, where newer merges stay untagged.
+function repo(versions: readonly string[], tagged: number): string {
+  const root = mkdtempSync(join(tmpdir(), "ventiws-notes-"));
+
+  const git = (...args: string[]) =>
+    execFileSync("git", ["-c", "user.email=t@t", "-c", "user.name=t", ...args], {
+      cwd: root,
+      stdio: "pipe",
+    });
+
+  writeFileSync(join(root, "package.json"), JSON.stringify({ name: "ventiws", version: "x" }));
+  writeFileSync(join(root, "CHANGELOG.md"), PREAMBLE);
+  git("init", "-q");
+
+  for (const [index, version] of versions.entries()) {
+    writeFileSync(join(root, "package.json"), JSON.stringify({ name: "ventiws", version }));
+    const existing = readFileSync(join(root, "CHANGELOG.md"), "utf8");
+    const section = `## [${version}] - 2026-09-29\n\n### Added\n\n- work ${index + 1}\n\n`;
+    writeFileSync(join(root, "CHANGELOG.md"), PREAMBLE + section + existing.slice(PREAMBLE.length));
+    git("add", "-A");
+    git("commit", "-q", "-m", `chore(release): v${version}`);
+
+    if (index < tagged) git("tag", `v${version}`);
   }
-});
 
-test("the bump tags through the release app, the one credential that starts a run", () => {
-  // `publish.yml` takes no dispatch, and a tag pushed with `GITHUB_TOKEN` starts no run, so
-  // the tag is pushed with an installation token; the bump commit itself stays silent.
-  expect(BUMP_WORKFLOW).toContain("actions/create-github-app-token@v3");
-  expect(BUMP_WORKFLOW).toContain("secrets.RELEASE_APP_PRIVATE_KEY");
-  expect(BUMP_WORKFLOW).toContain('git push "$remote" "refs/tags/$TAG"');
-  expect(BUMP_WORKFLOW).not.toContain("gh workflow run");
-  expect(BUMP_WORKFLOW).not.toContain("id-token");
-});
+  return root;
+}
 
-test("the checkout holds no credential that could authenticate the tag push", () => {
-  // actions/checkout otherwise persists a `GITHUB_TOKEN` Authorization header, which took
-  // precedence over the app token and made alpha.11's tag push a silent `GITHUB_TOKEN`
-  // push: the tag reached the remote with no publish run behind it.
-  expect(BUMP_WORKFLOW).toContain("persist-credentials: false");
-  expect(BUMP_WORKFLOW).toContain("BRANCH_TOKEN");
-});
+function notes(root: string) {
+  const out = join(root, "notes.md");
+  execFileSync(process.execPath, [SCRIPT, out], { cwd: root, stdio: "pipe" });
+  const text = readFileSync(out, "utf8");
 
-test("a re-run finds its own commit and an existing tag rather than bumping twice", () => {
-  // A lost tag push is recovered by re-running: the version is already committed, and the
-  // tag is pushed only when the remote does not have it.
-  expect(BUMP_WORKFLOW).toContain("is already committed");
-  expect(BUMP_WORKFLOW).toContain('git ls-remote --tags "$remote" "refs/tags/$TAG"');
-  expect(BUMP_WORKFLOW).toContain('echo "$TAG already exists"');
-});
+  return { text, versions: [...text.matchAll(HEADING)].map((match) => match[1] ?? "") };
+}
 
-test("the bump keeps the history and tags its version rule reads", () => {
-  // `bump-version` finds the previous bump commit through `git log`, so a depth-1 checkout
-  // writes no changelog section at all; it also treats an untagged version as unpublished,
-  // so a checkout without tags would silently publish nothing for a merge.
-  expect(BUMP_WORKFLOW).toContain("fetch-depth: 0");
-  expect(BUMP_WORKFLOW).toContain("fetch-tags: true");
-});
+test("the notes quote the changelog and take only the sections above the previous tag", () => {
+  // Reassembling the section loses the date in the heading and the prose a maintainer
+  // wrote; the release page is the one place a reader sees the record outside the repo.
+  const result = notes(repo(["1.0.0-alpha.1", "1.0.0-alpha.2"], 1));
+  expect(result.text).toContain("## [1.0.0-alpha.2] - 2026-09-29");
+  expect(result.text).not.toContain("## 1.0.0-alpha.2\n");
+  expect(result.text).toContain("## [1.0.0-alpha.2] - 2026-09-29\n\n### Added");
+  expect(result.versions).toEqual(["1.0.0-alpha.2"]);
+  expect(result.text).toContain("- work 2");
+  expect(result.text).not.toContain("- work 1");
 
-test("a release pushes the tag itself, not only what --follow-tags carries", () => {
-  // `--follow-tags` carries annotated tags; this release tag is lightweight on a branch
-  // that is already up to date, which is exactly the tag it leaves behind.
-  expect(TAG_SCRIPT).toContain('push(["push", "origin", branch,');
-  expect(TAG_SCRIPT).toContain("refs/tags/${tag}`]);");
-  expect(TAG_SCRIPT).not.toMatch(/"--follow-tags"/);
-});
+  const several = notes(
+    repo(["1.0.0-alpha.1", "1.0.0-alpha.2", "1.0.0-alpha.3", "1.0.0-alpha.4"], 1),
+  );
 
-test("a release tags the version it finds rather than choosing one", () => {
-  // `bumpp` commits, tags, and pushes in one step, so leaving it on the release path would
-  // move the version at tag time and leave the tag behind the manifest, which is what
-  // `check-release-tag.mjs` refuses to publish.
-  expect(MANIFEST.scripts.release).toBe("node scripts/tag-release.mjs");
-  expect(Object.values(MANIFEST.scripts)).not.toContain("bumpp");
+  expect(several.versions).toEqual(["1.0.0-alpha.4", "1.0.0-alpha.3", "1.0.0-alpha.2"]);
+  // No earlier tag, so `git describe` exits non-zero: that is the answer, not a failure.
+  expect(notes(repo(["1.0.0-alpha.1"], 0)).versions).toEqual(["1.0.0-alpha.1"]);
 });

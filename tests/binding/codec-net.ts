@@ -27,29 +27,37 @@ export type Handshake = {
 export function readHandshake(socket: Socket): Promise<Handshake> {
   return new Promise((resolve, reject) => {
     let buffered: Buffer = Buffer.alloc(0);
+
     const timer = setTimeout(
       () => reject(new Error("no handshake within the timeout")),
       TEST_TIMEOUT_MS,
     );
+
     const onData = (chunk: Buffer): void => {
       buffered = Buffer.concat([buffered, chunk]);
       const end = buffered.indexOf("\r\n\r\n");
+
       if (end === -1) return;
       clearTimeout(timer);
       socket.off("data", onData);
       socket.off("error", onError);
       const request = buffered.subarray(0, end).toString("latin1");
       const key = /sec-websocket-key: (.+)\r\n/i.exec(request)?.[1]?.trim();
+
       if (key === undefined) {
         reject(new Error("handshake carried no Sec-WebSocket-Key"));
+
         return;
       }
+
       resolve({ head: buffered.subarray(end + 4), key });
     };
+
     const onError = (error: Error): void => {
       clearTimeout(timer);
       reject(error);
     };
+
     socket.on("data", onData);
     socket.on("error", onError);
   });
@@ -77,18 +85,22 @@ export function writeAccept(socket: Socket, key: string): void {
 export function readResponse(socket: Socket): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     let buffered: Buffer = Buffer.alloc(0);
+
     const timer = setTimeout(
       () => reject(new Error("no response within the timeout")),
       TEST_TIMEOUT_MS,
     );
+
     const onData = (chunk: Buffer): void => {
       buffered = Buffer.concat([buffered, chunk]);
       const end = buffered.indexOf("\r\n\r\n");
+
       if (end === -1) return;
       clearTimeout(timer);
       socket.off("data", onData);
       resolve(buffered.subarray(end + 4));
     };
+
     socket.on("data", onData);
     socket.on("error", (error: Error) => {
       clearTimeout(timer);
@@ -126,5 +138,6 @@ export async function openRawClient(port: number): Promise<Socket> {
     ].join("\r\n"),
   );
   await readResponse(socket);
+
   return socket;
 }

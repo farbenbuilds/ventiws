@@ -5,10 +5,11 @@
 // redirect looks like on the wire (a load balancer or CDN in front of a socket endpoint).
 
 import { createServer, type Server, type Socket } from "node:net";
-import { acceptValue } from "../../binding/codec-net";
+import { acceptValue } from "../handshake";
+import { boundPort } from "../address-support";
 
 /// The token for "this peer's own authority": a self-redirect needs it before the port exists.
-const SELF = "self";
+export const SELF = "self";
 
 export type RedirectPeer = {
   readonly url: string;
@@ -47,13 +48,16 @@ export function scriptedPeer(script: PeerScript): Promise<RedirectPeer> {
   const markers: Array<string | undefined> = [];
   const sockets: Socket[] = [];
   let served = 0;
+
   const server: Server = createServer((socket) => {
     sockets.push(socket);
     let buffered = Buffer.alloc(0);
     socket.on("error", () => undefined);
+
     const onData = (chunk: Buffer): void => {
       buffered = Buffer.concat([buffered, chunk]);
       const end = buffered.indexOf("\r\n\r\n");
+
       if (end === -1) return;
       socket.off("data", onData);
       const head = buffered.subarray(0, end).toString("latin1");
@@ -65,18 +69,23 @@ export function scriptedPeer(script: PeerScript): Promise<RedirectPeer> {
       paths.push(/^\S+ (\S+) HTTP\/1\.1$/im.exec(head)?.[1] ?? "");
       served += 1;
       const status = served === 1 ? script.first : script.after;
+
       if (status >= 300 && status < 400 && script.location !== undefined) {
         // A `SELF` location is resolved here rather than at the call site because the
         // port does not exist until the peer is listening.
-        const authority = (server.address() as { port: number }).port;
+        const authority = boundPort(server.address());
+
         const target = script.location.startsWith(SELF)
           ? `ws://127.0.0.1:${authority}${script.location.slice(SELF.length)}`
           : script.location;
+
         socket.write(
           `HTTP/1.1 ${status} Found\r\nLocation: ${target}\r\nContent-Length: 0\r\n\r\n`,
         );
+
         return;
       }
+
       if (status !== 101) {
         // A body and a header of its own, because the two are what a caller reading a
         // refusal through `unexpected-response` is actually handed: the response is a
@@ -93,8 +102,10 @@ export function scriptedPeer(script: PeerScript): Promise<RedirectPeer> {
             body,
           ].join("\r\n"),
         );
+
         return;
       }
+
       const key = /sec-websocket-key: (.+)\r\n/i.exec(head)?.[1]?.trim() ?? "";
       socket.write(
         [
@@ -107,12 +118,14 @@ export function scriptedPeer(script: PeerScript): Promise<RedirectPeer> {
         ].join("\r\n"),
       );
     };
+
     socket.on("data", onData);
   });
+
   return new Promise((resolve) => {
     server.listen(0, "127.0.0.1", () => {
       resolve({
-        url: `ws://127.0.0.1:${(server.address() as { port: number }).port}`,
+        url: `ws://127.0.0.1:${boundPort(server.address())}`,
         authorizations,
         cookies,
         paths,
@@ -122,6 +135,7 @@ export function scriptedPeer(script: PeerScript): Promise<RedirectPeer> {
           // is the only one that will ever see it. A test that leaves one off sees the
           // error as an unhandled rejection against whichever test happened to be running.
           for (const socket of sockets) socket.destroy();
+
           return new Promise<void>((done) => {
             server.close(() => done());
           });
@@ -129,20 +143,4 @@ export function scriptedPeer(script: PeerScript): Promise<RedirectPeer> {
       });
     });
   });
-}
-
-/// A peer that completes a handshake, and is the destination of a redirect.
-export function handshakePeer(): Promise<RedirectPeer> {
-  return scriptedPeer({ first: 101, after: 101 });
-}
-
-/// A peer that answers the first request with a redirect and completes the next.
-export function redirectingPeer(location: string): Promise<RedirectPeer> {
-  return scriptedPeer({ first: 302, location, after: 101 });
-}
-
-/// A peer that redirects to itself, which is the one case where a redirect keeps its
-/// host *and* its port, and so the one case where credentials survive the hop.
-export function selfRedirectPeer(path: string): Promise<RedirectPeer> {
-  return scriptedPeer({ first: 302, location: `${SELF}${path}`, after: 101 });
 }

@@ -10,20 +10,26 @@ import { buildRecord } from "./bench-record.mjs";
 
 const readArgs = (argv) => {
   const args = new Map();
+
   for (let index = 0; index < argv.length; index += 2) {
     const flag = argv[index];
     const value = argv[index + 1];
+
     if (flag === undefined || !flag.startsWith("--") || value === undefined) {
       throw new Error(`expected --flag value, received "${flag ?? ""}"`);
     }
+
     args.set(flag.slice(2), value);
   }
+
   return args;
 };
 
 const required = (args, key) => {
   const value = args.get(key);
+
   if (value === undefined || value === "") throw new Error(`missing --${key}`);
+
   return value;
 };
 
@@ -37,6 +43,7 @@ const main = () => {
   const contractSource = readFile(contractPath);
   const schemaPath = required(args, "schema");
   const contractDocPath = required(args, "contract-doc");
+
   const record = buildRecord({
     report: JSON.parse(reportSource),
     contractSource,
@@ -56,6 +63,7 @@ const main = () => {
       kernel: required(args, "kernel"),
     },
   });
+
   const recordId = publishRecord({
     record,
     reportSource,
@@ -67,6 +75,7 @@ const main = () => {
     contractDocSource: readFile(contractDocPath),
     contractDocName: basename(contractDocPath),
   });
+
   process.stdout.write(`${recordId}\n`);
 };
 

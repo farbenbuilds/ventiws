@@ -6,6 +6,7 @@
 // test rather than a certificate error.
 
 import { createServer, type Server, type TLSSocket } from "node:tls";
+import { boundPort } from "../address-support";
 import { certificates } from "./tls-support";
 
 export type DowngradePeer = {
@@ -20,6 +21,7 @@ export type DowngradePeer = {
 export function downgradePeer(target: string): Promise<DowngradePeer> {
   const { key, cert } = certificates();
   const sockets: TLSSocket[] = [];
+
   const server: Server = createServer({ key, cert }, (socket: TLSSocket) => {
     sockets.push(socket);
     let buffered = Buffer.alloc(0);
@@ -28,6 +30,7 @@ export function downgradePeer(target: string): Promise<DowngradePeer> {
     socket.on("data", (chunk: Buffer) => {
       if (answered) return;
       buffered = Buffer.concat([buffered, chunk]);
+
       if (buffered.indexOf("\r\n\r\n") === -1) return;
       answered = true;
       socket.write(
@@ -35,13 +38,15 @@ export function downgradePeer(target: string): Promise<DowngradePeer> {
       );
     });
   });
+
   return new Promise((resolve) => {
     server.listen(0, "127.0.0.1", () => {
-      const port = (server.address() as { port: number }).port;
+      const port = boundPort(server.address());
       resolve({
         url: `wss://localhost:${port}/`,
         close: () => {
           for (const socket of sockets) socket.destroy();
+
           return new Promise<void>((done) => {
             server.close(() => done());
           });

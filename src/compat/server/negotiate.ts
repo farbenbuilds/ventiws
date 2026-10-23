@@ -25,27 +25,35 @@ export function negotiateExtensions(
   socket: Duplex,
 ): Negotiation {
   const options = state.normalizedOptions.perMessageDeflate;
+
   if (options === false) return { outcome: "none" };
   const header = request.headers["sec-websocket-extensions"];
+
   if (header === undefined) return { outcome: "none" };
 
   let offers: readonly ParsedExtension[];
+
   try {
     offers =
       parseExtensions(Array.isArray(header) ? header.join(", ") : header).get(PERMESSAGE_DEFLATE) ??
       [];
   } catch {
     abortOrEmit(state, request, socket, 400, "Invalid Sec-WebSocket-Extensions header");
+
     return { outcome: "refused" };
   }
 
   const outcome = acceptAsServer(offers, options);
+
   // A null is a peer that offered nothing, which is legal.
   if (outcome === null) return { outcome: "none" };
+
   if ("refusal" in outcome) {
     // `ws` answers a bad or unacceptable header with a 400 and this exact message.
     abortOrEmit(state, request, socket, 400, outcome.refusal);
+
     return { outcome: "refused" };
   }
+
   return { outcome: "accepted", accepted: outcome.accepted };
 }

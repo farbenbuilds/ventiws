@@ -14,13 +14,16 @@ export function codecOf(state: SocketState): bigint | null {
 // is no later call in which to change them, and a socket is `CONNECTING` past its options.
 export function openCodec(state: SocketState, role: number): bigint {
   if (state.codec !== null) return state.codec;
+
   const handle = createCodec(role, {
     maxPayload: state.maxPayload,
     maxFragments: state.maxFragments,
     validateUtf8: state.validateUtf8,
     permessageDeflate: state.compressible,
   });
+
   state.codec = handle;
+
   return handle;
 }
 

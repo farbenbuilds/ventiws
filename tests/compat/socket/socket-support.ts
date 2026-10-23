@@ -18,6 +18,7 @@ export function terminateClient(client: WsClient): void {
   if (client.readyState === client.CONNECTING) {
     client.once("error", () => {});
   }
+
   try {
     client.terminate();
   } catch {
@@ -30,10 +31,12 @@ export function terminateClient(client: WsClient): void {
 export async function attached(): Promise<Attached> {
   const { server, port } = await startAndWait({ host: "127.0.0.1", port: 0 });
   const client = new WsClient(`ws://127.0.0.1:${port}/`);
+
   try {
     const open = await server.waitFor("connectionOpen");
     const socket = new WebSocket(null);
     attachNativeSocket(socket, server.handle, packConnectionHandle(open.index, open.generation));
+
     return { server, client, socket };
   } catch (error) {
     terminateClient(client);

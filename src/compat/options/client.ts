@@ -8,36 +8,40 @@ import {
   invalidOption,
   normalizePerMessageDeflate,
 } from "./shared";
+import type { UndeclaredClientOptions } from "./undeclared";
 
-export function normalizeClientOptions(options?: ClientOptions): NormalizedClientOptions {
+export function normalizeClientOptions(
+  options?: ClientOptions & UndeclaredClientOptions,
+): NormalizedClientOptions {
   // `ws` copies own enumerable properties before reading, so inherited properties are
   // ignored and each getter runs exactly once.
   const source = { ...options };
   const protocolVersion = source.protocolVersion ?? 13;
+
   if (protocolVersion !== 8 && protocolVersion !== 13) {
     invalidOption(
       `Unsupported protocol version: ${protocolVersion} (supported versions: 8, 13)`,
       RangeError,
     );
   }
+
   return {
     protocolVersion,
     followRedirects: source.followRedirects ?? false,
     maxRedirects: source.maxRedirects ?? DEFAULT_MAX_REDIRECTS,
     handshakeTimeout: source.handshakeTimeout,
-    maxPayload: maxPayloadOf(source, () => codecLimits().maxPayloadBytes),
-    maxFragments: maxFragmentsOf(source, () => codecLimits().maxFragments),
-    maxBufferedChunks: maxBufferedChunksOf(source),
+    maxPayload: maxPayloadOf(source.maxPayload, () => codecLimits().maxPayloadBytes),
+    maxFragments: maxFragmentsOf(source.maxFragments, () => codecLimits().maxFragments),
+    maxBufferedChunks: maxBufferedChunksOf(source.maxBufferedChunks),
     skipUTF8Validation: source.skipUTF8Validation ?? false,
     allowSynchronousEvents: source.allowSynchronousEvents ?? true,
     autoPong: source.autoPong ?? true,
-    // Not declared by `@types/ws` yet, so it is read off the copied source as a runtime
-    // field. `ws` 8.22.0 wraps a scalar and lets the subprotocol parser refuse the rest.
-    protocols: (source as { readonly protocols?: string | string[] }).protocols,
+    // Not declared by `@types/ws` yet, so the copy carries it through `UndeclaredClientOptions`.
+    protocols: source.protocols,
     // `closeTimeout` is read rather than declared: `@types/ws` does not declare it
     // either, so accepting it here keeps the runtime behaviour identical, which is the
     // only part a difference would be observable in.
-    closeTimeout: closeTimeoutOf(source),
+    closeTimeout: closeTimeoutOf(source.closeTimeout),
     perMessageDeflate: normalizePerMessageDeflate(source.perMessageDeflate, true),
     origin: source.origin,
     headers: source.headers === undefined ? undefined : { ...source.headers },

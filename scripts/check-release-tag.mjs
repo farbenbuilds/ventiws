@@ -16,8 +16,11 @@ const ref = process.env.GITHUB_REF ?? "";
 if (!ref.startsWith(TAG_PREFIX)) {
   throw new Error(`check-release-tag: GITHUB_REF is ${ref}, which is not a v-tag`);
 }
+
 const tag = ref.slice(TAG_PREFIX.length);
+
 if (tag !== version) {
   throw new Error(`check-release-tag: the tag is v${tag} but package.json is ${version}`);
 }
+
 console.log(`check-release-tag: v${tag} matches package.json`);

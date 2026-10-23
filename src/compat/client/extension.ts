@@ -18,20 +18,26 @@ export function acceptExtension(
   options: NormalizedPerMessageDeflate | false,
 ): ClientExtension {
   const claimed = response.headers["sec-websocket-extensions"];
+
   if (claimed === undefined) return { accepted: null };
   // A repeated header arrives as a joined string from Node and as an array from a
   // hand-built response object, and RFC 7692 allows one answer to one negotiation.
   const value = Array.isArray(claimed) ? claimed.join(", ") : claimed;
+
   if (options === false) return { refusal: "Server sent an extension but none was requested" };
 
   let offered: readonly ParsedExtension[];
+
   try {
     offered = parseExtensions(value).get(PERMESSAGE_DEFLATE) ?? [];
   } catch {
     return { refusal: "Invalid Sec-WebSocket-Extensions header" };
   }
+
   // The server picked a name nobody offered.
   if (offered.length === 0) return { refusal: "Server sent an extension but none was requested" };
-  const outcome = acceptAsClient(offered[0] as ParsedExtension, options);
+  const [first] = offered;
+  const outcome = acceptAsClient(first, options);
+
   return outcome ?? { accepted: null };
 }

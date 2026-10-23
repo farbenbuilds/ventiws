@@ -23,12 +23,14 @@ export function attachNativeSocket(
   connection: ConnectionHandle,
 ): void {
   const state = socketStateOf(socket);
+
   if (state === undefined) {
     throw createError(
       "ERR_INVALID_HANDLE",
       "ventiws: attachNativeSocket requires a ventiws socket record",
     );
   }
+
   state.attachment = { server, connection };
   // Already established, so the socket opens the moment it is adopted.
   openSocket(state);
@@ -44,12 +46,14 @@ export function attachSocket(
   pending?: Buffer,
 ): void {
   const state = socketStateOf(socket);
+
   if (state === undefined) {
     throw createError(
       "ERR_INVALID_HANDLE",
       "ventiws: attachSocket requires a ventiws socket record",
     );
   }
+
   // A stream that cannot be read or written is not a connection, and one reporting `OPEN`
   // is permanently `OPEN` with nothing on the wire: every send reports success.
   if (!transport.readable || !transport.writable) {
@@ -62,12 +66,15 @@ export function attachSocket(
       "ERR_INVALID_STATE",
       "ventiws: the transport was closed before the connection was established",
     );
+
     process.nextTick(() => {
       failConnection(state, gone);
     });
     transport.destroy();
+
     return;
   }
+
   state.transport = transport;
   openCodec(state, role ?? CODEC_ROLE.server);
   transport.on("end", () => {
@@ -109,5 +116,6 @@ function openSocket(state: SocketState): void {
 /// The guard stops a non-`Error` thrown by a custom stream reaching `emitEvent` untyped.
 function asCodedError(error: Error): Error {
   if (error instanceof Error) return error;
+
   return createError("ERR_PROTOCOL", `ventiws: the transport failed: ${String(error)}`);
 }

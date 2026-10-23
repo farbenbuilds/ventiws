@@ -6,9 +6,8 @@
 // uses; this is what a hostile or broken one looks like.
 
 import { createServer, type Server, type Socket } from "node:net";
-import { createHash } from "node:crypto";
-
-const GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+import { acceptValue } from "../handshake";
+import { boundPort } from "../address-support";
 
 export type RawPeer = {
   readonly url: string;
@@ -28,114 +27,57 @@ export async function rawAcceptServer(
 ): Promise<RawPeer> {
   const sockets: Socket[] = [];
   let announce: (socket: Socket) => void = () => undefined;
+
   const accepted = new Promise<Socket>((resolve) => {
     announce = resolve;
   });
+
   const server: Server = createServer((socket) => {
     sockets.push(socket);
     announce(socket);
     let buffered = Buffer.alloc(0);
     let answered = false;
     socket.on("error", () => undefined);
-    socket.on("data", (chunk) => {
+    socket.on("data", (chunk: Buffer) => {
       // Once, and only to the opening request. A second response would be a peer
       // speaking HTTP in the middle of a WebSocket connection, which is a protocol
       // error the client is right to refuse, and it would hide whatever this peer was
       // built to test.
       if (answered) return;
-      buffered = Buffer.concat([buffered, chunk as Buffer]);
+      buffered = Buffer.concat([buffered, chunk]);
       const end = buffered.indexOf("\r\n\r\n");
+
       if (end === -1) return;
       answered = true;
+
       const key = /sec-websocket-key: (.+)\r\n/i.exec(
         buffered.subarray(0, end).toString("latin1"),
       )?.[1];
+
       if (key === undefined) return;
-      const accept = createHash("sha1")
-        .update(key + GUID)
-        .digest("base64");
-      const headers: Record<string, string> = {
+
+      const headers = {
         Upgrade: "websocket",
         Connection: "Upgrade",
-        "Sec-WebSocket-Accept": accept,
+        "Sec-WebSocket-Accept": acceptValue(key),
         ...overrides,
       };
+
       const lines = Object.entries(headers).map(([name, value]) => `${name}: ${value}`);
       socket.write(`HTTP/1.1 ${status}\r\n${lines.join("\r\n")}\r\n\r\n`);
     });
   });
+
   await new Promise<void>((resolve) => {
     server.listen(0, "127.0.0.1", resolve);
   });
+
   return {
-    url: `ws://127.0.0.1:${(server.address() as { port: number }).port}`,
+    url: `ws://127.0.0.1:${boundPort(server.address())}`,
     accepted,
     close: () => {
       for (const socket of sockets) socket.destroy();
-      return new Promise<void>((resolve) => {
-        server.close(() => resolve());
-      });
-    },
-  };
-}
 
-export type DelayedPeer = {
-  readonly url: string;
-  /// Resolves once the opening request is read and left unanswered, which is the moment a
-  /// client is certainly still `CONNECTING`.
-  readonly requestRead: Promise<void>;
-  /// Writes the 101 the fixture was holding back.
-  accept(): void;
-  /// Resolves when the client's connection is gone, however it ended.
-  readonly gone: Promise<void>;
-  close(): Promise<void>;
-};
-
-/// A peer that reads the opening request and delays the 101, so a test can drive a
-/// `close()` or `terminate()` against the in-flight handshake and then race the answer.
-export async function delayedAcceptServer(): Promise<DelayedPeer> {
-  const sockets: Socket[] = [];
-  let key = "";
-  let announce: () => void = () => undefined;
-  const requestRead = new Promise<void>((resolve) => {
-    announce = resolve;
-  });
-  let departed: () => void = () => undefined;
-  const gone = new Promise<void>((resolve) => {
-    departed = resolve;
-  });
-  const server: Server = createServer((socket) => {
-    sockets.push(socket);
-    let buffered = Buffer.alloc(0);
-    socket.on("error", () => undefined);
-    socket.on("close", () => departed());
-    socket.on("data", (chunk) => {
-      if (key !== "") return;
-      buffered = Buffer.concat([buffered, chunk as Buffer]);
-      const end = buffered.indexOf("\r\n\r\n");
-      if (end === -1) return;
-      const head = buffered.subarray(0, end).toString("latin1");
-      key = /sec-websocket-key: (.+)\r\n/i.exec(head)?.[1]?.trim() ?? "";
-      announce();
-    });
-  });
-  await new Promise<void>((resolve) => {
-    server.listen(0, "127.0.0.1", resolve);
-  });
-  return {
-    url: `ws://127.0.0.1:${(server.address() as { port: number }).port}`,
-    requestRead,
-    accept: () => {
-      const accept = createHash("sha1")
-        .update(key + GUID)
-        .digest("base64");
-      sockets[0]?.write(
-        `HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ${accept}\r\n\r\n`,
-      );
-    },
-    gone,
-    close: () => {
-      for (const socket of sockets) socket.destroy();
       return new Promise<void>((resolve) => {
         server.close(() => resolve());
       });

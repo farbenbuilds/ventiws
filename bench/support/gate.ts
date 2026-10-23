@@ -13,16 +13,21 @@ export type GateVerdict = {
 const evaluate = (result: ConfigurationResult): string => {
   const baseline = result.legs[BASELINE_ID];
   const candidate = result.legs[CANDIDATE_ID];
+
   if (baseline.medianRoundTripsPerSecond === null) {
     return `unverified  ${result.configuration}: no ${BASELINE_ID} baseline (${baseline.reason})`;
   }
+
   if (candidate.medianRoundTripsPerSecond === null) {
     return `unverified  ${result.configuration}: no ${CANDIDATE_ID} number (${candidate.reason})`;
   }
+
   const ratio = candidate.medianRoundTripsPerSecond / baseline.medianRoundTripsPerSecond;
+
   if (ratio >= GATE_MIN_RATIO) {
     return `pass        ${result.configuration}: ${ratio.toFixed(3)} of ${BASELINE_ID}`;
   }
+
   return `FAIL        ${result.configuration}: ${ratio.toFixed(3)} of ${BASELINE_ID} is below ${GATE_MIN_RATIO}`;
 };
 
@@ -31,5 +36,6 @@ const evaluate = (result: ConfigurationResult): string => {
 /// measured nothing at all.
 export const evaluateGate = (results: readonly ConfigurationResult[]): GateVerdict => {
   const lines = results.map(evaluate);
+
   return { failed: lines.some((line) => !line.startsWith("pass")), lines };
 };

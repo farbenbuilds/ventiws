@@ -17,15 +17,19 @@ const latestTable = (record) => {
     gate_candidate: candidate,
     gate_baseline: baseline,
   } = record.methodology;
+
   const header = ["payload", ...implementations, `${candidate} vs ${baseline}`];
+
   const rows = record.results.configurations.map((configuration) => [
     `${configuration.payload_bytes} B`,
     ...implementations.map((id) => {
       const value = configuration.legs[id].median_round_trips_per_second;
+
       return value === null ? "n/a" : integer.format(value);
     }),
     ratio(configuration.candidate_to_baseline_ratio),
   ]);
+
   return table(header, rows);
 };
 

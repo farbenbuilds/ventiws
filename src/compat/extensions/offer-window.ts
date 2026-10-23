@@ -11,15 +11,21 @@ export function serverWindowUsable(
   offer: Normalized,
 ): boolean {
   const wanted = options.serverMaxWindowBits;
+
   // A window below 15 is one no offer can grant: declining every offer beats answering with
   // a parameter this compressor cannot honour.
-  if (typeof wanted === "number" && wanted < WINDOW_BITS) return false;
+  if (wanted !== false && wanted !== undefined && wanted < WINDOW_BITS) return false;
   const asked = offer.server_max_window_bits;
+
   if (asked === undefined) return true;
+
   if (wanted === false) return false;
-  if (typeof wanted === "number") {
+
+  if (wanted !== undefined) {
     if (wanted > asked) return false;
+
     return wanted >= WINDOW_BITS;
   }
+
   return asked >= WINDOW_BITS;
 }

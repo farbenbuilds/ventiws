@@ -4,13 +4,11 @@
 import type { RuntimeName } from "./runtime";
 import type { AddonTarget } from "./target";
 
-/// Deno loads addons only from a local `node_modules` behind an FFI permission and Bun
-/// goes through `bun install`, so a Node-only sentence sends those readers to a fix that
-/// does not apply.
+/// Bun goes through `bun install`, so a Node-only sentence sends those readers to a fix
+/// that does not apply.
 function runtimeHint(runtime: RuntimeName): string {
-  if (runtime === "deno")
-    return " Deno loads native addons only from a local node_modules and the load needs --allow-ffi and --allow-read.";
   if (runtime === "bun") return " Bun installs the optional binding with bun install.";
+
   return "";
 }
 
@@ -46,6 +44,7 @@ export function missingAddonMessage(
   runtime: RuntimeName = "node",
 ): string {
   const host = `${platform}-${arch}`;
+
   if (root === undefined) {
     return (
       "ventiws: the package layout is broken -- there is no package.json above the " +
@@ -54,6 +53,7 @@ export function missingAddonMessage(
       runtimeHint(runtime)
     );
   }
+
   if (target === undefined) {
     return (
       `ventiws: no published native addon for ${host}, so nothing was installed to load. ` +
@@ -62,6 +62,7 @@ export function missingAddonMessage(
       runtimeHint(runtime)
     );
   }
+
   return (
     `ventiws: the native addon for ${target} is not installed under ${root}. It is an ` +
     `optional dependency, so npm skipped it for ${host}; an install that resolves no ` +

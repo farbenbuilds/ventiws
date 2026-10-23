@@ -38,6 +38,7 @@ describe("the skip decision", () => {
       changedPaths: ["README.md", "src/engine/socket/payload.zig"],
       alwaysRun: false,
     });
+
     expect(decision.run).toBe(true);
     expect(decision.changed).toEqual(["src/engine/socket/payload.zig"]);
   });
@@ -50,6 +51,7 @@ describe("the skip decision", () => {
       changedPaths: ["src/compat/socket/send.ts", "COMPATIBILITY.md", "docs/compliance-api.md"],
       alwaysRun: false,
     });
+
     expect(decision.run).toBe(false);
     expect(decision.changed).toHaveLength(3);
   });
@@ -69,6 +71,7 @@ describe("the skip decision", () => {
       changedPaths: ["README.md"],
       alwaysRun: false,
     });
+
     expect(decision.reason).toContain("deadbee");
   });
 });
@@ -80,17 +83,21 @@ describe("the decision and the workflow filter", () => {
     // that makes the two definitions agree.
     const filter = /paths:\n((?:\s+- .*\n)+)/g;
     const listed: string[] = [];
+
     for (const block of WORKFLOW.matchAll(filter)) {
       for (const line of block[1].split("\n")) {
         const quoted = line.trim().match(/^-\s+"?([^"]+)"?$/);
+
         if (quoted !== null) listed.push(quoted[1]);
       }
     }
+
     expect(listed.length).toBeGreaterThan(0);
     // No exemption list. `src/**` used to be skipped here, which is exactly the
     // entry this test exists to catch, so a workflow that re-added it would have
     // been silently approved.
     expect(listed).not.toContain("src/**");
+
     for (const path of listed) expect(ENGINE_PATHS).toContain(path);
   });
 });

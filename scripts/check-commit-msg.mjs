@@ -24,13 +24,16 @@ function violations(message) {
 
 function main() {
   const file = argv[2];
+
   if (file === undefined) throw new Error("check-commit-msg: no message file given");
   const message = readFileSync(file, "utf8").replace(/^#.*$/gm, "");
 
   const found = violations(message);
+
   if (found.length === 0) return;
 
   process.stderr.write("check-commit-msg: this marker would silence CI for the merge\n");
+
   for (const marker of found) process.stderr.write(`  [${marker}]\n`);
   process.stderr.write(
     "\nA squash merge puts every commit body into the message on main, and GitHub\n" +

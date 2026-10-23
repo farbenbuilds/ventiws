@@ -20,18 +20,14 @@ import type { UpgradeCallback } from "./accept";
 
 const SERVER_BRAND = Symbol("ventiws.server");
 
-/// A missing artifact thrown from a Node `upgrade` listener is an uncaught exception
-/// that takes the process down, with a message about `pnpm build:binding` that an
-/// installed consumer has neither the command nor the Zig source for.
+/// A missing artifact thrown from a Node `upgrade` listener is an uncaught exception that
+/// takes the process down, naming a build command an installed consumer does not have.
 function requireAddon(): void {
   loadAddon();
 }
 
-type BrandedServer = { readonly [SERVER_BRAND]?: true };
-
-export function isServer(value: unknown): boolean {
-  if (typeof value !== "object" || value === null) return false;
-  return (value as BrandedServer)[SERVER_BRAND] === true;
+export function isServer(value: unknown): value is WebSocketServer {
+  return value instanceof Object && SERVER_BRAND in value;
 }
 
 /// Builds the `ws`-shaped server record. The listener modes match upstream: an explicit
@@ -44,12 +40,14 @@ export function createWebSocketServer(
   callback?: () => void,
 ): WebSocketServer {
   requireAddon();
+
+  // SAFETY: the public record reports ws's null defaults for absent options, which the
+  // vendored `ServerOptions` declares as optional `undefined` instead.
   const resolved = {
     allowSynchronousEvents: true,
     autoPong: true,
-    // `ws` defaults these three and they are observable on `server.options`, but
-    // `@types/ws` declares none, so matching `ws` means inheriting the same type gap
-    // rather than shipping a record that is a strict subset of the contract.
+    // `ws` defaults these three and reports them on `server.options`, which `@types/ws`
+    // leaves undeclared; matching `ws` means inheriting the same type gap.
     maxBufferedChunks: DEFAULT_MAX_BUFFERED_CHUNKS,
     maxFragments: DEFAULT_MAX_FRAGMENTS,
     closeTimeout: DEFAULT_CLOSE_TIMEOUT,
@@ -68,10 +66,12 @@ export function createWebSocketServer(
     WebSocket: socketClass,
     ...options,
   } as ServerOptions;
+
   // `ws` rewrites the shorthand `perMessageDeflate: true` to an options object on the
   // public record.
   if (resolved.perMessageDeflate === true) resolved.perMessageDeflate = {};
   const normalized = normalizeServerOptions(resolved);
+
   const state: ServerState = {
     options: resolved,
     normalizedOptions: normalized,
@@ -79,7 +79,7 @@ export function createWebSocketServer(
     // Truthiness, not `=== false`: `ws` gates on `clientTracking` being truthy, so
     // `null`, `0` and `""` all disable tracking and the `clients` key stays absent.
     clients: normalized.clientTracking ? new Set<WebSocket>() : undefined,
-    webSocket: (resolved.WebSocket ?? socketClass) as ServerSocketConstructor,
+    webSocket: resolved.WebSocket ?? socketClass,
     server: null,
     lifecycle: "running",
     record: null,
@@ -100,7 +100,8 @@ export function createWebSocketServer(
       });
       response.end(body);
     });
-    state.server = httpServer as ServerState["server"];
+
+    state.server = httpServer;
     httpServer.listen(
       resolved.port,
       resolved.host ?? undefined,
@@ -110,17 +111,13 @@ export function createWebSocketServer(
   } else if (resolved.server) {
     state.server = resolved.server;
   }
+
   if (state.server !== null) wireServer(state);
 
   const server = {
     ...createEmitter(state),
     options: resolved,
     path: state.path,
-    // `ws` assigns `clients` only when `clientTracking` is truthy, so the key is absent
-    // rather than present-and-undefined: a caller testing `"clients" in server`,
-    // enumerating `Object.keys`, or spreading the record sees the difference, and an
-    // empty set would report a size of 0 where `ws` reports `undefined`.
-    ...(state.clients === undefined ? {} : { clients: state.clients }),
     address: () => addressOf(state),
     close: (closeCallback?: (error?: Error) => void): void => {
       closeWebSocketServer(state, closeCallback);
@@ -135,10 +132,19 @@ export function createWebSocketServer(
     },
     shouldHandle: (request: IncomingMessage): boolean => defaultShouldHandle(state, request),
   };
+
+  // `ws` assigns `clients` only when `clientTracking` is truthy, so the key is absent
+  // rather than present-and-undefined: a caller testing `"clients" in server`, enumerating
+  // `Object.keys`, or spreading the record sees the difference.
+  if (state.clients !== undefined) Object.assign(server, { clients: state.clients });
+
   state.target = server;
   // Resolved at call time, so a later `server.shouldHandle = ...` is the
   // predicate the upgrade path consults, which is `ws`'s `this.shouldHandle(req)`.
   state.record = server;
   Object.defineProperty(server, SERVER_BRAND, { value: true });
-  return server as unknown as WebSocketServer;
+
+  // SAFETY: the record implements every server member ws reads; the emitter registrations
+  // return void where the vendored class declares `this`, which the facade never uses.
+  return server as WebSocketServer;
 }

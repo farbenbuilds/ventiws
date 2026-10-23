@@ -7,6 +7,7 @@ import { loadAddon } from "./load";
 
 export function codecFailureCode(handle: bigint): number {
   const addon = loadAddon();
+
   return callNative(() => addon.codecFailureCode(handle));
 }
 
@@ -15,6 +16,7 @@ export function codecFailureCode(handle: bigint): number {
 export function codecFailure(handle: bigint): CodecFailureName | null {
   const addon = loadAddon();
   const ordinal = callNative(() => addon.codecFailure(handle));
+
   return CODEC_FAILURES[ordinal - 1] ?? null;
 }
 
@@ -25,6 +27,7 @@ export function resetCodec(handle: bigint): void {
 
 export function codecRole(handle: bigint): number {
   const addon = loadAddon();
+
   return callNative(() => addon.codecRole(handle));
 }
 
@@ -38,6 +41,8 @@ export type CodecCeilings = {
 export function codecCeilings(handle: bigint): CodecCeilings | null {
   const addon = loadAddon();
   const ceilings: [number, number] | null = callNative(() => addon.codecCeilings(handle));
+
   if (ceilings === null) return null;
+
   return { maxPayload: ceilings[0], maxFragments: ceilings[1] };
 }

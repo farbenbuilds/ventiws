@@ -5,6 +5,7 @@ const std = @import("std");
 const napi = @import("napi-zig");
 const uwz = @import("uWebZockets");
 const callbacks = @import("../channel/callbacks.zig");
+const capacities = @import("capacities.zig");
 const engine_config = @import("engine_config.zig");
 const handles = @import("../socket/handles.zig");
 const options = @import("options.zig");
@@ -32,16 +33,8 @@ pub const Slab = handles.connection_slab(options.connection_capacity);
 pub const Table = registry.slot_table(server_capacity, Instance);
 pub const Handle = registry.Handle;
 
-/// Outbound payload slots staged per server; slot bytes equal the trusted message cap.
-pub const payload_slots: usize = 8;
-
-/// Inbound slots, deliberately deeper than the outbound ring: an outbound payload is taken
-/// by the `pump` that staged it, while an inbound one waits for the main thread. The depth is
-/// the burst budget -- the engine cannot stop reading once a consumer falls behind. At the
-/// 64 KiB message cap that is 4 MiB per server; the excess is `serverDroppedMessages`.
-pub const inbound_slots: usize = 64;
-pub const PayloadRing = payload.payload_ring(payload_slots, @as(usize, options.message_capacity));
-pub const InboundRing = payload.payload_ring(inbound_slots, @as(usize, options.message_capacity));
+pub const PayloadRing = payload.payload_ring(capacities.payload_slots, @as(usize, options.message_capacity));
+pub const InboundRing = payload.payload_ring(capacities.inbound_slots, @as(usize, options.message_capacity));
 pub const Sockets = socket.socket_slab(options.connection_capacity, PayloadRing, InboundRing);
 
 /// The one module-level variable in the addon: the engine callback ABI carries no user

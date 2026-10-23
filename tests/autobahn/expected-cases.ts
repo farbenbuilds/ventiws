@@ -51,45 +51,59 @@ if (INBOUND_LIMIT_BYTES !== 65_536) {
 /// Group 9 walks DATALEN per case and 7.1.6 is one 256 KiB payload; 10.1.1 is one
 /// 64 KiB payload, exactly at the cap, so it is evaluated rather than blocked.
 const BLOCKED_7_1_6 = ["7.1.6", "7.1.6.1"];
-const NINE_SUB_IDS: Readonly<Record<string, readonly number[]>> = {
-  "1": [4, 5, 6],
-  "2": [4, 5, 6],
-  "3": [2, 3, 4, 5, 6, 7, 8, 9],
-  "4": [2, 3, 4, 5, 6, 7, 8, 9],
-  "5": [2, 3, 4, 5, 6],
-  "6": [2, 3, 4, 5, 6],
-};
+
+type NineGroup = { readonly id: string; readonly subIds: readonly number[] };
+
+const NINE_GROUPS: readonly NineGroup[] = [
+  { id: "1", subIds: [4, 5, 6] },
+  { id: "2", subIds: [4, 5, 6] },
+  { id: "3", subIds: [2, 3, 4, 5, 6, 7, 8, 9] },
+  { id: "4", subIds: [2, 3, 4, 5, 6, 7, 8, 9] },
+  { id: "5", subIds: [2, 3, 4, 5, 6] },
+  { id: "6", subIds: [2, 3, 4, 5, 6] },
+];
 
 /// The deflate MSG_SIZES rows above the cap, shared by all twelve parameter sets.
-const COMPRESSION_OVER_LIMIT_ROWS = [10, 15, 16, 17, 18] as const;
+const COMPRESSION_OVER_LIMIT_ROWS: ReadonlySet<number> = new Set([10, 15, 16, 17, 18]);
 
 /// Group 12's dataset 4 is `data1.html`, and the suite slices its decoded string
 /// by code points: the 65536-code-point row encodes to up to 65563 UTF-8 bytes,
 /// above the compiled cap. The JSON datasets are ASCII, land exactly on the cap,
 /// and fit, so only these two rows are blocked; a run confirmed both.
-const COMPRESSION_OVER_LIMIT_CASES = ["12.4.9", "12.4.14"] as const;
+const COMPRESSION_OVER_LIMIT_CASES: ReadonlySet<string> = new Set(["12.4.9", "12.4.14"]);
+
+function nineSubIdsOf(group: string | undefined): readonly number[] {
+  return NINE_GROUPS.find((entry) => entry.id === group)?.subIds ?? [];
+}
 
 export function exceedsInboundLimit(caseId: string): boolean {
   if (BLOCKED_7_1_6.includes(caseId)) return true;
-  if ((COMPRESSION_OVER_LIMIT_CASES as readonly string[]).includes(caseId)) return true;
+
+  if (COMPRESSION_OVER_LIMIT_CASES.has(caseId)) return true;
   const parts = caseId.split(".");
+
   if (parts[0] === "9" && parts.length >= 3) {
     const sub = Number(parts.slice(2).join("."));
-    return Number.isInteger(sub) && (NINE_SUB_IDS[parts[1]] ?? []).includes(sub);
+
+    return Number.isInteger(sub) && nineSubIdsOf(parts[1]).includes(sub);
   }
+
   if (parts.length === 3 && (parts[0] === "12" || parts[0] === "13")) {
-    return (COMPRESSION_OVER_LIMIT_ROWS as readonly number[]).includes(Number(parts[2]));
+    return COMPRESSION_OVER_LIMIT_ROWS.has(Number(parts[2]));
   }
+
   return false;
 }
 
 /// Counted per case: 7.1.6 plus the listed group-9 sub-ids.
 export const SCALAR_CAPACITY_CASES =
-  1 + Object.values(NINE_SUB_IDS).reduce((total, subIds) => total + subIds.length, 0);
+  1 + NINE_GROUPS.reduce((total, group) => total + group.subIds.length, 0);
+
 /// Five group-12 and seven group-13 parameter sets, each with five over-limit rows,
 /// plus the two UTF-8-expanded group-12 rows above.
 export const COMPRESSION_CAPACITY_CASES =
-  12 * COMPRESSION_OVER_LIMIT_ROWS.length + COMPRESSION_OVER_LIMIT_CASES.length;
+  12 * COMPRESSION_OVER_LIMIT_ROWS.size + COMPRESSION_OVER_LIMIT_CASES.size;
+
 export const CAPACITY_CASES = SCALAR_CAPACITY_CASES + COMPRESSION_CAPACITY_CASES;
 export const EVALUATED_CASES = TOTAL_CASES - CAPACITY_CASES;
 

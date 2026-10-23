@@ -6,7 +6,8 @@
 //! section 7.1.1.1, and the only cost is compression ratio.
 
 const std = @import("std");
-const uwz = @import("uWebZockets");
+const build_options = @import("build_options");
+const compression = if (build_options.engine) @import("uWebZockets").compression_stream else @import("compression.zig");
 const growth = @import("growth.zig");
 const rsv1 = @import("rsv1.zig");
 
@@ -54,7 +55,7 @@ pub const Error = error{ CorruptPayload, TooLarge, OutOfMemory, Overflow };
 pub const Compressor = struct {
     input: growth.buffer(u8) = .{},
     output: growth.buffer(u8) = .{},
-    stream: ?uwz.compression_stream.CompressionStream = null,
+    stream: ?compression.CompressionStream = null,
 
     pub fn deinit(compressor: *Compressor) void {
         if (compressor.stream) |*stream| stream.deinit();
@@ -84,14 +85,14 @@ pub const Compressor = struct {
 
     /// Built on the first compressed message and rewound here: the borrow of `input` that
     /// `reserve` may have moved, the write cursor, and the closed flag.
-    fn engine(compressor: *Compressor) Error!*uwz.compression_stream.CompressionStream {
+    fn engine(compressor: *Compressor) Error!*compression.CompressionStream {
         if (compressor.stream) |*stream| {
             stream.input = compressor.input.items;
             stream.input_length = 0;
             stream.closed = false;
             return stream;
         }
-        compressor.stream = uwz.compression_stream.CompressionStream.init(
+        compressor.stream = compression.CompressionStream.init(
             .deflate_raw,
             level,
             compressor.input.items,

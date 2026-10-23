@@ -14,10 +14,13 @@ const log = (line: string): void => {
 
 const runPrimary = async (argv: readonly string[]): Promise<number> => {
   const options = parseOptions(argv);
+
   if (options.help) {
     log(USAGE);
+
     return 0;
   }
+
   log(
     `ventiws echo benchmark: ${options.messages} round trips per sample across ${options.implementations.length} implementations`,
   );
@@ -29,6 +32,7 @@ const runPrimary = async (argv: readonly string[]): Promise<number> => {
   log(renderReport(report, options.gate));
   log("");
   log(`report written to ${options.reportPath}`);
+
   return options.gate && report.gate.failed ? 1 : 0;
 };
 
@@ -39,10 +43,12 @@ const main = async (): Promise<number> => {
   try {
     if (cluster.isPrimary) return await runPrimary(process.argv.slice(2));
     await runWorker();
+
     return 0;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     process.stderr.write(`bench: ${message}\n`);
+
     return 2;
   }
 };

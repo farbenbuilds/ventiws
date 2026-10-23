@@ -1,30 +1,28 @@
+//! The published addon's root. It always carries the codec and the compile-time limits;
+//! the engine exports are present only when this build is the development engine addon,
+//! so the published binary imports neither uWebZockets nor its vendored TLS and QUIC.
+
 const napi = @import("napi-zig");
-const uwz = @import("uWebZockets");
 const build_options = @import("build_options");
+const limits_io = @import("engine/ffi/limits_io.zig");
 const codec_lifecycle = @import("engine/ffi/codec_lifecycle.zig");
 const codec_out = @import("engine/ffi/codec_encode.zig");
 const codec_events = @import("engine/ffi/codec_events.zig");
 const codec_io = @import("engine/ffi/codec_io.zig");
 const codec_status = @import("engine/ffi/codec_status.zig");
-const server_io = @import("engine/ffi/server_io.zig");
-const socket_io = @import("engine/ffi/socket_io.zig");
-const socket_inbound = @import("engine/ffi/socket_inbound.zig");
-const socket_pump = @import("engine/ffi/socket_pump.zig");
+const engine_exports = if (build_options.engine) @import("engine_exports.zig") else struct {};
 
 comptime {
     napi.module(@This());
 }
 
-/// Version of the linked uWebZockets engine, for example "1.8.0".
+/// Version of the pinned uWebZockets engine this tree is built against, for example "2.0.0".
 pub fn engine_version() []const u8 {
     return build_options.engine_version;
 }
 
-pub fn http3_available() bool {
-    return uwz.http3_available;
-}
-
-pub const engine_limits = server_io.engine_limits;
+/// The capacities this build was compiled with, a read rather than a latch.
+pub const engine_limits = limits_io.engine_limits;
 
 pub const codec_create = codec_lifecycle.codec_create;
 pub const codec_destroy = codec_lifecycle.codec_destroy;
@@ -61,22 +59,27 @@ pub const codec_ceilings = codec_status.codec_ceilings;
 
 pub const codec_role = codec_status.codec_role;
 
-pub const create_server = server_io.create_server;
-pub const listen_server = server_io.listen_server;
-pub const close_server = server_io.close_server;
-/// Releases the native resources of a closed server, after `serverClosed`.
-pub const finalize_server = server_io.finalize_server;
-pub const server_dropped_events = server_io.server_dropped_events;
+// Zig 0.16 removed `usingnamespace`, so the engine surface is re-exported name by name.
+// In a codec-only build each alias resolves to `void`, a type napi-zig does not register,
+// so those names are absent from the published addon rather than exported and failing.
+pub const http3_available = if (build_options.engine) engine_exports.http3_available else void;
 
-pub const send_socket = socket_io.send_socket;
-pub const close_socket = socket_io.close_socket;
-pub const pause_socket = socket_io.pause_socket;
-pub const resume_socket = socket_io.resume_socket;
-pub const pump_socket = socket_pump.pump_socket;
+pub const create_server = if (build_options.engine) engine_exports.create_server else void;
+pub const listen_server = if (build_options.engine) engine_exports.listen_server else void;
+pub const close_server = if (build_options.engine) engine_exports.close_server else void;
+/// Releases the native resources of a closed server, after `serverClosed`.
+pub const finalize_server = if (build_options.engine) engine_exports.finalize_server else void;
+pub const server_dropped_events = if (build_options.engine) engine_exports.server_dropped_events else void;
+
+pub const send_socket = if (build_options.engine) engine_exports.send_socket else void;
+pub const close_socket = if (build_options.engine) engine_exports.close_socket else void;
+pub const pause_socket = if (build_options.engine) engine_exports.pause_socket else void;
+pub const resume_socket = if (build_options.engine) engine_exports.resume_socket else void;
+pub const pump_socket = if (build_options.engine) engine_exports.pump_socket else void;
 /// The oldest parsed message for a connection, copied into a JavaScript-owned buffer.
-pub const take_socket_message = socket_inbound.take_socket_message;
-pub const purge_socket_message = socket_inbound.purge_socket_message;
-pub const socket_buffered_amount = socket_io.socket_buffered_amount;
+pub const take_socket_message = if (build_options.engine) engine_exports.take_socket_message else void;
+pub const purge_socket_message = if (build_options.engine) engine_exports.purge_socket_message else void;
+pub const socket_buffered_amount = if (build_options.engine) engine_exports.socket_buffered_amount else void;
 /// Inbound messages lost to a refused stage, a pause, or a closed connection.
-pub const server_dropped_messages = socket_inbound.server_dropped_messages;
-pub const server_undelivered_messages = socket_pump.server_undelivered_messages;
+pub const server_dropped_messages = if (build_options.engine) engine_exports.server_dropped_messages else void;
+pub const server_undelivered_messages = if (build_options.engine) engine_exports.server_undelivered_messages else void;

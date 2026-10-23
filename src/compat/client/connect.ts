@@ -15,6 +15,8 @@ import { dial } from "./dial";
 
 export type Attempt = {
   readonly state: SocketState;
+  /// The public socket record, so `finishRequest` and the upgrade path read the caller's target.
+  readonly socket: WebSocket;
   readonly options: NormalizedClientOptions;
   readonly requested: readonly string[];
   readonly offered: ProtocolSet;
@@ -62,8 +64,10 @@ export function connectSocket(
   // Whether the extension was negotiated is not known until the response; `open.ts` sets it.
   state.threshold = thresholdOf(normalized.perMessageDeflate);
   const socket = buildSocketRecord(state);
+
   const attempt: Attempt = {
     state,
+    socket,
     options: normalized,
     requested,
     offered: protocolSet(requested),
@@ -74,10 +78,12 @@ export function connectSocket(
     auth: parsed.auth,
     redirects: 0,
   };
+
   // Attached on the 101, not before: the response is not frames, and a codec that read it
   // would refuse the connection with a 1002 before a legitimate frame was sent. Until then
   // the socket is `CONNECTING` with no transport, which is what lets `close()` on an
   // unopened client report the aborted handshake the way `ws` does.
   dial(attempt);
+
   return socket;
 }

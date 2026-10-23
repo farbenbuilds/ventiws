@@ -7,11 +7,13 @@ import { WebSocket } from "../../../src/index";
 /// have a transport error in flight, and an `error` with no listener is thrown.
 export async function settle(socket: WebSocket): Promise<void> {
   socket.on("error", () => undefined);
+
   if (socket.readyState !== WebSocket.CLOSED) {
     const done = new Promise<void>((resolve) => socket.once("close", resolve));
     socket.terminate();
     await Promise.race([done, new Promise((resolve) => setTimeout(resolve, TEARDOWN_BOUND_MS))]);
   }
+
   // A one-sided destroy resets next tick, so it is drained here.
   await new Promise((resolve) => setTimeout(resolve, 20));
 }

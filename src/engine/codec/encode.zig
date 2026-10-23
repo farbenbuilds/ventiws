@@ -2,12 +2,12 @@
 //! rather than streams, so it holds one frame at a time and the caller allocates the
 //! `Buffer` from the length returned here. Masking is decided here and nowhere else,
 //! because it is the part a peer can attack: a server must not mask, a client must mask
-//! with a fresh key, and that key is the engine's `websocket_mask` primitive.
+//! with a fresh key, and that key is `zslay`'s masking primitive.
 
 const std = @import("std");
 const zslay = @import("zslay");
-const uwz = @import("uWebZockets");
 const capacities = @import("capacities.zig");
+const masking = @import("mask.zig");
 const events = @import("events.zig");
 const growth = @import("growth.zig");
 const deflate = @import("deflate.zig");
@@ -127,7 +127,7 @@ pub fn transmit() type {
             // After the header and before the mask: RSV1 is in the first octet and the
             // mask covers the payload only.
             if (wire.compressed) rsv1.mark(tx.buffer.items[0..written]);
-            if (key) |drawn| uwz.websocket_mask.apply(start, drawn, 0);
+            if (key) |drawn| masking.apply(start, drawn, 0);
             tx.length = written + wire.bytes.len;
             tx.masked = masked;
             return .{ .ok = tx.length };

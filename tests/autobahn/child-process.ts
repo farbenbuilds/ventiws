@@ -10,7 +10,9 @@ export type TargetChild = ChildProcessByStdio<null, Readable, Readable>;
 function consume(buffer: string, chunk: string, onLine: (line: string) => void): string {
   const parts = (buffer + chunk).split("\n");
   const rest = parts.pop() ?? "";
+
   for (const line of parts) onLine(line);
+
   return rest;
 }
 
@@ -37,6 +39,7 @@ export function forwardStderr(child: TargetChild): readonly string[] {
       process.stderr.write(`ventiws-target: ${line}\n`);
     });
   });
+
   return lines;
 }
 
@@ -49,18 +52,26 @@ export function forwardStderr(child: TargetChild): readonly string[] {
 const STOP_TIMEOUT_MS = 10_000;
 const SIGNAL_EXIT_CODE = 130;
 
-const live = {
-  children: [] as TargetChild[],
-  onInterrupt: null as (() => void) | null,
-  onTerminate: null as (() => void) | null,
+type LiveTargets = {
+  children: TargetChild[];
+  onInterrupt: (() => void) | null;
+  onTerminate: (() => void) | null;
+};
+
+const live: LiveTargets = {
+  children: [],
+  onInterrupt: null,
+  onTerminate: null,
 };
 
 export function stopChild(child: TargetChild): Promise<void> {
   if (child.exitCode !== null || child.signalCode !== null) return Promise.resolve();
+
   return new Promise((resolve) => {
     const timer = setTimeout(() => {
       child.kill("SIGKILL");
     }, STOP_TIMEOUT_MS);
+
     child.once("exit", () => {
       clearTimeout(timer);
       resolve();
@@ -71,6 +82,7 @@ export function stopChild(child: TargetChild): Promise<void> {
 
 function clear(): void {
   if (live.onInterrupt !== null) process.off("SIGINT", live.onInterrupt);
+
   if (live.onTerminate !== null) process.off("SIGTERM", live.onTerminate);
   live.children = [];
   live.onInterrupt = null;
@@ -79,8 +91,10 @@ function clear(): void {
 
 function install(): void {
   if (live.onInterrupt !== null) return;
+
   const onSignal = (): void => {
     const children = [...live.children];
+
     if (children.length === 0) return;
     live.children = [];
     void Promise.all(children.map((child) => stopChild(child))).then(() => {
@@ -88,6 +102,7 @@ function install(): void {
       process.exit(SIGNAL_EXIT_CODE);
     });
   };
+
   live.onInterrupt = onSignal;
   live.onTerminate = onSignal;
   process.on("SIGINT", onSignal);
@@ -101,5 +116,6 @@ export function trackTarget(child: TargetChild): void {
 
 export function releaseTarget(child: TargetChild): void {
   live.children = live.children.filter((entry) => entry !== child);
+
   if (live.children.length === 0) clear();
 }

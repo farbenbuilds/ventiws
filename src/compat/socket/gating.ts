@@ -10,10 +10,13 @@ import { CLOSED, CONNECTING } from "../ready-state";
 export function pauseConnection(state: SocketState): void {
   if (state.readyState === CONNECTING || state.readyState === CLOSED) return;
   state.isPaused = true;
+
   if (state.attachment === null) {
     state.transport?.pause();
+
     return;
   }
+
   pauseSocket(state.attachment.server, state.attachment.connection);
 }
 
@@ -23,9 +26,12 @@ export function pauseConnection(state: SocketState): void {
 export function resumeConnection(state: SocketState): void {
   if (state.readyState === CONNECTING || state.readyState === CLOSED) return;
   state.isPaused = false;
+
   if (state.attachment === null) {
     state.transport?.resume();
+
     return;
   }
+
   resumeSocket(state.attachment.server, state.attachment.connection);
 }

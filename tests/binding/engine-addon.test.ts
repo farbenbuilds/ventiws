@@ -1,0 +1,94 @@
+import { once } from "node:events";
+import { Worker } from "node:worker_threads";
+import { expect, test } from "vitest";
+import { loadAddon } from "../../src/binding/load";
+import { loadEngineAddon } from "../../src/binding/load-engine";
+import { closeServer } from "../../src/binding/server";
+import { fixture, TEST_TIMEOUT_MS } from "./support";
+
+const SERVER_FUNCTIONS = [
+  "createServer",
+  "listenServer",
+  "closeServer",
+  "finalizeServer",
+  "serverDroppedEvents",
+  "serverDroppedMessages",
+  "serverUndeliveredMessages",
+] as const;
+
+const SOCKET_FUNCTIONS = [
+  "sendSocket",
+  "closeSocket",
+  "pauseSocket",
+  "resumeSocket",
+  "pumpSocket",
+  "takeSocketMessage",
+  "purgeSocketMessage",
+  "socketBufferedAmount",
+] as const;
+
+test("the development addon exposes the engine and shares the codec build", () => {
+  const addon = loadEngineAddon();
+  const publicAddon = loadAddon();
+
+  expect(addon.http3Available()).toBe(true);
+  expect(addon.engineVersion()).toBe(publicAddon.engineVersion());
+  expect(addon.engineLimits()).toEqual(publicAddon.engineLimits());
+  expect(addon.codecCreate).toBeTypeOf("function");
+
+  for (const name of SERVER_FUNCTIONS) expect(addon[name]).toBeTypeOf("function");
+
+  for (const name of SOCKET_FUNCTIONS) expect(addon[name]).toBeTypeOf("function");
+});
+
+/// Runs the raw engine in a worker: create and listen a server, report its handle,
+/// and wait for the exit signal. `process.exit` runs the cleanup hook, which must
+/// stop the engine thread and free the instance.
+const WORKER_SOURCE = `
+const { parentPort } = require("node:worker_threads");
+const path = require("node:path");
+const addon = require(path.join(process.cwd(), "zig-out/lib/ventiws-engine.node"));
+const handle = addon.createServer({ host: "127.0.0.1", port: 0 }, () => {});
+addon.listenServer(handle);
+parentPort.postMessage(handle);
+parentPort.once("message", (message) => {
+  if (message === "exit") process.exit(0);
+});
+`;
+
+async function startWorker(): Promise<{ readonly worker: Worker; readonly handle: number }> {
+  const worker = new Worker(WORKER_SOURCE, { eval: true });
+  const [message] = await once(worker, "message");
+  const handle = Number(message);
+
+  if (!Number.isInteger(handle)) throw new Error("worker did not report a handle");
+
+  return { worker, handle };
+}
+
+test("a handle from another worker is rejected", { timeout: TEST_TIMEOUT_MS }, async () => {
+  const { worker, handle } = await startWorker();
+
+  try {
+    expect(() => closeServer(handle)).toThrow(/UnknownServer/);
+  } finally {
+    worker.postMessage("exit");
+    await once(worker, "exit");
+  }
+});
+
+test("environment teardown retires the worker's server", { timeout: TEST_TIMEOUT_MS }, async () => {
+  const { worker } = await startWorker();
+
+  worker.postMessage("exit");
+  await once(worker, "exit");
+
+  // Slot 0 is only free if the cleanup hook retired the worker's server.
+  const fresh = fixture({ host: "127.0.0.1", port: 0 });
+
+  try {
+    expect(fresh.handle & 0xff).toBe(0);
+  } finally {
+    await fresh.dispose();
+  }
+});

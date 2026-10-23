@@ -23,6 +23,7 @@ const SCOPE_DIR = "@ventiws";
 
 function parsePlatforms(argv) {
   const flag = argv.find((arg) => arg.startsWith("--platform="));
+
   return flag === undefined ? undefined : flag.slice("--platform=".length);
 }
 
@@ -31,29 +32,34 @@ function run(command, args) {
   // shell there; on every other platform the exec form keeps the args unquoted.
   const shell = process.platform === "win32";
   const result = spawnSync(command, args, { stdio: "inherit", shell });
+
   if (result.error !== undefined) throw result.error;
+
   if (result.status !== 0) throw new Error(`${command} ${args.join(" ")} exited ${result.status}`);
 }
 
 function main() {
   const platforms = parsePlatforms(process.argv.slice(2));
-  const args = ["build", "-Dnpm=true", "--release=fast"];
+  const args = ["build", "-Dnpm=true", "--release=safe", "-Dengine-addon=false"];
+
   // The scope is repeated in the staging path rather than read from the build graph, so
   // the two have to agree; `tests/tooling/publish-platforms.test.ts` holds them together.
   if (platforms !== undefined) args.push(`-Dnpm-platform=${platforms}`);
   run("zig", args);
 
   const staged = join("zig-out", "npm", ADDON);
+
   if (!existsSync(join(staged, SCOPE_DIR))) {
     throw new Error(`no ${SCOPE_DIR} binding under ${staged}; the npm scaffold did not run`);
   }
+
   const publishable = join("npm", ADDON);
   rmSync(publishable, { recursive: true, force: true });
   mkdirSync(publishable, { recursive: true });
   cpSync(staged, publishable, { recursive: true });
 
   for (const target of readdirSync(join(publishable, SCOPE_DIR)).sort()) {
-    console.log(`build-bindings: staged ${SCOPE_DIR}/binding-${target}`);
+    console.log(`build-bindings: staged ${SCOPE_DIR}/${target}`);
   }
 }
 

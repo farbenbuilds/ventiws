@@ -18,9 +18,15 @@ import type {
 type WebSocketConstructor = typeof WebSocket;
 
 export type Socket = InstanceType<WebSocketConstructor>;
+
 export type Options = ServerOptions;
+
 export type Client = ClientOptions;
+
 export type Data = RawData;
+
 export type CreateStream = typeof createWebSocketStream;
+
 export type ServerType = Server;
+
 export type Constructed = WebSocketServer;

@@ -10,8 +10,8 @@ import { emitEvent } from "../events/emitter";
 import { OPEN } from "../ready-state";
 import { closeFromPeer } from "./codec-peer-close";
 import { failureByCode, refuseByCodec } from "./codec-refusal";
-import { writePong } from "./codec-outbound";
-import { shapeBinary } from "./payload-shape";
+import { writePong } from "./codec-control";
+import { binaryPayloadFor } from "./payload-binary";
 
 /// The handle is a parameter, not a second lookup: the `rejected` branch needs the code
 /// the codec latched, and a re-lookup could read a different codec.
@@ -27,26 +27,32 @@ export function dispatch(
     case "text":
       // A Buffer, not a string: `ws` converts only for the DOM wrapper.
       emitEvent(state, "message", payload, false);
+
       return;
     case "binary":
       emitBinary(state, payload, ends);
+
       return;
     case "ping":
       // RFC 6455 section 5.5.2 wants the pong promptly, so it goes out before the
       // application hears the ping; `ws` writes none once the socket is closing or closed.
       if (state.autoPong && state.readyState === OPEN) writePong(state, payload);
       emitEvent(state, "ping", payload);
+
       return;
     case "pong":
       emitEvent(state, "pong", payload);
+
       return;
     case "close":
       closeFromPeer(state, { kind, code, payload });
+
       return;
     case "rejected":
       // Latched on the codec, not carried in the event: a refused frame ends the
       // connection, so the copy would be a string nobody read.
       refuseByCodec(state, codecFailure(handle) ?? failureByCode(codecFailureCode(handle)));
+
       return;
   }
 }
@@ -54,6 +60,7 @@ export function dispatch(
 /// The events a single read can produce more than one of. `open` and `close` are terminal.
 export function isDeferrable(event: CodecEvent | null): boolean {
   if (event === null) return false;
+
   return (
     event.kind === "text" ||
     event.kind === "binary" ||
@@ -62,11 +69,12 @@ export function isDeferrable(event: CodecEvent | null): boolean {
   );
 }
 
-/// A binary message, shaped by the socket's `binaryType`. The cast is `ws`'s own type
-/// gap: `@types/ws` narrows `binaryType` to three Buffer views and drops `Blob` from
-/// `RawData`, while its runtime accepts `"blob"`. Honouring the caller's value
-/// reproduces that with the vendored declarations left byte-identical.
+/// A binary message, delivered in the socket's `binaryType`. `blob` is a runtime value
+/// `ws` accepts while `@types/ws` omits it from `RawData`, so the assertion restores the
+/// caller's own delivery choice for that one case.
 function emitBinary(state: SocketState, payload: Buffer, ends: readonly number[] | null): void {
-  const shaped = shapeBinary(state.binaryType, payload, ends);
-  emitEvent(state, "message", shaped as WebSocket.RawData, true);
+  const delivered = binaryPayloadFor(state.binaryType, payload, ends);
+  // SAFETY: `binaryType` is the caller's `ws` value; the vendored `RawData` narrows the
+  // three Buffer views and drops the Blob this facade delivers for `"blob"`.
+  emitEvent(state, "message", delivered as WebSocket.RawData, true);
 }

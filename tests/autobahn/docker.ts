@@ -69,6 +69,7 @@ function onSignal(): void {
 export function registerContainer(client: DockerClient, name: string): void {
   state.clients.set(client, name);
   state.names.add(name);
+
   if (state.installed) return;
   state.installed = true;
   process.on("SIGINT", onSignal);

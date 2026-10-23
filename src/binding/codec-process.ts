@@ -1,9 +1,8 @@
-// The fused feed path: fold bytes and copy the first event into a caller-owned buffer in
-// one crossing, with a second call only when a message assembled across reads outgrows the
-// buffer the completing read could bound.
+// The fused feed path: fold bytes and copy the first event in one crossing, with a second
+// call only when a message assembled across reads outgrows the buffer the read could bound.
 
 import type { NativeCodecInto } from "./native";
-import { nativeError } from "./errors";
+import { callNative } from "./errors";
 import { loadAddon } from "./load";
 
 /// The first event a fused feed produced, its payload already copied into the caller's
@@ -24,11 +23,8 @@ export function processCodecInto(
   out: Uint8Array,
 ): number | NativeCodecInto | null {
   const addon = loadAddon();
-  try {
-    return addon.codecProcessInto(handle, bytes, wantEnds ? 1 : 0, out);
-  } catch (error) {
-    throw nativeError(error);
-  }
+
+  return callNative(() => addon.codecProcessInto(handle, bytes, wantEnds ? 1 : 0, out));
 }
 
 /// Copies the selected event into `out` after `processCodecInto` reported it too small.
@@ -38,9 +34,6 @@ export function materializeCodec(
   out: Uint8Array,
 ): number | NativeCodecInto | null {
   const addon = loadAddon();
-  try {
-    return addon.codecMaterialize(handle, wantEnds ? 1 : 0, out);
-  } catch (error) {
-    throw nativeError(error);
-  }
+
+  return callNative(() => addon.codecMaterialize(handle, wantEnds ? 1 : 0, out));
 }

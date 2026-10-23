@@ -21,6 +21,7 @@ export function isValidControlPayload(payload: string | Buffer): boolean {
 
 export function isValidStatusCode(code: number): boolean {
   if (code >= APPLICATION_CLOSE_MIN && code <= APPLICATION_CLOSE_MAX) return true;
+
   return (
     code >= CLOSE_NORMAL &&
     code <= CLOSE_BAD_GATEWAY &&

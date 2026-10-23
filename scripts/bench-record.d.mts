@@ -14,6 +14,7 @@ export type RecordWorkflow = {
   readonly runnerImage: string;
   readonly kernel: string;
 };
+
 export type BenchmarkRecord = {
   readonly schema_version: number;
   readonly benchmark_id: string;
@@ -43,6 +44,7 @@ export type BenchmarkRecord = {
     }[];
   };
 };
+
 export declare function buildRecord(input: {
   readonly report: unknown;
   readonly contractSource: string;

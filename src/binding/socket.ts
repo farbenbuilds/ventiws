@@ -3,7 +3,7 @@ import type { ConnectionHandle } from "./handle";
 import { NATIVE_SOCKET_STATUSES, type NativeSocketStatus } from "./native";
 import { callNative, guardError } from "./errors";
 import { assertConnectionHandle } from "./handle";
-import { loadAddon } from "./load";
+import { loadEngineAddon } from "./load-engine";
 import { assertServerHandle, type ServerHandle } from "./server";
 
 export { purgeSocketMessage, takeSocketMessage } from "./inbound";
@@ -36,6 +36,7 @@ function assertPayload(data: Uint8Array): void {
 /// An ordinal outside the table is an ABI mismatch between the addon and this binding.
 function statusFromOrdinal(ordinal: number): EngineStatus {
   const status = NATIVE_SOCKET_STATUSES[ordinal];
+
   if (status === undefined) {
     throw guardError(
       `ventiws: unknown native socket status ${ordinal}`,
@@ -43,6 +44,7 @@ function statusFromOrdinal(ordinal: number): EngineStatus {
       RangeError,
     );
   }
+
   return ENGINE_STATUS_BY_NATIVE[status];
 }
 
@@ -63,7 +65,8 @@ export function sendSocket(
   assertServerHandle(server);
   assertConnectionHandle(connection);
   assertPayload(data);
-  const addon = loadAddon();
+  const addon = loadEngineAddon();
+
   return statusFromOrdinal(callNative(() => addon.sendSocket(server, connection, data, binary)));
 }
 
@@ -78,21 +81,24 @@ export function closeSocket(
   assertConnectionHandle(connection);
   assertCloseCode(code);
   assertPayload(reason);
-  const addon = loadAddon();
+  const addon = loadEngineAddon();
+
   return statusFromOrdinal(callNative(() => addon.closeSocket(server, connection, code, reason)));
 }
 
 export function pauseSocket(server: ServerHandle, connection: ConnectionHandle): EngineStatus {
   assertServerHandle(server);
   assertConnectionHandle(connection);
-  const addon = loadAddon();
+  const addon = loadEngineAddon();
+
   return statusFromOrdinal(callNative(() => addon.pauseSocket(server, connection)));
 }
 
 export function resumeSocket(server: ServerHandle, connection: ConnectionHandle): EngineStatus {
   assertServerHandle(server);
   assertConnectionHandle(connection);
-  const addon = loadAddon();
+  const addon = loadEngineAddon();
+
   return statusFromOrdinal(callNative(() => addon.resumeSocket(server, connection)));
 }
 
@@ -103,7 +109,8 @@ export function resumeSocket(server: ServerHandle, connection: ConnectionHandle)
 export function pumpSocket(server: ServerHandle, connection: ConnectionHandle): EngineStatus {
   assertServerHandle(server);
   assertConnectionHandle(connection);
-  const addon = loadAddon();
+  const addon = loadEngineAddon();
+
   return statusFromOrdinal(callNative(() => addon.pumpSocket(server, connection)));
 }
 
@@ -111,6 +118,7 @@ export function pumpSocket(server: ServerHandle, connection: ConnectionHandle): 
 export function socketBufferedAmount(server: ServerHandle, connection: ConnectionHandle): number {
   assertServerHandle(server);
   assertConnectionHandle(connection);
-  const addon = loadAddon();
+  const addon = loadEngineAddon();
+
   return callNative(() => addon.socketBufferedAmount(server, connection));
 }

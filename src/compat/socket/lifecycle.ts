@@ -1,32 +1,29 @@
-import { closeSocket } from "../../binding/socket";
 import { logSocketClose, logSocketError } from "../../logging/lifecycle";
-import { CLOSE_ABNORMAL, CLOSE_NORMAL } from "../../protocol/close-codes";
+import { CLOSE_ABNORMAL } from "../../protocol/close-codes";
 import type { SocketState } from "../../types/socket";
+import type { WebSocket } from "../../types/ws";
 import { emitEvent } from "../events/emitter";
-import { createError } from "../errors";
-import { CLOSED, CLOSING, CONNECTING, OPEN } from "../ready-state";
-import { closeCodeOf } from "./close-code";
-import { toCloseReason } from "./close-reason";
-import { armCloseTimeout, closeFramed } from "./codec-close";
-import { closeFailure } from "./close-failure";
+import { CLOSED, CLOSING } from "../ready-state";
 import { socketStateOf } from "./state";
 
 const EMPTY = Buffer.alloc(0);
 
 /// Whether the close frame is on the wire: the point `ws` settles `_final` at, which
 /// `Sender.close` reaches by ending its socket with the frame and the codec does not.
-export function closeFrameWritten(socket: object): boolean {
+export function closeFrameWritten(socket: WebSocket): boolean {
   return socketStateOf(socket)?.closeFrameSent === true;
 }
 
 export function finishConnection(state: SocketState, code: number, reason: Buffer): void {
   if (state.readyState === CLOSED) return;
+
   // Dropped because this is the only path to `CLOSED`, and a deadline that outlived its
   // socket would keep the process alive for nothing.
   if (state.closeTimer !== null) {
     clearTimeout(state.closeTimer);
     state.closeTimer = null;
   }
+
   state.readyState = CLOSED;
   state.closeCode = code;
   state.closeReason = reason;
@@ -43,18 +40,22 @@ export function finishConnection(state: SocketState, code: number, reason: Buffe
 /// here; see `reportWithoutClosing`.
 export function failConnection(state: SocketState, error: Error): void {
   if (state.readyState === CLOSED) return;
+
   if (!state.errorEmitted) {
     state.errorEmitted = true;
     state.readyState = CLOSING;
     logSocketError(state, error);
+
     // The terminal latch must run even when an unhandled `error` throws.
     try {
       emitEvent(state, "error", error);
     } finally {
       finishConnection(state, CLOSE_ABNORMAL, EMPTY);
     }
+
     return;
   }
+
   finishConnection(state, CLOSE_ABNORMAL, EMPTY);
 }
 
@@ -65,83 +66,9 @@ export function failConnection(state: SocketState, error: Error): void {
 /// reports is a missing implementation rather than a fault of the connection.
 export function reportWithoutClosing(state: SocketState, error: Error): void {
   if (state.errorEmitted) return;
+
   if (state.readyState === CLOSED) return;
   state.errorEmitted = true;
   logSocketError(state, error);
   emitEvent(state, "error", error);
-}
-
-export function closeConnection(state: SocketState, code?: unknown, reason?: unknown): void {
-  if (state.readyState === CLOSED) return;
-  if (state.readyState === CONNECTING) {
-    // The in-flight request is the only connection a CONNECTING socket has, so it is
-    // cancelled first: a late 101 must not answer a socket that is already CLOSED.
-    state.cancelHandshake?.();
-    failConnection(
-      state,
-      createError(
-        "ERR_INVALID_STATE",
-        "WebSocket was closed before the connection was established",
-      ),
-    );
-    return;
-  }
-  if (state.readyState === CLOSING) return;
-  // Validation precedes the latch: `ws` 8.22.0 refuses an invalid argument before it sets
-  // `CLOSING` (#2337), so the socket stays `OPEN` and a following valid close still runs.
-  const closeCode = closeCodeOf(code);
-  const closeReason = toCloseReason(reason);
-  state.readyState = CLOSING;
-  // An absent code stays absent to the wire: `ws` writes an empty close payload, which its
-  // peer reports as 1005, "no status received", and `closeCode` stays 1006 until a frame
-  // supplies one.
-  if (state.codec !== null) {
-    closeFramed(state, closeCode, closeReason);
-    armCloseTimeout(state, state.closeTimeout);
-    return;
-  }
-  if (state.attachment === null) {
-    closeUnattached(state);
-    return;
-  }
-  const status = closeSocket(
-    state.attachment.server,
-    state.attachment.connection,
-    // The engine's close always carries a code, so the absent-code rule does not reach
-    // it. Unreachable from the public surface today; the clamp gives a real code anyway.
-    closeCode ?? CLOSE_NORMAL,
-    closeReason,
-  );
-  if (status === "ok") {
-    state.closeFrameSent = true;
-    return;
-  }
-  if (status === "closing" || status === "closed") {
-    finishConnection(state, CLOSE_ABNORMAL, EMPTY);
-    return;
-  }
-  if (status === "policy-violation") {
-    // The engine route cannot frame an app-initiated close yet; undo the latch and report.
-    state.readyState = OPEN;
-    reportWithoutClosing(state, closeFailure(status));
-    return;
-  }
-  failConnection(state, closeFailure(status));
-}
-
-/// Completes a close on a socket with no native attachment. The latch above has already
-/// moved the socket to `CLOSING`, so this path must always reach `CLOSED` on its own:
-/// returning early strands it at `CLOSING` for the life of the process, with no close
-/// frame, an open transport, and no other door out but the transport's own `close`
-/// event. Until the Zig frame codec owns the upgrade route there is no frame to write,
-/// so the transport is destroyed and the socket reports `1006`.
-function closeUnattached(state: SocketState): void {
-  // Cancelled first, so a request in flight stops before `close` reports: otherwise the
-  // socket closes while its request is still going to put a connection on the wire.
-  state.cancelHandshake?.();
-  if (state.transport === null) {
-    finishConnection(state, CLOSE_ABNORMAL, EMPTY);
-    return;
-  }
-  state.transport.destroy();
 }

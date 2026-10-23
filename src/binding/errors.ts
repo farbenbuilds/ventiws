@@ -2,7 +2,7 @@ import type { CodedError, ErrorCode } from "../types/errors";
 
 /// The napi-zig bridge throws `Error` with the Zig error name as the message, so the
 /// name is the only discriminator the binding has.
-const NATIVE_ERROR_CODES: Readonly<Record<string, ErrorCode>> = {
+const NATIVE_ERROR_CODES = {
   UnknownServer: "ERR_INVALID_HANDLE",
   InvalidServerState: "ERR_INVALID_STATE",
   ServerNotClosed: "ERR_INVALID_STATE",
@@ -24,13 +24,20 @@ const NATIVE_ERROR_CODES: Readonly<Record<string, ErrorCode>> = {
   SystemResources: "ERR_INVALID_STATE",
   ThreadQuotaExceeded: "ERR_INVALID_STATE",
   OutOfMemory: "ERR_INVALID_STATE",
-};
+} as const satisfies Readonly<Record<string, ErrorCode>>;
+
+type NativeErrorName = keyof typeof NATIVE_ERROR_CODES;
+
+function isNativeErrorName(name: string): name is NativeErrorName {
+  return Object.hasOwn(NATIVE_ERROR_CODES, name);
+}
 
 /// The native name stays the message so existing diagnostics keep working; an unknown
 /// name is an ABI mismatch and reports `ERR_PROTOCOL`.
-export function nativeError(error: unknown): CodedError {
-  const name = error instanceof Error ? error.message : String(error);
-  const code = NATIVE_ERROR_CODES[name] ?? "ERR_PROTOCOL";
+export function nativeError(error: Error | string): CodedError {
+  const name = error instanceof Error ? error.message : error;
+  const code = isNativeErrorName(name) ? NATIVE_ERROR_CODES[name] : "ERR_PROTOCOL";
+
   return Object.assign(new Error(name), { code });
 }
 
@@ -50,6 +57,6 @@ export function callNative<T>(call: () => T): T {
   try {
     return call();
   } catch (error) {
-    throw nativeError(error);
+    throw nativeError(error instanceof Error ? error : String(error));
   }
 }

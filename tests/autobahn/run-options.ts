@@ -50,8 +50,10 @@ function shardCount(raw: string | undefined, present: boolean, mode: SuiteMode):
   // back to one shard would turn a typo into a 35-minute run.
   if (raw === undefined || raw === "") {
     if (present) throw new RangeError("--shards expects a positive integer, got no value");
+
     return 1;
   }
+
   return resolveShardCount(raw, mode);
 }
 
@@ -63,13 +65,18 @@ export function parseOptions(argv: readonly string[]): RunOptions {
   const flags = new Set(argv);
   const shardIndex = argv.indexOf("--shards");
   const reportIndex = argv.indexOf("--from-report");
+
   for (const arg of argv) {
     if (isFlagValue(argv, "--shards", shardIndex, arg)) continue;
+
     if (isFlagValue(argv, "--from-report", reportIndex, arg)) continue;
+
     if (!FLAGS.has(arg)) throw new RangeError(`unknown argument ${arg}; run with --help`);
   }
+
   const raw = shardIndex === -1 ? process.env["AUTOBAHN_SHARDS"] : argv[shardIndex + 1];
   const mode: SuiteMode = flags.has("--full") ? "full" : "framing";
+
   return {
     help: flags.has("--help"),
     force: flags.has("--force"),
@@ -98,8 +105,10 @@ function isFlagValue(argv: readonly string[], flag: string, index: number, arg: 
 /// wrong report, or none.
 function requiredValue(argv: readonly string[], flag: string, index: number): string {
   const value = argv[index + 1];
+
   if (value === undefined || value.startsWith("--")) {
     throw new RangeError(`${flag} expects a path, got no value`);
   }
+
   return value;
 }

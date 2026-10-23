@@ -2,15 +2,16 @@ import { WebSocket as WsSocket, WebSocketServer as WsServer } from "ws";
 import type { EchoClient, EchoConnection, EchoImplementation, EchoServer } from "../echo-types.ts";
 
 const readPort = (address: { readonly port: number } | string | null): number => {
-  if (address === null || typeof address === "string") {
+  if (address === null || !(address instanceof Object)) {
     throw new Error("the server reported no TCP address");
   }
+
   return address.port;
 };
 
 const listenOn = (server: {
-  once(event: "listening", listener: () => void): unknown;
-  once(event: "error", listener: (error: Error) => void): unknown;
+  once(event: "listening", listener: () => void): void;
+  once(event: "error", listener: (error: Error) => void): void;
   address(): { readonly port: number } | string | null;
 }): Promise<number> =>
   new Promise<number>((resolve, reject) => {

@@ -38,6 +38,7 @@ export async function offerExtension(port: number, extension: string): Promise<R
   const socket = await dial(port);
   socket.write(request("/", { ...UPGRADE_HEADERS, "Sec-WebSocket-Extensions": extension }));
   const head = await readResponseHead(socket);
+
   return { status: statusOf(head), headers: headerMap(head), socket };
 }
 
@@ -50,18 +51,22 @@ function dial(port: number): Promise<Socket> {
 
 function statusOf(head: string): number {
   const match = /^HTTP\/1\.1 (\d{3})\b/.exec(head);
+
   return match === null ? 0 : Number(match[1]);
 }
 
 /// Lowercased, so a test can name a header the way the protocol does without caring
 /// which casing the server chose.
-function headerMap(head: string): Readonly<Record<string, string>> {
+function headerMap(head: string) {
   const out: Record<string, string> = {};
+
   for (const line of head.split("\r\n").slice(1)) {
     const colon = line.indexOf(":");
+
     if (colon === -1) continue;
     out[line.slice(0, colon).trim().toLowerCase()] = line.slice(colon + 1).trim();
   }
+
   return out;
 }
 
@@ -69,18 +74,23 @@ function headerMap(head: string): Readonly<Record<string, string>> {
 function readResponseHead(socket: Socket): Promise<string> {
   return new Promise((resolve, reject) => {
     let data = "";
+
     const onData = (chunk: Buffer): void => {
       data += chunk.toString("latin1");
       const end = data.indexOf("\r\n\r\n");
+
       if (end === -1) return;
       settle(() => resolve(data.slice(0, end)));
     };
+
     const onError = (error: Error): void => settle(() => reject(error));
+
     const settle = (done: () => void): void => {
       socket.off("data", onData);
       socket.off("error", onError);
       done();
     };
+
     socket.on("data", onData);
     socket.on("error", onError);
     socket.setTimeout(TEST_TIMEOUT_MS, () => onError(new Error("the response head never arrived")));
@@ -95,16 +105,20 @@ function readResponseHead(socket: Socket): Promise<string> {
 /// peer is well behaved.
 export async function readFrame(socket: Socket): Promise<ServerFrame> {
   const head = await read(socket, 2);
-  const rsv1 = ((head[0] as number) & 0x40) === 0x40;
-  const opcode = (head[0] as number) & 0x0f;
-  const short = (head[1] as number) & 0x7f;
+  const first = head.readUInt8(0);
+  const rsv1 = (first & 0x40) === 0x40;
+  const opcode = first & 0x0f;
+  const short = head.readUInt8(1) & 0x7f;
+
   const length =
     short < 126
       ? short
       : short === 126
         ? (await read(socket, 2)).readUInt16BE(0)
         : Number((await read(socket, 8)).readBigUInt64BE(0));
+
   const payload = length === 0 ? Buffer.alloc(0) : await read(socket, length);
+
   return { rsv1, opcode, payload, inflated: rsv1 ? inflateRawSync(payload) : payload };
 }
 
@@ -116,8 +130,11 @@ export async function readFrame(socket: Socket): Promise<ServerFrame> {
 export function maskedFrame(opcode: number, payload: Buffer, rsv1 = false): Buffer {
   const mask = Buffer.alloc(4);
   const masked = Buffer.from(payload);
-  for (let i = 0; i < masked.length; i += 1)
-    masked[i] = (masked[i] as number) ^ (mask[i & 3] as number);
+
+  for (const [index, byte] of masked.entries()) {
+    masked[index] = byte ^ (mask[index & 3] ?? 0);
+  }
+
   return Buffer.concat([
     Buffer.from([(rsv1 ? 0x40 : 0) | 0x80 | opcode, 0x80 | masked.length]),
     mask,

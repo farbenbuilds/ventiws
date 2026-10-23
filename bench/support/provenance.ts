@@ -4,6 +4,8 @@ import { readFileSync } from "node:fs";
 import { cpus, totalmem } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import type { JsonValue } from "./json-value.ts";
+import { isJsonObject, isText } from "./json-value.ts";
 
 /// The contract name in `CI_CD_PIPELINE.md`. A report without it cannot be
 /// compared against a stored baseline, because the column set may have moved.
@@ -49,10 +51,13 @@ const capture = (command: string, args: readonly string[]): string => {
 
 const readPackageVersion = (relativePath: string): string => {
   try {
-    const parsed: unknown = JSON.parse(readFileSync(join(ROOT, relativePath), "utf8"));
-    if (typeof parsed !== "object" || parsed === null) return UNKNOWN;
-    const version = (parsed as Record<string, unknown>).version;
-    return typeof version === "string" ? version : UNKNOWN;
+    const parsed: JsonValue = JSON.parse(readFileSync(join(ROOT, relativePath), "utf8"));
+
+    if (!isJsonObject(parsed)) return UNKNOWN;
+
+    const version = parsed.version;
+
+    return isText(version) ? version : UNKNOWN;
   } catch {
     return UNKNOWN;
   }
@@ -70,6 +75,7 @@ const hashLockfile = (): string => {
 
 export const captureProvenance = (): Provenance => {
   const processors = cpus();
+
   return {
     schemaVersion: SCHEMA_VERSION,
     generatedAt: new Date().toISOString(),

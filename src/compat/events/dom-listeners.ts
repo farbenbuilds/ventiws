@@ -1,33 +1,11 @@
 import type { Listener } from "../../types/events";
 import type { SocketEventMap, SocketState } from "../../types/socket";
-import type { WebSocket } from "../../types/ws";
-import {
-  callListener,
-  createCloseEvent,
-  createErrorEvent,
-  createMessageEvent,
-  createOpenEvent,
-} from "./dom-events";
-import {
-  asTagged,
-  DOM_WRAPPER,
-  isDomEntry,
-  originalOf,
-  onceWrapper,
-  type TaggedHandler,
-} from "./tags";
+import type { DomEventType, DomListener } from "./dom-events";
+import { onceDomWrapper, wrapperFor } from "./dom-wrappers";
+import { DOM_WRAPPER, isAttribute, isDomEntry, originalOf } from "./tags";
 import { subscribe, unsubscribeMatching } from "./registry";
 
-export type DomEventType = "open" | "error" | "close" | "message";
-
-const DOM_TYPES: readonly DomEventType[] = ["open", "error", "close", "message"];
-
-const ATTRIBUTES: readonly (readonly [string, DomEventType])[] = [
-  ["onopen", "open"],
-  ["onerror", "error"],
-  ["onclose", "close"],
-  ["onmessage", "message"],
-];
+const DOM_TYPES = ["open", "error", "close", "message"] as const satisfies readonly DomEventType[];
 
 export type DomListenerOptions = {
   readonly once?: boolean;
@@ -35,97 +13,53 @@ export type DomListenerOptions = {
 };
 
 function isDomType(type: string): type is DomEventType {
-  return (DOM_TYPES as readonly string[]).includes(type);
-}
-
-/// Attribute wrappers are branded DOM wrappers carrying `attribute`; a user
-/// function with an `attribute` property must never be mistaken for one.
-function isAttribute(entry: unknown): boolean {
-  const tagged = asTagged(entry);
-  return tagged[DOM_WRAPPER] === true && tagged.attribute === true;
-}
-
-function wrapperFor(state: SocketState, type: DomEventType, handler: unknown): TaggedHandler {
-  const socket = state.target as WebSocket;
-  switch (type) {
-    case "open":
-      return ((): void => {
-        callListener(handler, socket, createOpenEvent(socket));
-      }) as unknown as TaggedHandler;
-    case "message":
-      return ((data: WebSocket.RawData, isBinary: boolean): void => {
-        callListener(
-          handler,
-          socket,
-          createMessageEvent(socket, isBinary ? data : data.toString()),
-        );
-      }) as unknown as TaggedHandler;
-    case "close":
-      return ((code: number, reason: Buffer): void => {
-        const clean = state.closeFrameReceived && state.closeFrameSent;
-        callListener(handler, socket, createCloseEvent(socket, code, reason, clean));
-      }) as unknown as TaggedHandler;
-    case "error":
-      return ((error: Error): void => {
-        callListener(handler, socket, createErrorEvent(socket, error));
-      }) as unknown as TaggedHandler;
-  }
+  return DOM_TYPES.some((candidate) => candidate === type);
 }
 
 export function addEventListener(
   state: SocketState,
   type: string,
-  handler: unknown,
+  handler: DomListener,
   options: DomListenerOptions = {},
 ): void {
   if (!isDomType(type)) return;
+  addDomListener(state, type, handler, options);
+}
+
+function addDomListener(
+  state: SocketState,
+  type: DomEventType,
+  handler: DomListener,
+  options: DomListenerOptions,
+): void {
   const attributed = options.attribute === true;
   const bucket = state.listeners[type] ?? [];
+
   const duplicate = bucket.some(
     (entry) => isDomEntry(entry) && originalOf(entry) === handler && !isAttribute(entry),
   );
+
   if (!attributed && duplicate) return;
   const wrapper = wrapperFor(state, type, handler);
   wrapper.attribute = attributed;
   wrapper.listener = handler;
   wrapper[DOM_WRAPPER] = true;
-  const entry = options.once
-    ? onceWrapper(state, type, wrapper as unknown as Listener<SocketEventMap, DomEventType>)
-    : (wrapper as TaggedHandler);
+
+  const entry = options.once ? onceDomWrapper(state, type, wrapper) : wrapper;
+
+  // SAFETY: `type` selected the wrapper, so its call signature is this event's argument tuple.
   state.listeners = subscribe(
     state.listeners,
     type,
-    entry as unknown as Listener<SocketEventMap, DomEventType>,
+    entry as Listener<SocketEventMap, DomEventType>,
   );
 }
 
-export function removeEventListener(state: SocketState, type: string, handler: unknown): void {
+export function removeEventListener(state: SocketState, type: string, handler: DomListener): void {
   if (!isDomType(type)) return;
   state.listeners = unsubscribeMatching(
     state.listeners,
     type,
     (entry) => isDomEntry(entry) && originalOf(entry) === handler && !isAttribute(entry),
   );
-}
-
-export function findAttributeListener(state: SocketState, type: DomEventType): unknown {
-  for (const entry of state.listeners[type] ?? []) {
-    if (isAttribute(entry)) return originalOf(entry);
-  }
-  return null;
-}
-
-export function defineDomAttributes(socket: object, state: SocketState): void {
-  for (const [attribute, type] of ATTRIBUTES) {
-    Object.defineProperty(socket, attribute, {
-      enumerable: true,
-      configurable: true,
-      get: (): unknown => findAttributeListener(state, type),
-      set: (handler: unknown): void => {
-        state.listeners = unsubscribeMatching(state.listeners, type, (entry) => isAttribute(entry));
-        if (typeof handler !== "function") return;
-        addEventListener(state, type, handler, { attribute: true });
-      },
-    });
-  }
 }

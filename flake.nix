@@ -43,6 +43,10 @@
           then pkgsMusl.callPackage ./nix/pnpm.nix {}
           else null;
 
+        # nixos-26.05 still carries 24.21.0, which predates the October 2026
+        # security release. CI and the package engine floor use the fixed patch
+        # releases; this shell follows when nixpkgs carries a buildable 24.22.1.
+        # https://nodejs.org/en/blog/vulnerability/october-2026-security-releases
         hostPackages = [
           zig
           pkgs.zls

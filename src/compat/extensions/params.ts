@@ -33,13 +33,16 @@ export function normalizeParameters(
   isServer: boolean,
 ): Normalized | null {
   const out: Record<string, boolean | number> = {};
+
   for (const [key, values] of Object.entries(parameters)) {
     if (values.length > 1) return null;
     const value = values[0] ?? "";
     const parsed = parseParameter(key, value, isServer);
+
     if (parsed === null) return null;
     out[key] = parsed;
   }
+
   return {
     server_no_context_takeover: out.server_no_context_takeover === true,
     client_no_context_takeover: out.client_no_context_takeover === true,
@@ -52,28 +55,40 @@ function parseParameter(key: string, value: string, isServer: boolean): boolean 
   if (key === "server_no_context_takeover" || key === "client_no_context_takeover") {
     return value === "" ? true : null;
   }
+
   if (key === "client_max_window_bits") {
     if (value === "") {
       // A client may say "choose"; a server may not, because the value is what it chose.
       return isServer ? true : null;
     }
+
     return windowSize(value);
   }
+
   if (key === "server_max_window_bits") return value === "" ? null : windowSize(value);
+
   return null;
 }
 
 function windowSize(value: string): number | null {
   const parsed = Number(value);
+
   if (!Number.isInteger(parsed) || parsed < MIN_WINDOW_BITS || parsed > MAX_WINDOW_BITS)
     return null;
+
   return parsed;
 }
 
 function windowOf(value: boolean | number | undefined): WindowAsk {
-  return typeof value === "number" || value === true ? value : undefined;
+  if (value === true) return true;
+
+  if (value === false || value === undefined) return undefined;
+
+  return value;
 }
 
 function numberOf(value: boolean | number | undefined): number | undefined {
-  return typeof value === "number" ? value : undefined;
+  if (value === true || value === false || value === undefined) return undefined;
+
+  return value;
 }

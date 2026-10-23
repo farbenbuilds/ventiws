@@ -12,9 +12,7 @@ import { detachHandshakeError } from "./handshake-error";
 import { negotiateExtensions } from "./negotiate";
 import { thresholdOf } from "../extensions/threshold";
 
-const UPGRADED = Symbol("ventiws.upgraded");
-
-type UpgradedSocket = Duplex & { readonly [UPGRADED]?: true };
+const upgraded = new WeakSet<Duplex>();
 
 export type UpgradeCallback = (client: WebSocket, request: IncomingMessage) => void;
 
@@ -29,42 +27,55 @@ export function completeUpgrade(
 ): void {
   if (!socket.readable || !socket.writable) {
     socket.destroy();
+
     return;
   }
-  if ((socket as UpgradedSocket)[UPGRADED] === true) {
+
+  if (upgraded.has(socket)) {
     throw createError(
       "ERR_INVALID_STATE",
       "server.handleUpgrade() was called more than once with the same socket, possibly due to a misconfiguration",
     );
   }
+
   if (state.lifecycle !== "running") {
     abortHandshake(socket, 503);
+
     return;
   }
+
   const headers = [
     "HTTP/1.1 101 Switching Protocols",
     "Upgrade: websocket",
     "Connection: Upgrade",
     `Sec-WebSocket-Accept: ${socketAccept(key)}`,
   ];
+
   const negotiation = negotiateExtensions(state, request, socket);
+
   // The socket may already carry a 400, and a 101 written after it is an
   // `ERR_STREAM_WRITE_AFTER_END` on the caller's own upgrade.
   if (negotiation.outcome === "refused") return;
   const extensions = negotiation.outcome === "accepted" ? negotiation.accepted : null;
   const SocketClass = state.options.WebSocket ?? state.webSocket;
+  // SAFETY: `typeof WebSocket` carries no call signature Reflect.construct can infer; the
+  // constructor is the configured `WebSocket` option and returns the record type it names.
   const accepted = Reflect.construct(SocketClass, [null, undefined, state.options]) as WebSocket;
   const protocol = selectProtocol(state, protocols, request);
+
   if (protocol) headers.push(`Sec-WebSocket-Protocol: ${protocol}`);
+
   if (extensions) headers.push(`Sec-WebSocket-Extensions: ${extensions.header}`);
   emitEvent(state, "headers", headers, request);
-  Object.defineProperty(socket, UPGRADED, { value: true });
+  upgraded.add(socket);
   detachHandshakeError(socket);
   socket.write(headers.concat("\r\n").join("\r\n"));
   // Published before the socket opens, because opening is what emits `open`: a listener
   // must read the protocol the server already selected.
   const acceptedState = socketStateOf(accepted);
+
   if (acceptedState !== undefined && protocol) acceptedState.protocol = protocol;
+
   if (acceptedState !== undefined) {
     acceptedState.closeTimeout = state.normalizedOptions.closeTimeout;
     // The server's choice is the socket's on a server socket; without it, an
@@ -83,10 +94,13 @@ export function completeUpgrade(
     // it, so a codec built for an uncompressed connection refuses a compressed frame
     // with 1002.
     acceptedState.compressible = extensions !== null;
+
     if (extensions) acceptedState.extensions = extensions.header;
     acceptedState.threshold = thresholdOf(state.normalizedOptions.perMessageDeflate);
   }
+
   attachSocket(accepted, socket, undefined, head);
+
   if (state.normalizedOptions.clientTracking) trackClient(state, accepted);
   callback(accepted, request);
 }

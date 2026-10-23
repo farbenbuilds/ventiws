@@ -41,6 +41,7 @@ export const buildReport = (
   samples: readonly EchoSample[],
 ): BenchmarkReport => {
   const results = summarize(options, samples);
+
   return {
     provenance,
     parameters: {

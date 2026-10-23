@@ -19,7 +19,7 @@ it is not proof that no memory or security defect remains.
 | `bump.yml`     | Advance the version, push the tag           | push to `main`, manual                                                               | nothing: it commits the version and starts the publish                |
 | `publish.yml`  | Platform build matrix, publish to npm       | a `v*` tag pushed by a maintainer                                                    | every platform builds and its addon loads and echoes                  |
 
-Every gating workflow runs on `ubuntu-24.04`. Node is `node@24` and pnpm
+Every gating workflow runs on `ubuntu-24.04`. Node is `node@24.22.1` and pnpm
 `12.4.2` through `pnpm/setup@v2`, Zig is `0.16.0` through
 `mlugg/setup-zig@v2`, and `nix-lint.yml` installs neither. The pnpm store is
 cached; the jobs that build the addon cache `.zig-cache` and `zig-pkg` under a key
@@ -48,12 +48,12 @@ for every platform the package claims to support.
 
 One runner per platform, each native for the platform it builds. That is a
 constraint rather than a preference. Zig's distribution carries no Apple SDK, so
-a `darwin` target built anywhere else fails at link; and the engine builds its
-vendored BoringSSL, lsquic, libdeflate, and zlib for the host target, which the
-release path then links into a cross-compiled addon. A cross build therefore
-carries an x64 glibc BoringSSL inside an arm64 or Alpine binary: it links, it
-loads, and it misbehaves later, which is the one failure a green pipeline cannot
-catch. `-Dnpm-platform` narrows the graph to the one target the runner owns.
+a `darwin` target built anywhere else fails at link. The release path builds only
+the codec addon (`-Dengine-addon=false`): it links `zslay` and a direct libdeflate
+built for the host target, not the engine's BoringSSL, lsquic, or zlib. A cross
+build would still put host-targeted libdeflate SIMD into another platform's
+binary, a failure a green pipeline cannot catch. `-Dnpm-platform` narrows the
+graph to the one target the runner owns.
 
 `ubuntu-24.04-arm` is free on a public repository and hard-fails the workflow on
 a private one, so going private silently loses a published platform.
@@ -144,10 +144,9 @@ that half-succeeded is repaired by re-running it rather than by hand.
 `oxlint` carries the rules a machine can check: no `class`, `this`, `extends`,
 prototype mutation, `enum`, `any`, or emoji, and no import outside `napi-zig`
 and `uWebZockets`. It also loads the vendored anti-slop plugin at
-`tools/oxlint/anti-slop/index.ts`; those evidence rules are staged at `warn`
-until the follow-up cleanup, while `anti-slop/require-readable-spacing` stays
-off because its autofix conflicts with the 150-line budget. `oxfmt` formats
-TypeScript, JSON, and Markdown. `scripts/check-conventions.mjs` runs inside
+`tools/oxlint/anti-slop/index.ts`, and every evidence rule is enforced at
+`error` alongside the 150-line and comment budgets. `oxfmt` formats TypeScript,
+JSON, and Markdown. `scripts/check-conventions.mjs` runs inside
 `pnpm lint` and as a `lefthook` job and adds what a linter cannot: the 150-line
 module budget, the comment budget, `snake_case` Zig function names, and
 `kebab-case` TypeScript filenames. The vendored `src/types/ws.d.ts` is exempt.
@@ -170,7 +169,7 @@ neither Zig nor the addon; coverage is `zig-test.yml`'s job.
 - `unit` runs `zig build test --summary all`, which compiles
   `src/engine_tests.zig` and the per-module suites under `src/engine-tests/`.
 - `binding` runs `pnpm build:binding`, then `pnpm exec tsdown && pnpm run
-typecheck:dist` to check the built declarations through the `exports` map, then
+  typecheck:dist` to check the built declarations through the `exports` map, then
   `pnpm exec vitest run --no-file-parallelism` for the whole suite. The suites
   run serially because each file builds and tears down a real engine server, and
   parallel invocation fails engine server creation intermittently on this

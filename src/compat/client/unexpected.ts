@@ -16,6 +16,7 @@ export function reportUnexpected(
   response: IncomingMessage,
 ): void {
   const taken = emitEvent(attempt.state, "unexpected-response", request, response);
+
   if (taken) return;
   request.abort();
   abort(

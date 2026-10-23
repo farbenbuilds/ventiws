@@ -38,12 +38,15 @@ type FacadeModule = {
 
 const require = createRequire(import.meta.url);
 
+// SAFETY: the built bundle's CJS export is the ws-shaped facade declared by `FacadeModule`
+// above, because `pnpm build` produced it from `src/index.ts` and `typecheck:dist` checks it.
 const loadFacade = (): FacadeModule => require("../../../dist/index.cjs") as FacadeModule;
 
 const readPort = (address: { readonly port: number } | string | null): number => {
-  if (address === null || typeof address === "string") {
+  if (address === null || !(address instanceof Object)) {
     throw new Error("the facade reported no TCP address");
   }
+
   return address.port;
 };
 
@@ -65,6 +68,7 @@ const facadeServer = (options: EchoServerOptions): EchoServer => {
     port: options.port,
     perMessageDeflate: options.perMessageDeflate,
   });
+
   return {
     listen: () =>
       new Promise<number>((resolve, reject) => {

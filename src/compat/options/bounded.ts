@@ -15,48 +15,50 @@ import {
 
 // A thunk, not a number, because reading the ceiling loads the addon. It is reached only when
 // the option was set, since `ws`'s default is below the ceiling by construction.
-export function maxPayloadOf(source: unknown, ceiling: () => number): number {
-  return boundedOption("maxPayload", source, DEFAULT_MAX_PAYLOAD, ceiling);
+export function maxPayloadOf(raw: number | undefined, ceiling: () => number): number {
+  return boundedOption("maxPayload", raw, DEFAULT_MAX_PAYLOAD, ceiling);
 }
 
 /// Same shape and the same zero-means-no-limit rule as `maxPayloadOf`; `ws` guards it with `_maxFragments > 0`.
-export function maxFragmentsOf(source: unknown, ceiling: () => number): number {
-  return boundedOption("maxFragments", source, DEFAULT_MAX_FRAGMENTS, ceiling);
+export function maxFragmentsOf(raw: number | undefined, ceiling: () => number): number {
+  return boundedOption("maxFragments", raw, DEFAULT_MAX_FRAGMENTS, ceiling);
 }
 
 /// The same zero-means-no-limit rule, with no compiled ceiling: this bounds a count of
 /// retained reads rather than a buffer, and `ws` guards it with `_maxBufferedChunks > 0`
 /// too. An out-of-range value is refused rather than coerced, because a coerced negative
 /// becomes a limit nothing can exceed and a silently dead queue is the harder failure.
-export function maxBufferedChunksOf(source: unknown): number {
-  const raw = (source as { readonly [key: string]: unknown }).maxBufferedChunks;
+export function maxBufferedChunksOf(raw: number | undefined): number {
   if (raw === undefined) return DEFAULT_MAX_BUFFERED_CHUNKS;
-  if (typeof raw !== "number" || !Number.isSafeInteger(raw) || raw < 0) {
+
+  if (!Number.isSafeInteger(raw) || raw < 0) {
     invalidOption(
       `The maxBufferedChunks option must be an integer in [0, ${Number.MAX_SAFE_INTEGER}] (received ${String(raw)})`,
       RangeError,
     );
   }
+
   return raw;
 }
 
 function boundedOption(
   name: string,
-  source: unknown,
+  raw: number | undefined,
   fallback: number,
   readCeiling: () => number,
 ): number {
-  const raw = (source as { readonly [key: string]: unknown })[name];
   if (raw === undefined) return fallback;
-  if (typeof raw === "number" && Number.isSafeInteger(raw) && raw >= 0 && raw === 0) {
-    return readCeiling();
-  }
+
+  if (raw === 0) return readCeiling();
+
   const ceiling = readCeiling();
-  if (typeof raw !== "number" || !Number.isSafeInteger(raw) || raw < 0 || raw > ceiling) {
+
+  if (!Number.isSafeInteger(raw) || raw < 0 || raw > ceiling) {
     invalidOption(
       `The ${name} option must be an integer in [0, ${ceiling}] (received ${String(raw)})`,
       RangeError,
     );
   }
+
   return raw;
 }

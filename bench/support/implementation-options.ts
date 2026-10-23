@@ -10,14 +10,18 @@ export const readImplementations = (
 ): readonly ImplementationId[] => {
   if (raw === undefined) return fallback;
   const fields = raw.split(",").map((field) => field.trim());
+
   if (fields.length === 0) throw new Error(`${flag} expects at least one implementation`);
   const ids: ImplementationId[] = [];
+
   for (const field of fields) {
     if (!isImplementationId(field)) {
       throw new Error(`${flag} has unknown implementation "${field}"`);
     }
+
     if (ids.includes(field)) throw new Error(`${flag} repeats implementation "${field}"`);
     ids.push(field);
   }
+
   return ids;
 };
