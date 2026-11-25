@@ -3,6 +3,17 @@
   "benchmark_id": "echo-throughput-v2",
   "records": [
     {
+      "record_id": "45635528548-1-e5db6d54d546",
+      "recorded_at": "2026-11-25T14:52:25.393Z",
+      "commit_sha": "e5db6d54d546c3b4eb75282c5e899a341c4e4d51",
+      "passed": false,
+      "median_ratio": 1.0893558612003873,
+      "worst_payload_bytes": 64,
+      "worst_ratio": 0.8678820469101799,
+      "record_path": "records/2026/45635528548-1-e5db6d54d546.json",
+      "raw_path": "raw/2026/45635528548-1-e5db6d54d546/report.json"
+    },
+    {
       "record_id": "45420084160-1-e5db6d54d546",
       "recorded_at": "2026-11-24T15:13:58.025Z",
       "commit_sha": "e5db6d54d546c3b4eb75282c5e899a341c4e4d51",
